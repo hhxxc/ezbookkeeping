@@ -1290,19 +1290,6 @@ function filterMultipleTags(): void {
     props.f7router.navigate('/settings/filter/tag?type=transactionListCurrent');
 }
 
-function changeAmountFilter(amountFilter: string): void {
-    if (query.value.amountFilter === amountFilter) {
-        return;
-    }
-
-    const changed = transactionsStore.updateTransactionListFilter({
-        amountFilter: amountFilter
-    });
-
-    if (changed) {
-        reload();
-    }
-}
 
 function toggleSearchbar(): void {
     if (!showSearchbar.value) {

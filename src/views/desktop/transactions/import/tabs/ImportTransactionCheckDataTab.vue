@@ -388,6 +388,8 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { type NameValue, type NameNumeralValue, itemAndIndex, reversed, keys } from '@/core/base.ts';
 import { CategoryType } from '@/core/category.ts';
+import { TransactionType } from '@/core/transaction.ts';
+import { ImportTransactionColumnType } from '@/core/import_transaction.ts';
 import { Account, type CategorizedAccountWithDisplayBalance } from '@/models/account.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
