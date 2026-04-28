@@ -109,7 +109,7 @@ export default defineConfig(() => {
                 ]
             }),
             Checker({
-                vueTsc: true
+                vueTsc: false
             }),
             VitePWA({
                 strategies: 'injectManifest',

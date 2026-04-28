@@ -1519,6 +1519,8 @@
     "More": "更多",
     "All": "全部",
     "Partial": "部分",
+    "Greater Than 0": "大于0",
+    "Less Than 0": "小于0",
     "WHERE": "条件",
     "AND": "与",
     "OR": "或",

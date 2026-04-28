@@ -64,8 +64,11 @@
             <f7-link popover-open=".account-popover-menu" :class="{ 'tabbar-text-with-ellipsis': true, 'disabled': loading }">
                 <span :class="{ 'tabbar-item-changed': query.accountIds }">{{ queryAccountName }}</span>
             </f7-link>
+            <f7-link :class="{ 'disabled': loading }" @click="toggleAmountSort">
+                <f7-icon f7="arrow_up_arrow_down_circle" :class="{ 'tabbar-item-changed': query.sortBy === 'amount' }"></f7-icon>
+            </f7-link>
             <f7-link popover-open=".more-popover-menu" :class="{ 'disabled': loading }">
-                <f7-icon f7="ellipsis_vertical" :class="{ 'tabbar-item-changed': query.type > 0 || query.amountFilter || query.tagFilter }"></f7-icon>
+                <f7-icon f7="ellipsis_vertical" :class="{ 'tabbar-item-changed': query.type > 0 || query.tagFilter }"></f7-icon>
             </f7-link>
         </f7-toolbar>
 
@@ -509,29 +512,6 @@
                 </f7-list-item>
 
                 <f7-list-item group-title>
-                    <small>{{ tt('Amount') }}</small>
-                </f7-list-item>
-                <f7-list-item link="#" no-chevron popover-close
-                              :class="{ 'list-item-selected': !query.amountFilter }"
-                              :title="tt('All')"
-                              @click="changeAmountFilter('')">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="!query.amountFilter"></f7-icon>
-                    </template>
-                </f7-list-item>
-                <f7-list-item link="#" no-chevron popover-close
-                              :key="filterType.type"
-                              :class="{ 'list-item-selected': query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`) }"
-                              :title="tt(filterType.name)"
-                              v-for="filterType in AmountFilterType.values()"
-                              @click="changeAmountFilter(filterType.type)">
-                    <template #after>
-                        <span class="margin-inline-end-half" v-if="query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`)">{{ queryAmount }}</span>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`)"></f7-icon>
-                    </template>
-                </f7-list-item>
-
-                <f7-list-item group-title>
                     <small>{{ tt('Tags') }}</small>
                 </f7-list-item>
                 <f7-list-item link="#" no-chevron popover-close
@@ -631,7 +611,7 @@ import {
     DateRangeScene,
     DateRange
 } from '@/core/datetime.ts';
-import { AmountFilterType } from '@/core/numeral.ts';
+
 import { TransactionType } from '@/core/transaction.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
@@ -712,7 +692,7 @@ const {
     queryAllFilterTagIdsCount,
     queryAccountName,
     queryCategoryName,
-    queryAmount,
+
     transactionCalendarMinDate,
     transactionCalendarMaxDate,
     currentMonthTransactionData,
@@ -948,7 +928,10 @@ function init(): void {
         categoryIds: initQuery['categoryIds'],
         accountIds: initQuery['accountIds'],
         tagFilter: initQuery['tagFilter'],
-        keyword: initQuery['keyword']
+        amountFilter: initQuery['amountFilter'],
+        keyword: initQuery['keyword'],
+        sortBy: initQuery['sortBy'] || 'time',
+        sortOrder: initQuery['sortOrder'] || 'desc'
     });
 
     reload();
@@ -1307,6 +1290,20 @@ function filterMultipleTags(): void {
     props.f7router.navigate('/settings/filter/tag?type=transactionListCurrent');
 }
 
+function changeAmountFilter(amountFilter: string): void {
+    if (query.value.amountFilter === amountFilter) {
+        return;
+    }
+
+    const changed = transactionsStore.updateTransactionListFilter({
+        amountFilter: amountFilter
+    });
+
+    if (changed) {
+        reload();
+    }
+}
+
 function toggleSearchbar(): void {
     if (!showSearchbar.value) {
         showSearchbar.value = true;
@@ -1333,18 +1330,21 @@ function changeKeywordFilter(keyword: string): void {
     }
 }
 
-function changeAmountFilter(filterType: string): void {
-    if (query.value.amountFilter === filterType) {
-        return;
-    }
 
-    if (filterType) {
-        props.f7router.navigate(`/transaction/filter/amount?type=${filterType}&value=${query.value.amountFilter}`);
-        return;
+
+function toggleAmountSort(): void {
+    // Toggle between ascending and descending sort order for amount
+    let newSortBy: string = 'amount';
+    let newSortOrder: string = 'desc'; // Default to descending
+
+    if (query.value.sortBy === 'amount') {
+        // If already sorting by amount, toggle the order
+        newSortOrder = query.value.sortOrder === 'asc' ? 'desc' : 'asc';
     }
 
     const changed = transactionsStore.updateTransactionListFilter({
-        amountFilter: filterType
+        sortBy: newSortBy,
+        sortOrder: newSortOrder
     });
 
     if (changed) {

@@ -1,0 +1,1 @@
+import"./modulepreload-polyfill-B5Qt9EMX.js";import{ap as r}from"./vendor-common-D92o6AZV.js";function a(){if(!navigator.userAgent)return!1;const e=r(navigator.userAgent);if(!e||!e.device)return!1;const t=e.device;return t.type==="mobile"||t.type==="wearable"||t.type==="embedded"}function i(e){window.location.replace(`${e}#/`)}a()?i("mobile"):i("desktop");

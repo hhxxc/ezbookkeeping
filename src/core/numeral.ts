@@ -440,37 +440,6 @@ export class AmountFilterType {
     private static readonly allInstances: AmountFilterType[] = [];
     private static readonly allInstancesByType: Record<string, AmountFilterType> = {};
 
-    public static readonly GreaterThan = new AmountFilterType('gt', 'Greater than', 1,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 0 && amount > (params[0] as number);
-        }
-    );
-    public static readonly LessThan = new AmountFilterType('lt', 'Less than', 1,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 0 && amount < (params[0] as number);
-        }
-    );
-    public static readonly EqualTo = new AmountFilterType('eq', 'Equal to', 1,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 0 && amount === (params[0] as number);
-        }
-    );
-    public static readonly NotEqualTo = new AmountFilterType('ne', 'Not equal to', 1,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 0 && amount !== (params[0] as number);
-        }
-    );
-    public static readonly Between = new AmountFilterType('bt', 'Between', 2,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 1 && amount >= (params[0] as number) && amount <= (params[1] as number);
-        }
-    );
-    public static readonly NotBetween = new AmountFilterType('nb', 'Not between', 2,
-        (amount: number, ...params: number[]) => {
-            return params && params.length > 1 && (amount < (params[0] as number) || amount > (params[1] as number));
-        }
-    );
-
     public readonly type: string;
     public readonly name: string;
     public readonly paramCount: number;
@@ -492,40 +461,12 @@ export class AmountFilterType {
         } else if (this.paramCount === 2) {
             return `${this.type}:${params[0] ?? ''}:${params[1] ?? ''}`;
         } else {
-            return '';
+            return this.type;
         }
     }
 
-    public static match(filter: string, amount: number): boolean {
-        const parts = filter.split(':');
-
-        if (parts.length < 2) {
-            return false;
-        }
-
-        const filterType = AmountFilterType.valueOf(parts[0] as string);
-
-        if (!filterType) {
-            return false;
-        }
-
-        if (parts.length - 1 !== filterType.paramCount) {
-            return false;
-        }
-
-        const params: number[] = [];
-
-        for (let i = 1; i < parts.length; i++) {
-            const param = parseInt(parts[i] as string);
-
-            if (Number.isNaN(param)) {
-                return false;
-            }
-
-            params.push(param);
-        }
-
-        return filterType.matchFn(amount, ...params);
+    public match(amount: number, ...params: number[]): boolean {
+        return this.matchFn(amount, ...params);
     }
 
     public static values(): AmountFilterType[] {

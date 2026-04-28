@@ -9,7 +9,7 @@ import { useTransactionTagsStore } from './transactionTag.ts';
 import { useExchangeRatesStore } from './exchangeRates.ts';
 
 import { type BeforeResolveFunction, itemAndIndex, keys, values } from '@/core/base.ts';
-import { NumeralSystem, AmountFilterType } from '@/core/numeral.ts';
+import { NumeralSystem } from '@/core/numeral.ts';
 import { type DateTime, DateRangeScene, DateRange } from '@/core/datetime.ts';
 import { TimezoneTypeForStatistics } from '@/core/timezone.ts';
 import { AccountCategory } from '@/core/account.ts';
@@ -1551,7 +1551,8 @@ export const useExplorersStore = defineStore('explorers', () => {
         } else if (dimensionType === TransactionExplorerDimensionType.Category) {
             querys.push(`categoryIds=${itemId}`);
         } else if (dimensionType === TransactionExplorerDimensionType.Amount) {
-            querys.push(`amountFilter=${encodeURIComponent(AmountFilterType.EqualTo.toTextualFilter(parseInt(itemId)))}`);
+            // Amount filter has been removed, no longer generate amountFilter parameter
+            // Just pass through without filtering by amount
         } else {
             return '';
         }
@@ -1561,46 +1562,6 @@ export const useExplorersStore = defineStore('explorers', () => {
         querys.push('maxTime=' + transactionExplorerFilter.value.endTime);
 
         return querys.join('&');
-    }
-
-    function loadAllTransactions({ force }: { force: boolean }): Promise<TransactionInfoResponse[]> {
-        return new Promise((resolve, reject) => {
-            services.getAllTransactions({
-                startTime: transactionExplorerFilter.value.startTime,
-                endTime: transactionExplorerFilter.value.endTime,
-                withPictures: true
-            }).then(response => {
-                const data = response.data;
-
-                if (!data || !data.success || !data.result) {
-                    reject({ message: 'Unable to retrieve all transactions' });
-                    return;
-                }
-
-                if (transactionExplorerStateInvalid.value) {
-                    updateTransactionExplorerInvalidState(false);
-                }
-
-                if (force && data.result && isEquals(transactionExplorerAllData.value, data.result)) {
-                    reject({ message: 'Data is up to date', isUpToDate: true });
-                    return;
-                }
-
-                transactionExplorerAllData.value = data.result;
-
-                resolve(data.result);
-            }).catch(error => {
-                logger.error('failed to load all transactions', error);
-
-                if (error.response && error.response.data && error.response.data.errorMessage) {
-                    reject({ error: error.response.data });
-                } else if (!error.processed) {
-                    reject({ message: 'Unable to retrieve all transactions' });
-                } else {
-                    reject(error);
-                }
-            });
-        });
     }
 
     function loadAllInsightsExplorerBasicInfos({ force }: { force?: boolean }): Promise<InsightsExplorerBasicInfo[]> {
@@ -1651,6 +1612,46 @@ export const useExplorersStore = defineStore('explorers', () => {
         });
     }
 
+    function loadAllTransactions({ force }: { force: boolean }): Promise<TransactionInfoResponse[]> {
+        return new Promise((resolve, reject) => {
+            services.getAllTransactions({
+                startTime: transactionExplorerFilter.value.startTime,
+                endTime: transactionExplorerFilter.value.endTime,
+                withPictures: true
+            }).then(response => {
+                const data = response.data;
+
+                if (!data || !data.success || !data.result) {
+                    reject({ message: 'Unable to retrieve all transactions' });
+                    return;
+                }
+
+                if (transactionExplorerStateInvalid.value) {
+                    updateTransactionExplorerInvalidState(false);
+                }
+
+                if (force && data.result && isEquals(transactionExplorerAllData.value, data.result)) {
+                    reject({ message: 'Data is up to date', isUpToDate: true });
+                    return;
+                }
+
+                transactionExplorerAllData.value = data.result;
+
+                resolve(data.result);
+            }).catch(error => {
+                logger.error('failed to load all transactions', error);
+
+                if (error.response && error.response.data && error.response.data.errorMessage) {
+                    reject({ error: error.response.data });
+                } else if (!error.processed) {
+                    reject({ message: 'Unable to retrieve all transactions' });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
     function getInsightsExplorer({ explorerId }: { explorerId: string }): Promise<InsightsExplorer> {
         return new Promise((resolve, reject) => {
             services.getInsightsExplorer({
@@ -1664,7 +1665,6 @@ export const useExplorersStore = defineStore('explorers', () => {
                 }
 
                 const transactionCategory = InsightsExplorer.of(data.result);
-
                 resolve(transactionCategory);
             }).catch(error => {
                 logger.error('failed to load explorer info', error);
