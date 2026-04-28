@@ -648,7 +648,6 @@ import type { TransactionTemplate } from '@/models/transaction_template.ts';
 import {
     isDefined,
     isObject,
-    isString,
     isNumber,
     objectFieldWithValueToArrayItem
 } from '@/lib/common.ts';
@@ -674,7 +673,6 @@ import {
 } from '@/lib/category.ts';
 import { isDataExportingEnabled, isDataImportingEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { scrollToSelectedItem, startDownloadFile } from '@/lib/ui/common.ts';
-import logger from '@/lib/logger.ts';
 
 import {
     mdiMagnify,
