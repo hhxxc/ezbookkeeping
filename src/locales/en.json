@@ -1519,6 +1519,8 @@
     "More": "More",
     "All": "All",
     "Partial": "Partial",
+    "Greater Than 0": "Greater Than 0",
+    "Less Than 0": "Less Than 0",
     "WHERE": "WHERE",
     "AND": "AND",
     "OR": "OR",

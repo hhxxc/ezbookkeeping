@@ -331,35 +331,6 @@
         </template>
     </v-data-table>
 
-    <v-dialog width="640" v-model="showCustomAmountFilterDialog">
-        <v-card class="pa-sm-1 pa-md-2">
-            <template #title>
-                <div class="d-flex align-center">
-                    <h4 class="text-h4">{{ tt('Filter Amount') }}</h4>
-                </div>
-            </template>
-            <v-card-text class="w-100 d-flex justify-center">
-                <div class="me-2 d-flex flex-column justify-center" v-if="currentAmountFilterType">
-                    {{ tt(currentAmountFilterType.name) }}
-                </div>
-                <amount-input :currency="defaultCurrency"
-                              v-model="currentAmountFilterValue1"/>
-                <div class="ms-2 me-2 d-flex flex-column justify-center" v-if="currentAmountFilterType && currentAmountFilterType.paramCount === 2">
-                    ~
-                </div>
-                <amount-input :currency="defaultCurrency"
-                              v-model="currentAmountFilterValue2"
-                              v-if="currentAmountFilterType && currentAmountFilterType.paramCount === 2"/>
-            </v-card-text>
-            <v-card-text>
-                <div class="w-100 d-flex justify-center flex-wrap mt-sm-1 mt-md-2 gap-4">
-                    <v-btn @click="showCustomAmountFilterDialog = false; filters.amount = currentAmountFilterType?.toTextualFilter(currentAmountFilterValue1, currentAmountFilterValue2) ?? null">{{ tt('OK') }}</v-btn>
-                    <v-btn color="secondary" variant="tonal" @click="showCustomAmountFilterDialog = false">{{ tt('Cancel') }}</v-btn>
-                </div>
-            </v-card-text>
-        </v-card>
-    </v-dialog>
-
     <v-dialog width="640" v-model="showCustomDescriptionDialog">
         <v-card class="pa-sm-1 pa-md-2">
             <template #title>
@@ -416,12 +387,7 @@ import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { type NameValue, type NameNumeralValue, itemAndIndex, reversed, keys } from '@/core/base.ts';
-import { AmountFilterType } from '@/core/numeral.ts';
 import { CategoryType } from '@/core/category.ts';
-import { TransactionType } from '@/core/transaction.ts';
-import { KnownFileType } from '@/core/file.ts';
-import { ImportTransactionColumnType } from '@/core/import_transaction.ts';
-
 import { Account, type CategorizedAccountWithDisplayBalance } from '@/models/account.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
@@ -546,11 +512,7 @@ const filters = ref<ImportTransactionCheckDataFilter>({
 const currentPage = ref<number>(1);
 const countPerPage = ref<number>(10);
 const showCustomDateRangeDialog = ref<boolean>(false);
-const showCustomAmountFilterDialog = ref<boolean>(false);
 const showCustomDescriptionDialog = ref<boolean>(false);
-const currentAmountFilterType = ref<AmountFilterType | null>(null);
-const currentAmountFilterValue1 = ref<number>(0);
-const currentAmountFilterValue2 = ref<number>(0);
 const currentDescriptionFilterValue = ref<string | null>(null);
 
 const showAccountBalance = computed<boolean>(() => settingsStore.appSettings.showAccountBalance);
@@ -679,39 +641,64 @@ const filterMenus = computed<ImportTransactionCheckDataMenuGroup[]>(() => [
                 appendIcon: !filters.value.amount ? mdiCheck : undefined,
                 onClick: () => filters.value.amount = null
             },
-            ...AmountFilterType.values().map(filterType => ({
-                title: tt(filterType.name),
-                appendIcon: filters.value.amount && filters.value.amount.startsWith(`${filterType.type}:`) ? mdiCheck : undefined,
+            {
+                title: tt('Sort Ascending'),
+                appendIcon: filters.value.amount === 'asc' ? mdiCheck : undefined,
+                onClick: () => filters.value.amount = 'asc'
+            },
+            {
+                title: tt('Sort Descending'),
+                appendIcon: filters.value.amount === 'desc' ? mdiCheck : undefined,
+                onClick: () => filters.value.amount = 'desc'
+            }
+        ]
+    },
+
+    {
+        title: tt('Date'),
+        items: [
+            {
+                title: tt('All'),
+                appendIcon: !filters.value.date ? mdiCheck : undefined,
+                onClick: () => filters.value.date = null
+            },
+            {
+                title: tt('Today'),
+                appendIcon: filters.value.date === 'today' ? mdiCheck : undefined,
+                onClick: () => filters.value.date = 'today'
+            },
+            {
+                title: tt('Yesterday'),
+                appendIcon: filters.value.date === 'yesterday' ? mdiCheck : undefined,
+                onClick: () => filters.value.date = 'yesterday'
+            },
+            {
+                title: tt('Last 7 Days'),
+                appendIcon: filters.value.date === 'last7days' ? mdiCheck : undefined,
+                onClick: () => filters.value.date = 'last7days'
+            },
+            {
+                title: tt('Last 30 Days'),
+                appendIcon: filters.value.date === 'last30days' ? mdiCheck : undefined,
+                onClick: () => filters.value.date = 'last30days'
+            },
+            {
+                title: tt('Custom'),
+                appendIcon: filters.value.date && filters.value.date.startsWith('custom:') ? mdiCheck : undefined,
                 onClick: () => {
-                    let filterValue1: number = 0;
-                    let filterValue2: number = 0;
+                    const parts = filters.value.date?.split(':');
 
-                    if (filters.value.amount) {
-                        const parts = filters.value.amount.split(':');
-
-                        if (parts.length >= 2) {
-                            filterValue1 = parseInt(parts[1] as string);
-                        }
-
-                        if (parts.length >= 3) {
-                            filterValue2 = parseInt(parts[2] as string);
-                        }
+                    if (parts?.length >= 2) {
+                        startDate.value = new Date(parts[1]);
                     }
 
-                    if (Number.isNaN(filterValue1) || !Number.isFinite(filterValue1)) {
-                        filterValue1 = 0;
+                    if (parts?.length >= 3) {
+                        endDate.value = new Date(parts[2]);
                     }
 
-                    if (Number.isNaN(filterValue2) || !Number.isFinite(filterValue2)) {
-                        filterValue2 = 0;
-                    }
-
-                    currentAmountFilterType.value = filterType;
-                    currentAmountFilterValue1.value = filterValue1;
-                    currentAmountFilterValue2.value = filterValue2;
-                    showCustomAmountFilterDialog.value = true;
+                    showCustomDateFilterDialog.value = true;
                 }
-            }))
+            }
         ]
     },
     {

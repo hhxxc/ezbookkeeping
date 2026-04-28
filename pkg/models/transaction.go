@@ -218,6 +218,8 @@ type TransactionCountRequest struct {
 	Keyword      string          `form:"keyword"`
 	MaxTime      int64           `form:"max_time" binding:"min=0"` // Transaction time sequence id
 	MinTime      int64           `form:"min_time" binding:"min=0"` // Transaction time sequence id
+	SortBy       string          `form:"sort_by" binding:"omitempty,oneof=time amount"` // Sort field: time or amount
+	SortOrder    string          `form:"sort_order" binding:"omitempty,oneof=asc desc"` // Sort order: asc or desc
 }
 
 // TransactionListByMaxTimeRequest represents all parameters of transaction listing by max time request
@@ -237,6 +239,8 @@ type TransactionListByMaxTimeRequest struct {
 	TrimAccount  bool            `form:"trim_account"`
 	TrimCategory bool            `form:"trim_category"`
 	TrimTag      bool            `form:"trim_tag"`
+	SortBy       string          `form:"sort_by" binding:"omitempty,oneof=time amount"` // Sort field: time or amount
+	SortOrder    string          `form:"sort_order" binding:"omitempty,oneof=asc desc"` // Sort order: asc or desc
 }
 
 // TransactionListInMonthByPageRequest represents all parameters of transaction listing by month request
@@ -253,6 +257,8 @@ type TransactionListInMonthByPageRequest struct {
 	TrimAccount  bool            `form:"trim_account"`
 	TrimCategory bool            `form:"trim_category"`
 	TrimTag      bool            `form:"trim_tag"`
+	SortBy       string          `form:"sort_by" binding:"omitempty,oneof=time amount"` // Sort field: time or amount
+	SortOrder    string          `form:"sort_order" binding:"omitempty,oneof=asc desc"` // Sort order: asc or desc
 }
 
 // TransactionAllListRequest represents all parameters of all transaction listing request

@@ -55,7 +55,7 @@ func (s *TransactionService) GetAllTransactions(c core.Context, uid int64, pageC
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetAllTransactionsByMaxTime(c, uid, maxTransactionTime, pageCount, noDuplicated)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", 1, pageCountForLoadTransactionAmounts, false, false, "", "desc")
 
 		if err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func (s *TransactionService) GetAllTransactions(c core.Context, uid int64, pageC
 
 // GetAllTransactionsByMaxTime returns all transactions before given time
 func (s *TransactionService) GetAllTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, count int32, noDuplicated bool) ([]*models.Transaction, error) {
-	return s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", 1, count, false, noDuplicated)
+	return s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", 1, count, false, noDuplicated, "", "desc")
 }
 
 // GetAllSpecifiedTransactions returns all transactions that match given conditions
@@ -88,7 +88,7 @@ func (s *TransactionService) GetAllSpecifiedTransactions(c core.Context, uid int
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, 1, pageCount, false, noDuplicated)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, 1, pageCount, false, noDuplicated, "", "desc")
 
 		if err != nil {
 			return nil, err
@@ -116,7 +116,7 @@ func (s *TransactionService) GetAllTransactionsInOneAccountWithAccountBalanceByM
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, []int64{accountId}, nil, false, "", "", 1, pageCount, false, true)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, []int64{accountId}, nil, false, "", "", 1, pageCount, false, true, "", "desc")
 
 		if err != nil {
 			return nil, 0, 0, 0, 0, err
@@ -206,7 +206,7 @@ func (s *TransactionService) GetAllAccountsDailyOpeningAndClosingBalance(c core.
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", 1, pageCountForLoadTransactionAmounts, false, false)
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, 0, 0, nil, nil, nil, false, "", "", 1, pageCountForLoadTransactionAmounts, false, false, "", "desc")
 
 		if err != nil {
 			return nil, err
@@ -323,7 +323,7 @@ func (s *TransactionService) GetAllAccountsDailyOpeningAndClosingBalance(c core.
 }
 
 // GetTransactionsByMaxTime returns transactions before given time
-func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, page int32, count int32, needOneMoreItem bool, noDuplicated bool) ([]*models.Transaction, error) {
+func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, page int32, count int32, needOneMoreItem bool, noDuplicated bool, sortBy string, sortOrder string) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -361,9 +361,29 @@ func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64,
 	sess := s.UserDataDB(uid).NewSession(c).Where(condition, conditionParams...)
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 
-	err = sess.Limit(int(actualCount), int(count*(page-1))).OrderBy("transaction_time desc").Find(&transactions)
+	// Apply sorting
+	orderByClause := s.buildTransactionOrderByClause(sortBy, sortOrder)
+	err = sess.Limit(int(actualCount), int(count*(page-1))).OrderBy(orderByClause).Find(&transactions)
 
 	return transactions, err
+}
+
+// buildTransactionOrderByClause builds the ORDER BY clause based on sort parameters
+func (s *TransactionService) buildTransactionOrderByClause(sortBy string, sortOrder string) string {
+	// Default to time descending
+	if sortBy == "" {
+		sortBy = "time"
+	}
+	if sortOrder == "" {
+		sortOrder = "desc"
+	}
+
+	if sortBy == "amount" {
+		return "amount " + sortOrder
+	}
+	
+	// Default: sort by time
+	return "transaction_time " + sortOrder
 }
 
 // GetTransactionsInMonthByPage returns all transactions in given year and month

@@ -516,7 +516,16 @@ export default {
         const tagFilter = encodeURIComponent(req.tagFilter);
         const amountFilter = encodeURIComponent(req.amountFilter);
         const keyword = encodeURIComponent(req.keyword);
-        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(`v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&trim_account=true&trim_category=true&trim_tag=true`);
+        let url = `v1/transactions/list.json?max_time=${req.maxTime}&min_time=${req.minTime}&type=${req.type}&category_ids=${req.categoryIds}&account_ids=${req.accountIds}&tag_filter=${tagFilter}&amount_filter=${amountFilter}&keyword=${keyword}&count=${req.count}&page=${req.page}&with_count=${req.withCount}&trim_account=true&trim_category=true&trim_tag=true`;
+        
+        if (req.sortBy) {
+            url += `&sort_by=${req.sortBy}`;
+        }
+        if (req.sortOrder) {
+            url += `&sort_order=${req.sortOrder}`;
+        }
+        
+        return axios.get<ApiResponse<TransactionInfoPageWrapperResponse>>(url);
     },
     getAllTransactionsByMonth: (req: TransactionListInMonthByPageRequest): ApiResponsePromise<TransactionInfoPageWrapperResponse2> => {
         const tagFilter = encodeURIComponent(req.tagFilter);

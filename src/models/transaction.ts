@@ -589,6 +589,8 @@ export interface TransactionListByMaxTimeRequest {
     readonly tagFilter: string;
     readonly amountFilter: string;
     readonly keyword: string;
+    readonly sortBy?: string;      // Sort field: 'time' or 'amount'
+    readonly sortOrder?: string;   // Sort order: 'asc' or 'desc'
 }
 
 export interface TransactionListInMonthByPageRequest {

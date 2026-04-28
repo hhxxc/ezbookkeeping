@@ -228,6 +228,12 @@ export function useTransactionListPageBase() {
             return '';
         }
 
+        if (query.value.amountFilter === 'gt:0') {
+            return tt('Greater Than 0');
+        } else if (query.value.amountFilter === 'lt:0') {
+            return tt('Less Than 0');
+        }
+
         const amountFilterItems = query.value.amountFilter.split(':');
 
         if (amountFilterItems.length < 2) {

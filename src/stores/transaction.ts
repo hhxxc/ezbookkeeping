@@ -71,6 +71,8 @@ export interface TransactionListPartialFilter {
     tagFilter?: string;
     amountFilter?: string;
     keyword?: string;
+    sortBy?: string;      // Sort field: 'time' or 'amount'
+    sortOrder?: string;   // Sort order: 'asc' or 'desc'
 }
 
 export interface TransactionListFilter extends TransactionListPartialFilter {
@@ -83,6 +85,8 @@ export interface TransactionListFilter extends TransactionListPartialFilter {
     tagFilter: string;
     amountFilter: string;
     keyword: string;
+    sortBy: string;      // Sort field: 'time' or 'amount'
+    sortOrder: string;   // Sort order: 'asc' or 'desc'
 }
 
 export interface TransactionTotalAmount {
@@ -123,7 +127,9 @@ export const useTransactionsStore = defineStore('transactions', () => {
         accountIds: '',
         tagFilter: '',
         amountFilter: '',
-        keyword: ''
+        keyword: '',
+        sortBy: 'time',      // Default sort by time
+        sortOrder: 'desc'    // Default sort descending
     });
 
     const transactions = ref<TransactionMonthList[]>([]);
@@ -686,6 +692,18 @@ export const useTransactionsStore = defineStore('transactions', () => {
         } else {
             transactionsFilter.value.keyword = '';
         }
+
+        if (filter && isString(filter.sortBy)) {
+            transactionsFilter.value.sortBy = filter.sortBy;
+        } else {
+            transactionsFilter.value.sortBy = 'time';
+        }
+
+        if (filter && isString(filter.sortOrder)) {
+            transactionsFilter.value.sortOrder = filter.sortOrder;
+        } else {
+            transactionsFilter.value.sortOrder = 'desc';
+        }
     }
 
     function updateTransactionListFilter(filter: TransactionListPartialFilter): boolean {
@@ -741,6 +759,16 @@ export const useTransactionsStore = defineStore('transactions', () => {
             changed = true;
         }
 
+        if (filter && isString(filter.sortBy) && transactionsFilter.value.sortBy !== filter.sortBy) {
+            transactionsFilter.value.sortBy = filter.sortBy;
+            changed = true;
+        }
+
+        if (filter && isString(filter.sortOrder) && transactionsFilter.value.sortOrder !== filter.sortOrder) {
+            transactionsFilter.value.sortOrder = filter.sortOrder;
+            changed = true;
+        }
+
         return changed;
     }
 
@@ -780,6 +808,14 @@ export const useTransactionsStore = defineStore('transactions', () => {
             querys.push('keyword=' + encodeURIComponent(transactionsFilter.value.keyword));
         }
 
+        if (transactionsFilter.value.sortBy) {
+            querys.push('sortBy=' + transactionsFilter.value.sortBy);
+        }
+
+        if (transactionsFilter.value.sortOrder) {
+            querys.push('sortOrder=' + transactionsFilter.value.sortOrder);
+        }
+
         return querys.join('&');
     }
 
@@ -817,7 +853,9 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 accountIds: transactionsFilter.value.accountIds,
                 tagFilter: transactionsFilter.value.tagFilter,
                 amountFilter: transactionsFilter.value.amountFilter,
-                keyword: transactionsFilter.value.keyword
+                keyword: transactionsFilter.value.keyword,
+                sortBy: transactionsFilter.value.sortBy,
+                sortOrder: transactionsFilter.value.sortOrder
             }).then(response => {
                 const data = response.data;
 

@@ -160,7 +160,7 @@ func (h *mcpQueryTransactionsToolHandler) Handle(c *core.WebContext, callToolReq
 		return nil, nil, err
 	}
 
-	transactions, err := services.GetTransactionService().GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, filterCategoryIds, filterAccountIds, nil, false, "", queryTransactionsRequest.Keyword, queryTransactionsRequest.Page, queryTransactionsRequest.Count, false, true)
+	transactions, err := services.GetTransactionService().GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, filterCategoryIds, filterAccountIds, nil, false, "", queryTransactionsRequest.Keyword, queryTransactionsRequest.Page, queryTransactionsRequest.Count, false, true, "", "desc")
 	structuredResponse, response, err := h.createNewMCPQueryTransactionsResponse(c, &queryTransactionsRequest, transactions, totalCount, services.GetAccountService().GetAccountMapByList(allAccounts), services.GetTransactionCategoryService().GetCategoryMapByList(allCategories))
 
 	if err != nil {

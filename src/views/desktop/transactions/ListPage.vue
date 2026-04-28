@@ -319,58 +319,12 @@
                                                 </v-menu>
                                             </th>
                                             <th class="transaction-table-column-amount text-no-wrap">
-                                                <v-menu ref="amountFilterMenu" class="transaction-amount-menu"
-                                                        eager location="bottom" max-height="500"
-                                                        :close-on-content-click="false"
-                                                        v-model="amountMenuState"
-                                                        @update:model-value="scrollAmountMenuToSelectedItem">
-                                                    <template #activator="{ props }">
-                                                        <div class="d-flex align-center cursor-pointer"
-                                                             :class="{ 'readonly': loading, 'text-primary': query.amountFilter }" v-bind="props">
-                                                            <span>{{ tt('Amount') }}</span>
-                                                            <v-icon :icon="mdiMenuDown" />
-                                                        </div>
-                                                    </template>
-                                                    <v-list :selected="[query.amountFilter.split(':')[0]]">
-                                                        <v-list-item key="" value="" class="text-sm" density="compact"
-                                                                     :class="{ 'list-item-selected': !query.amountFilter }"
-                                                                     :append-icon="(!query.amountFilter && !currentAmountFilterType ? mdiCheck : undefined)">
-                                                            <v-list-item-title class="cursor-pointer"
-                                                                               @click="changeAmountFilter('')">
-                                                                <div class="d-flex align-center">
-                                                                    <span class="text-sm ms-3">{{ tt('All') }}</span>
-                                                                </div>
-                                                            </v-list-item-title>
-                                                        </v-list-item>
-                                                        <template :key="filterType.type"
-                                                                  v-for="filterType in AmountFilterType.values()">
-                                                            <v-list-item class="text-sm" density="compact"
-                                                                         :value="filterType.type"
-                                                                         :class="{ 'list-item-selected': query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`) }"
-                                                                         :append-icon="(query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`) && currentAmountFilterType !== filterType.type ? mdiCheck : undefined)">
-                                                                <v-list-item-title class="cursor-pointer"
-                                                                                   @click="currentAmountFilterType = filterType.type">
-                                                                    <div class="d-flex align-center">
-                                                                        <span class="text-sm ms-3">{{ tt(filterType.name) }}</span>
-                                                                        <span class="text-sm ms-4" v-if="query.amountFilter && query.amountFilter.startsWith(`${filterType.type}:`) && currentAmountFilterType !== filterType.type">{{ queryAmount }}</span>
-                                                                        <amount-input class="transaction-amount-filter-value ms-4" density="compact"
-                                                                                      :currency="defaultCurrency"
-                                                                                      v-model="currentAmountFilterValue1"
-                                                                                      v-if="currentAmountFilterType === filterType.type"/>
-                                                                        <span class="ms-2 me-2" v-if="currentAmountFilterType === filterType.type && filterType.paramCount === 2">~</span>
-                                                                        <amount-input class="transaction-amount-filter-value" density="compact"
-                                                                                      :currency="defaultCurrency"
-                                                                                      v-model="currentAmountFilterValue2"
-                                                                                      v-if="currentAmountFilterType === filterType.type && filterType.paramCount === 2"/>
-                                                                        <v-btn class="ms-2" density="compact" color="primary" variant="tonal"
-                                                                               @click="changeAmountFilter(filterType.type)"
-                                                                               v-if="currentAmountFilterType === filterType.type">{{ tt('Apply') }}</v-btn>
-                                                                    </div>
-                                                                </v-list-item-title>
-                                                            </v-list-item>
-                                                        </template>
-                                                    </v-list>
-                                                </v-menu>
+                                                <div class="d-flex align-center cursor-pointer"
+                                                     :class="{ 'readonly': loading, 'text-primary': query.sortBy === 'amount' }"
+                                                     @click="toggleAmountSort()">
+                                                    <span>{{ tt('Amount') }}</span>
+                                                    <v-icon :icon="query.sortBy === 'amount' && query.sortOrder === 'asc' ? mdiArrowUp : mdiArrowDown" />
+                                                </div>
                                             </th>
                                             <th class="transaction-table-column-account text-no-wrap">
                                                 <v-menu ref="accountFilterMenu" class="transaction-account-menu"
@@ -684,7 +638,6 @@ import {
     DateRangeScene,
     DateRange
 } from '@/core/datetime.ts';
-import { AmountFilterType } from '@/core/numeral.ts';
 import { ThemeType } from '@/core/theme.ts';
 import { TransactionType } from '@/core/transaction.ts';
 import { TemplateType }  from '@/core/template.ts';
@@ -736,6 +689,8 @@ import {
     mdiPencilBoxOutline,
     mdiArrowLeft,
     mdiArrowRight,
+    mdiArrowUp,
+    mdiArrowDown,
     mdiPound,
     mdiMagicStaff,
     mdiTextBoxOutline
@@ -751,7 +706,9 @@ interface TransactionListProps {
     initAccountIds?: string,
     initTagFilter?: string,
     initAmountFilter?: string,
-    initKeyword?: string
+    initKeyword?: string,
+    initSortBy?: string,
+    initSortOrder?: string
 }
 
 const props = defineProps<TransactionListProps>();
@@ -814,7 +771,7 @@ const {
     queryAccountName,
     queryCategoryName,
     queryTagName,
-    queryAmount,
+
     transactionCalendarMinDate,
     transactionCalendarMaxDate,
     currentMonthTransactionData,
@@ -842,7 +799,7 @@ const desktopPageStore = useDesktopPageStore();
 
 const timeFilterMenu = useTemplateRef<VMenu>('timeFilterMenu');
 const categoryFilterMenu = useTemplateRef<VMenu>('categoryFilterMenu');
-const amountFilterMenu = useTemplateRef<VMenu>('amountFilterMenu');
+
 const accountFilterMenu = useTemplateRef<VMenu>('accountFilterMenu');
 const tagFilterMenu = useTemplateRef<VMenu>('tagFilterMenu');
 
@@ -857,12 +814,10 @@ const currentPage = ref<number>(1);
 const temporaryCountPerPage = ref<number | null>(null);
 const totalCount = ref<number>(1);
 const searchKeyword = ref<string>('');
-const currentAmountFilterType = ref<string>('');
-const currentAmountFilterValue1 = ref<number>(0);
-const currentAmountFilterValue2 = ref<number>(0);
+
 const currentPageTransactions = ref<Transaction[]>([]);
 const categoryMenuState = ref<boolean>(false);
-const amountMenuState = ref<boolean>(false);
+
 const exportingData = ref<boolean>(false);
 const alwaysShowNav = ref<boolean>(display.mdAndUp.value);
 const showNav = ref<boolean>(display.mdAndUp.value);
@@ -1084,11 +1039,6 @@ function getCategoryListItemCheckedClass(category: TransactionCategory, queryCat
     return {};
 }
 
-function getAmountFilterParameterCount(filterType: string): number {
-    const amountFilterType = AmountFilterType.valueOf(filterType);
-    return amountFilterType ? amountFilterType.paramCount : 0;
-}
-
 function updateUrlWhenChanged(changed: boolean): void {
     if (changed) {
         loading.value = true;
@@ -1120,7 +1070,9 @@ function init(initProps: TransactionListProps): void {
         accountIds: initProps.initAccountIds,
         tagFilter: initProps.initTagFilter,
         amountFilter: initProps.initAmountFilter || '',
-        keyword: initProps.initKeyword || ''
+        keyword: initProps.initKeyword || '',
+        sortBy: initProps.initSortBy || 'time',
+        sortOrder: initProps.initSortOrder || 'desc'
     });
 
     if (initProps.initPageType) {
@@ -1151,7 +1103,6 @@ function init(initProps: TransactionListProps): void {
     }
 
     searchKeyword.value = initProps.initKeyword || '';
-    currentAmountFilterType.value = '';
 
     currentPage.value = 1;
     reload(false, true);
@@ -1490,43 +1441,21 @@ function changeKeywordFilter(keyword: string): void {
     updateUrlWhenChanged(changed);
 }
 
-function changeAmountFilter(filterType: string): void {
-    currentAmountFilterType.value = '';
-    amountMenuState.value = false;
 
-    if (query.value.amountFilter === filterType) {
-        return;
-    }
 
-    let amountFilter = filterType;
+function toggleAmountSort(): void {
+    // Toggle between ascending and descending sort order for amount
+    let newSortBy: string = 'amount';
+    let newSortOrder: string = 'desc'; // Default to descending
 
-    if (filterType) {
-        const amountCount = getAmountFilterParameterCount(filterType);
-
-        if (!amountCount) {
-            return;
-        }
-
-        if (amountCount === 1) {
-            amountFilter += ':' + currentAmountFilterValue1.value;
-        } else if (amountCount === 2) {
-            if (currentAmountFilterValue2.value < currentAmountFilterValue1.value) {
-                snackbar.value?.showMessage('Incorrect amount range');
-                return;
-            }
-
-            amountFilter += ':' + currentAmountFilterValue1.value + ':' + currentAmountFilterValue2.value;
-        } else {
-            return;
-        }
-    }
-
-    if (query.value.amountFilter === amountFilter) {
-        return;
+    if (query.value.sortBy === 'amount') {
+        // If already sorting by amount, toggle the order
+        newSortOrder = query.value.sortOrder === 'asc' ? 'desc' : 'asc';
     }
 
     const changed = transactionsStore.updateTransactionListFilter({
-        amountFilter: amountFilter
+        sortBy: newSortBy,
+        sortOrder: newSortOrder
     });
 
     updateUrlWhenChanged(changed);
@@ -1663,34 +1592,7 @@ function scrollCategoryMenuToSelectedItem(opened: boolean): void {
     }
 }
 
-function scrollAmountMenuToSelectedItem(opened: boolean): void {
-    if (opened) {
-        currentAmountFilterType.value = '';
 
-        let amount1 = 0, amount2 = 0;
-
-        if (isString(query.value.amountFilter)) {
-            try {
-                const filterItems = query.value.amountFilter.split(':');
-                const amountCount = getAmountFilterParameterCount(filterItems[0] as string);
-
-                if (filterItems.length === 2 && amountCount === 1) {
-                    amount1 = parseInt(filterItems[1] as string);
-                } else if (filterItems.length === 3 && amountCount === 2) {
-                    amount1 = parseInt(filterItems[1] as string);
-                    amount2 = parseInt(filterItems[2] as string);
-                }
-            } catch (ex) {
-                logger.warn('cannot parse amount from filter value, original value is ' + query.value.amountFilter, ex);
-            }
-        }
-
-        currentAmountFilterValue1.value = amount1;
-        currentAmountFilterValue2.value = amount2;
-
-        scrollMenuToSelectedItem(amountFilterMenu.value);
-    }
-}
 
 function scrollAccountMenuToSelectedItem(opened: boolean): void {
     if (opened) {
@@ -1725,7 +1627,9 @@ onBeforeRouteUpdate((to) => {
             initAccountIds: (to.query['accountIds'] as string | null) || undefined,
             initTagFilter: (to.query['tagFilter'] as string | null) || undefined,
             initAmountFilter: (to.query['amountFilter'] as string | null) || undefined,
-            initKeyword: (to.query['keyword'] as string | null) || undefined
+            initKeyword: (to.query['keyword'] as string | null) || undefined,
+            initSortBy: (to.query['sortBy'] as string | null) || undefined,
+            initSortOrder: (to.query['sortOrder'] as string | null) || undefined
         });
     } else {
         init({});
