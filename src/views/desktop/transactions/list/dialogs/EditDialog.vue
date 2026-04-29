@@ -1,5 +1,5 @@
 <template>
-    <v-dialog width="1000" :persistent="isTransactionModified" v-model="showState">
+    <v-dialog width="1000" :persistent="false" v-model="showState" @click:outside="onDialogOutsideClick">
         <v-card class="pa-sm-1 pa-md-2">
             <template #title>
                 <div class="d-flex align-center justify-center">
@@ -997,6 +997,35 @@ function remove(): void {
             }
         });
     });
+}
+
+function onDialogOutsideClick(): void {
+    if (mode.value === TransactionEditPageMode.View) {
+        // In view mode, close directly
+        cancel();
+    } else if (mode.value === TransactionEditPageMode.Edit) {
+        // In edit mode, show confirmation if modified
+        if (isTransactionModified.value) {
+            confirmDialog.value?.open('You have unsaved changes. Do you want to discard them?').then(() => {
+                cancel();
+            }).catch(() => {
+                // User cancelled, keep dialog open
+            });
+        } else {
+            cancel();
+        }
+    } else if (mode.value === TransactionEditPageMode.Add) {
+        // In add mode, check if draft is modified
+        if (isTransactionModified.value) {
+            confirmDialog.value?.open('You have unsaved changes. Do you want to discard them?').then(() => {
+                cancel();
+            }).catch(() => {
+                // User cancelled, keep dialog open
+            });
+        } else {
+            cancel();
+        }
+    }
 }
 
 function cancel(): void {
