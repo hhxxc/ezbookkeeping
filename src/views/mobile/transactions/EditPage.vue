@@ -69,8 +69,10 @@
                         <input type="text"
                                class="amount-native-input"
                                :placeholder="tt('Enter amount')"
-                               :value="getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
+                               :value="isSourceAmountFocused ? sourceAmountInputValue : getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
                                inputmode="decimal"
+                               @focus="onSourceAmountFocus"
+                               @blur="onSourceAmountBlur"
                                @input="updateSourceAmount(($event.target as HTMLInputElement).value)"
                                v-if="transaction.type !== TransactionType.ModifyBalance" />
                     </div>
@@ -86,8 +88,10 @@
                         <input type="text"
                                class="amount-native-input"
                                :placeholder="tt('Enter amount')"
-                               :value="getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
+                               :value="isDestinationAmountFocused ? destinationAmountInputValue : getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
                                inputmode="decimal"
+                               @focus="onDestinationAmountFocus"
+                               @blur="onDestinationAmountBlur"
                                @input="updateDestinationAmount(($event.target as HTMLInputElement).value)"
                                v-if="transaction.type === TransactionType.Transfer" />
                     </div>
@@ -664,6 +668,12 @@ const showTransactionPictures = ref<boolean>(pageTypeAndMode?.type === Transacti
     && (pageTypeAndMode?.mode === TransactionEditPageMode.Add || pageTypeAndMode?.mode === TransactionEditPageMode.Edit)
     && settingsStore.appSettings.alwaysShowTransactionPicturesInMobileTransactionEditPage);
 
+// Amount input editing state
+const sourceAmountInputValue = ref<string>('');
+const destinationAmountInputValue = ref<string>('');
+const isSourceAmountFocused = ref<boolean>(false);
+const isDestinationAmountFocused = ref<boolean>(false);
+
 const quickSaveButtonStyleType = computed<number>(() => settingsStore.appSettings.quickSaveButtonStyleInMobileTransactionListPage);
 const quickSaveButtonFloatingPosition = computed<string>(() => {
     switch (settingsStore.appSettings.quickSaveButtonStyleInMobileTransactionListPage) {
@@ -1178,10 +1188,23 @@ function updateSourceAmount(value: string): void {
         return;
     }
 
-    const parsedAmount = parseAmountFromLocalizedNumerals(value);
+    // Store the raw input value for display during editing
+    sourceAmountInputValue.value = value;
+
+    // Remove all non-numeric characters except decimal point
+    const cleanedValue = value.replace(/[^0-9.]/g, '');
+    
+    // Prevent multiple decimal points
+    const parts = cleanedValue.split('.');
+    if (parts.length > 2) {
+        // Keep only the first decimal point
+        sourceAmountInputValue.value = parts[0] + '.' + parts.slice(1).join('');
+        return;
+    }
+
+    const parsedAmount = parseAmountFromLocalizedNumerals(cleanedValue || '0');
 
     if (Number.isNaN(parsedAmount) || !Number.isFinite(parsedAmount)) {
-        transaction.value.sourceAmount = 0;
         return;
     }
 
@@ -1198,10 +1221,23 @@ function updateDestinationAmount(value: string): void {
         return;
     }
 
-    const parsedAmount = parseAmountFromLocalizedNumerals(value);
+    // Store the raw input value for display during editing
+    destinationAmountInputValue.value = value;
+
+    // Remove all non-numeric characters except decimal point
+    const cleanedValue = value.replace(/[^0-9.]/g, '');
+    
+    // Prevent multiple decimal points
+    const parts = cleanedValue.split('.');
+    if (parts.length > 2) {
+        // Keep only the first decimal point
+        destinationAmountInputValue.value = parts[0] + '.' + parts.slice(1).join('');
+        return;
+    }
+
+    const parsedAmount = parseAmountFromLocalizedNumerals(cleanedValue || '0');
 
     if (Number.isNaN(parsedAmount) || !Number.isFinite(parsedAmount)) {
-        transaction.value.destinationAmount = 0;
         return;
     }
 
@@ -1211,6 +1247,48 @@ function updateDestinationAmount(value: string): void {
     }
 
     transaction.value.destinationAmount = parsedAmount;
+}
+
+function onSourceAmountFocus(): void {
+    isSourceAmountFocused.value = true;
+    // Initialize with current amount as plain number for editing
+    if (transaction.value.sourceAmount === 0) {
+        sourceAmountInputValue.value = '';
+    } else {
+        sourceAmountInputValue.value = (transaction.value.sourceAmount / 100).toString();
+    }
+}
+
+function onSourceAmountBlur(): void {
+    isSourceAmountFocused.value = false;
+    // Clear the input value if it's empty or invalid
+    if (!sourceAmountInputValue.value || sourceAmountInputValue.value === '0' || sourceAmountInputValue.value === '0.') {
+        sourceAmountInputValue.value = '';
+        if (transaction.value.sourceAmount === 0) {
+            transaction.value.sourceAmount = 0;
+        }
+    }
+}
+
+function onDestinationAmountFocus(): void {
+    isDestinationAmountFocused.value = true;
+    // Initialize with current amount as plain number for editing
+    if (transaction.value.destinationAmount === 0) {
+        destinationAmountInputValue.value = '';
+    } else {
+        destinationAmountInputValue.value = (transaction.value.destinationAmount / 100).toString();
+    }
+}
+
+function onDestinationAmountBlur(): void {
+    isDestinationAmountFocused.value = false;
+    // Clear the input value if it's empty or invalid
+    if (!destinationAmountInputValue.value || destinationAmountInputValue.value === '0' || destinationAmountInputValue.value === '0.') {
+        destinationAmountInputValue.value = '';
+        if (transaction.value.destinationAmount === 0) {
+            transaction.value.destinationAmount = 0;
+        }
+    }
 }
 
 function pasteAmount(type: 'sourceAmount' | 'destinationAmount'): void {
