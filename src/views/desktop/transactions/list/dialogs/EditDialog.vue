@@ -474,6 +474,11 @@
                     </v-btn>
                     <v-btn color="secondary" variant="tonal" :disabled="loading || submitting"
                            @click="cancel">{{ tt(cancelButtonTitle) }}</v-btn>
+                    <v-btn color="error" variant="tonal" :disabled="loading || submitting"
+                           v-if="mode === TransactionEditPageMode.Edit && originalTransactionEditable" @click="remove">
+                        {{ tt('Delete') }}
+                        <v-progress-circular indeterminate size="22" class="ms-2" v-if="submitting"></v-progress-circular>
+                    </v-btn>
                 </div>
             </v-card-text>
         </v-card>
