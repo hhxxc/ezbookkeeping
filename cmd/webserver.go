@@ -3,7 +3,10 @@ package cmd
 import (
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cache"
@@ -125,54 +128,84 @@ func startWebServer(c *core.CliContext) error {
 
 	serverSettingsCacheStore := persistence.NewInMemoryStore(time.Minute)
 
-	router.StaticFile("/", filepath.Join(config.StaticRootPath, "index.html"))
-	router.Static("/js", filepath.Join(config.StaticRootPath, "js"))
-	router.Static("/css", filepath.Join(config.StaticRootPath, "css"))
-	router.Static("/img", filepath.Join(config.StaticRootPath, "img"))
-	router.Static("/fonts", filepath.Join(config.StaticRootPath, "fonts"))
+	// In development mode, proxy all non-API requests to Vite dev server
+	if config.Mode == settings.MODE_DEVELOPMENT {
+		log.BootInfof(c, "[webserver.startWebServer] running in development mode, proxying frontend to http://127.0.0.1:28081")
+		viteProxy := httputil.NewSingleHostReverseProxy(&url.URL{
+			Scheme: "http",
+			Host:   "127.0.0.1:28081",
+		})
+		
+		// Proxy all static assets and HTML files to Vite
+		router.NoRoute(func(ginCtx *gin.Context) {
+			// Skip API routes, let them be handled by the API router
+			if strings.HasPrefix(ginCtx.Request.URL.Path, "/api/") || 
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/avatar/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/pictures/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/qrcode/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/proxy/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/_AMapService/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/oauth2/") ||
+			   strings.HasPrefix(ginCtx.Request.URL.Path, "/mcp/") ||
+			   ginCtx.Request.URL.Path == "/healthz.json" ||
+			   ginCtx.Request.URL.Path == "/server_settings.js" ||
+			   ginCtx.Request.URL.Path == "/mobile/server_settings.js" ||
+			   ginCtx.Request.URL.Path == "/desktop/server_settings.js" {
+				ginCtx.Next()
+				return
+			}
+			viteProxy.ServeHTTP(ginCtx.Writer, ginCtx.Request)
+		})
+	} else {
+		router.StaticFile("/", filepath.Join(config.StaticRootPath, "index.html"))
+		router.Static("/js", filepath.Join(config.StaticRootPath, "js"))
+		router.Static("/css", filepath.Join(config.StaticRootPath, "css"))
+		router.Static("/img", filepath.Join(config.StaticRootPath, "img"))
+		router.Static("/fonts", filepath.Join(config.StaticRootPath, "fonts"))
 
-	router.StaticFile("robots.txt", filepath.Join(config.StaticRootPath, "robots.txt"))
-	router.StaticFile("favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
-	router.StaticFile("favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
-	router.StaticFile("touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
-	router.StaticFile("manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
-	router.StaticFile("sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
-	router.GET("/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
+		router.StaticFile("robots.txt", filepath.Join(config.StaticRootPath, "robots.txt"))
+		router.StaticFile("favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
+		router.StaticFile("favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
+		router.StaticFile("touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
+		router.StaticFile("manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
+		router.StaticFile("sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
+		router.GET("/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
-	for i := 0; i < len(workboxFileNames); i++ {
-		router.StaticFile("/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
-	}
+		for i := 0; i < len(workboxFileNames); i++ {
+			router.StaticFile("/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
+		}
 
-	router.StaticFile("/mobile", filepath.Join(config.StaticRootPath, "mobile.html"))
-	router.Static("/mobile/js", filepath.Join(config.StaticRootPath, "js"))
-	router.Static("/mobile/css", filepath.Join(config.StaticRootPath, "css"))
-	router.Static("/mobile/img", filepath.Join(config.StaticRootPath, "img"))
-	router.Static("/mobile/fonts", filepath.Join(config.StaticRootPath, "fonts"))
-	router.StaticFile("/mobile/favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
-	router.StaticFile("/mobile/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
-	router.StaticFile("/mobile/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
-	router.StaticFile("/mobile/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
-	router.StaticFile("/mobile/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
-	router.GET("/mobile/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
+		router.StaticFile("/mobile", filepath.Join(config.StaticRootPath, "mobile.html"))
+		router.Static("/mobile/js", filepath.Join(config.StaticRootPath, "js"))
+		router.Static("/mobile/css", filepath.Join(config.StaticRootPath, "css"))
+		router.Static("/mobile/img", filepath.Join(config.StaticRootPath, "img"))
+		router.Static("/mobile/fonts", filepath.Join(config.StaticRootPath, "fonts"))
+		router.StaticFile("/mobile/favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
+		router.StaticFile("/mobile/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
+		router.StaticFile("/mobile/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
+		router.StaticFile("/mobile/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
+		router.StaticFile("/mobile/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
+		router.GET("/mobile/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
-	for i := 0; i < len(workboxFileNames); i++ {
-		router.StaticFile("/mobile/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
-	}
+		for i := 0; i < len(workboxFileNames); i++ {
+			router.StaticFile("/mobile/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
+		}
 
-	router.StaticFile("/desktop", filepath.Join(config.StaticRootPath, "desktop.html"))
-	router.Static("/desktop/js", filepath.Join(config.StaticRootPath, "js"))
-	router.Static("/desktop/css", filepath.Join(config.StaticRootPath, "css"))
-	router.Static("/desktop/img", filepath.Join(config.StaticRootPath, "img"))
-	router.Static("/desktop/fonts", filepath.Join(config.StaticRootPath, "fonts"))
-	router.StaticFile("/desktop/favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
-	router.StaticFile("/desktop/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
-	router.StaticFile("/desktop/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
-	router.StaticFile("/desktop/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
-	router.StaticFile("/desktop/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
-	router.GET("/desktop/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
+		router.StaticFile("/desktop", filepath.Join(config.StaticRootPath, "desktop.html"))
+		router.Static("/desktop/js", filepath.Join(config.StaticRootPath, "js"))
+		router.Static("/desktop/css", filepath.Join(config.StaticRootPath, "css"))
+		router.Static("/desktop/img", filepath.Join(config.StaticRootPath, "img"))
+		router.Static("/desktop/fonts", filepath.Join(config.StaticRootPath, "fonts"))
+		router.StaticFile("/desktop/favicon.ico", filepath.Join(config.StaticRootPath, "favicon.ico"))
+		router.StaticFile("/desktop/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
+		router.StaticFile("/desktop/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
+		router.StaticFile("/desktop/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
+		router.StaticFile("/desktop/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
+		router.GET("/desktop/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
-	for i := 0; i < len(workboxFileNames); i++ {
-		router.StaticFile("/desktop/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
+		for i := 0; i < len(workboxFileNames); i++ {
+			router.StaticFile("/desktop/"+workboxFileNames[i], filepath.Join(config.StaticRootPath, workboxFileNames[i]))
+		}
 	}
 
 	if config.AvatarProvider == core.USER_AVATAR_PROVIDER_INTERNAL {

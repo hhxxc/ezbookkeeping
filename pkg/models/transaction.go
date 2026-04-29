@@ -233,7 +233,7 @@ type TransactionListByMaxTimeRequest struct {
 	MaxTime      int64           `form:"max_time" binding:"min=0"` // Transaction time sequence id
 	MinTime      int64           `form:"min_time" binding:"min=0"` // Transaction time sequence id
 	Page         int32           `form:"page" binding:"min=0"`
-	Count        int32           `form:"count" binding:"required,min=1,max=50"`
+	Count        int32           `form:"count" binding:"required,min=1"`
 	WithCount    bool            `form:"with_count"`
 	WithPictures bool            `form:"with_pictures"`
 	TrimAccount  bool            `form:"trim_account"`

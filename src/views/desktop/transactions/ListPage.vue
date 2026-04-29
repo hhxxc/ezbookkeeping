@@ -33,12 +33,18 @@
                         </div>
                         <div class="mx-6 mt-4" v-if="pageType === TransactionListPageType.List.type">
                             <span class="text-subtitle-2">{{ tt('Transactions Per Page') }}</span>
-                            <v-select class="mt-2" density="compact"
-                                      item-title="name"
-                                      item-value="value"
-                                      :disabled="loading"
-                                      :items="allPageCounts"
-                                      v-model="countPerPage"
+                            <v-combobox class="mt-2" density="compact"
+                                        item-title="name"
+                                        item-value="value"
+                                        :disabled="loading"
+                                        :items="allPageCounts"
+                                        :rules="[(v: any) => {
+                                            const num = typeof v === 'object' && v !== null ? v.value : v;
+                                            return !num || (num >= 1) || tt('Value must be at least 1');
+                                        }]"
+                                        :placeholder="tt('Transactions Per Page')"
+                                        v-model="temporaryCountPerPage"
+                                        @keyup.enter="handleCountPerPageEnter"
                             />
                         </div>
                         <v-tabs show-arrows class="my-4" direction="vertical"
@@ -182,7 +188,7 @@
                                                               v-model="currentCalendarDate"></transaction-calendar>
                                     </v-card-text>
 
-                                    <v-table class="transaction-table" :hover="!loading">
+                                    <v-table class="transaction-table" :hover="!loading" height="600px" fixed-header>
                                         <thead>
                                         <tr>
                                             <th class="transaction-table-column-time text-no-wrap">
@@ -960,19 +966,31 @@ const countPerPage = computed<number>({
         return settingsStore.appSettings.itemsCountInTransactionListPage;
     },
     set: (value) => {
-        const newTotalPageCount = Math.ceil(totalCount.value / value);
-
-        if (currentPage.value > newTotalPageCount) {
-            currentPage.value = newTotalPageCount;
-        }
-
-        temporaryCountPerPage.value = value;
-
-        if (!queryMonthlyData.value) {
-            reload(false, false);
-        }
+        // This is now handled by handleCountPerPageEnter
     }
 });
+
+const handleCountPerPageEnter = () => {
+    const num = typeof temporaryCountPerPage.value === 'object' && temporaryCountPerPage.value !== null ? temporaryCountPerPage.value.value : temporaryCountPerPage.value;
+
+    if (!num || num < 1) {
+        // Reset to previous valid value if invalid
+        temporaryCountPerPage.value = settingsStore.appSettings.itemsCountInTransactionListPage;
+        return;
+    }
+
+    const newTotalPageCount = Math.ceil(totalCount.value / num);
+
+    if (currentPage.value > newTotalPageCount) {
+        currentPage.value = newTotalPageCount;
+    }
+
+    // Update the actual setting or trigger reload
+    // Since we are using temporaryCountPerPage for binding, we just need to reload
+    if (!queryMonthlyData.value) {
+        reload(false, false);
+    }
+};
 
 const totalPageCount = computed<number>(() => Math.ceil(totalCount.value / countPerPage.value));
 
