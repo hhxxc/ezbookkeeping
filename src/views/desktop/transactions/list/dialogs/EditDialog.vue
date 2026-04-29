@@ -551,6 +551,7 @@ export interface TransactionEditOptions extends SetTransactionOptions {
     currentTransaction?: Transaction;
     currentTemplate?: TransactionTemplate;
     noTransactionDraft?: boolean;
+    forceEditMode?: boolean;
 }
 
 interface TransactionEditResponse {
@@ -696,7 +697,10 @@ function open(options: TransactionEditOptions): Promise<TransactionEditResponse 
                 setTransactionModel(options.currentTransaction, options, true);
             }
 
-            mode.value = TransactionEditPageMode.View;
+            // If forceEditMode is true and transaction is editable, open in edit mode directly
+            mode.value = (options.forceEditMode && options.currentTransaction?.editable) 
+                ? TransactionEditPageMode.Edit 
+                : TransactionEditPageMode.View;
             editId.value = options.id;
 
             promises.push(transactionsStore.getTransaction({ transactionId: editId.value }));
