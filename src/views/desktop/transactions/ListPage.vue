@@ -33,18 +33,18 @@
                         </div>
                         <div class="mx-6 mt-4" v-if="pageType === TransactionListPageType.List.type">
                             <span class="text-subtitle-2">{{ tt('Transactions Per Page') }}</span>
-                            <v-combobox class="mt-2" density="compact"
+                            <v-combobox ref="pageCountCombobox" class="mt-2" density="compact"
                                         item-title="name"
                                         item-value="value"
                                         :disabled="loading"
                                         :items="allPageCounts"
                                         :rules="[(v: any) => {
                                             const num = typeof v === 'object' && v !== null ? v.value : v;
-                                            return !num || (num >= 1) || tt('Value must be at least 1');
+                                            return num === ALL_TRANSACTIONS_PER_PAGE || !num || (num >= 1) || tt('Value must be at least 1');
                                         }]"
                                         :placeholder="tt('Transactions Per Page')"
                                         v-model="temporaryCountPerPage"
-                                        @keyup.enter="handleCountPerPageEnter"
+                                        @update:model-value="handleCountPerPageChange"
                             />
                         </div>
                         <v-tabs show-arrows class="my-4" direction="vertical"
@@ -617,7 +617,7 @@ import CategoryFilterSettingsCard from '@/views/desktop/common/cards/CategoryFil
 import TransactionTagFilterSettingsCard from '@/views/desktop/common/cards/TransactionTagFilterSettingsCard.vue';
 import { TransactionEditPageType } from '@/views/base/transactions/TransactionEditPageBase.ts';
 
-import { ref, computed, useTemplateRef, watch, nextTick } from 'vue';
+import { ref, computed, useTemplateRef, watch, nextTick, onUnmounted } from 'vue';
 import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 
@@ -806,6 +806,7 @@ const categoryFilterMenu = useTemplateRef<VMenu>('categoryFilterMenu');
 
 const accountFilterMenu = useTemplateRef<VMenu>('accountFilterMenu');
 const tagFilterMenu = useTemplateRef<VMenu>('tagFilterMenu');
+const pageCountCombobox = useTemplateRef<any>('pageCountCombobox');
 
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
@@ -813,11 +814,15 @@ const editDialog = useTemplateRef<EditDialogType>('editDialog');
 const aiImageRecognitionDialog = useTemplateRef<AIImageRecognitionDialogType>('aiImageRecognitionDialog');
 const importDialog = useTemplateRef<ImportDialogType>('importDialog');
 
+const ALL_TRANSACTIONS_PER_PAGE = -1;
+const MAX_COUNT_PER_PAGE = 999999;
+
 const activeTab = ref<string>('transactionPage');
 const currentPage = ref<number>(1);
 const temporaryCountPerPage = ref<number | null>(null);
 const totalCount = ref<number>(1);
 const searchKeyword = ref<string>('');
+let autoReloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const currentPageTransactions = ref<Transaction[]>([]);
 const categoryMenuState = ref<boolean>(false);
@@ -835,10 +840,13 @@ const isDarkMode = computed<boolean>(() => theme.global.name.value === ThemeType
 
 const allPageCounts = computed<NameNumeralValue[]>(() => {
     const pageCounts: NameNumeralValue[] = [];
-    const availableCountPerPage: number[] = [ 5, 10, 15, 20, 25, 30, 50 ];
+    const availableCountPerPage: number[] = [ 5, 10, 15, 20, 25, 30, 50, 200, ALL_TRANSACTIONS_PER_PAGE ];
 
     for (const count of availableCountPerPage) {
-        pageCounts.push({ value: count, name: formatNumberToLocalizedNumerals(count) });
+        pageCounts.push({
+            value: count,
+            name: count === ALL_TRANSACTIONS_PER_PAGE ? tt('All') : formatNumberToLocalizedNumerals(count)
+        });
     }
 
     return pageCounts;
@@ -959,6 +967,10 @@ const queryAllSelectedFilterTagIds = computed<string>(() => {
 
 const countPerPage = computed<number>({
     get: () => {
+        if (temporaryCountPerPage.value === ALL_TRANSACTIONS_PER_PAGE) {
+            return MAX_COUNT_PER_PAGE;
+        }
+
         if (temporaryCountPerPage.value) {
             return temporaryCountPerPage.value;
         }
@@ -966,30 +978,35 @@ const countPerPage = computed<number>({
         return settingsStore.appSettings.itemsCountInTransactionListPage;
     },
     set: (value) => {
-        // This is now handled by handleCountPerPageEnter
+        // This is now handled by handleCountPerPageChange
     }
 });
 
-const handleCountPerPageEnter = () => {
-    const num = typeof temporaryCountPerPage.value === 'object' && temporaryCountPerPage.value !== null ? temporaryCountPerPage.value.value : temporaryCountPerPage.value;
+const handleCountPerPageChange = (value: number | { value: number, name: string } | null) => {
+    const num = typeof value === 'object' && value !== null ? value.value : value;
 
-    if (!num || num < 1) {
-        // Reset to previous valid value if invalid
-        temporaryCountPerPage.value = settingsStore.appSettings.itemsCountInTransactionListPage;
+    if (num === ALL_TRANSACTIONS_PER_PAGE) {
+        temporaryCountPerPage.value = ALL_TRANSACTIONS_PER_PAGE;
+    } else if (!num || num < 1) {
+        temporaryCountPerPage.value = null;
         return;
+    } else {
+        temporaryCountPerPage.value = num;
     }
 
-    const newTotalPageCount = Math.ceil(totalCount.value / num);
+    const newTotalPageCount = Math.ceil(totalCount.value / countPerPage.value);
 
     if (currentPage.value > newTotalPageCount) {
-        currentPage.value = newTotalPageCount;
+        currentPage.value = newTotalPageCount || 1;
     }
 
-    // Update the actual setting or trigger reload
-    // Since we are using temporaryCountPerPage for binding, we just need to reload
-    if (!queryMonthlyData.value) {
-        reload(false, false);
+    if (autoReloadTimeout) {
+        clearTimeout(autoReloadTimeout);
     }
+
+    autoReloadTimeout = setTimeout(() => {
+        reload(false, false);
+    }, 1000);
 };
 
 const totalPageCount = computed<number>(() => Math.ceil(totalCount.value / countPerPage.value));
@@ -1633,6 +1650,12 @@ function scrollMenuToSelectedItem(menu: VMenu | null): void {
 function onShowDateRangeError(message: string): void {
     snackbar.value?.showError(message);
 }
+
+onUnmounted(() => {
+    if (autoReloadTimeout) {
+        clearTimeout(autoReloadTimeout);
+    }
+});
 
 onBeforeRouteUpdate((to) => {
     if (to.query) {

@@ -1006,7 +1006,7 @@ function onDialogOutsideClick(): void {
     } else if (mode.value === TransactionEditPageMode.Edit) {
         // In edit mode, show confirmation if modified
         if (isTransactionModified.value) {
-            confirmDialog.value?.open('You have unsaved changes. Do you want to discard them?').then(() => {
+            confirmDialog.value?.open(tt('You have unsaved changes. Do you want to discard them?')).then(() => {
                 cancel();
             }).catch(() => {
                 // User cancelled, keep dialog open
@@ -1017,7 +1017,7 @@ function onDialogOutsideClick(): void {
     } else if (mode.value === TransactionEditPageMode.Add) {
         // In add mode, check if draft is modified
         if (isTransactionModified.value) {
-            confirmDialog.value?.open('You have unsaved changes. Do you want to discard them?').then(() => {
+            confirmDialog.value?.open(tt('You have unsaved changes. Do you want to discard them?')).then(() => {
                 cancel();
             }).catch(() => {
                 // User cancelled, keep dialog open
