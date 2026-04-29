@@ -130,7 +130,7 @@
                                                 <v-text-field density="compact" :disabled="loading"
                                                               :prepend-inner-icon="mdiMagnify"
                                                               :append-inner-icon="searchKeyword !== query.keyword ? mdiCheck : undefined"
-                                                              :placeholder="tt('Search transaction description')"
+                                                              :placeholder="tt('Search by description or amount')"
                                                               v-model="searchKeyword"
                                                               @click:append-inner="changeKeywordFilter(searchKeyword)"
                                                               @keyup.enter="changeKeywordFilter(searchKeyword)"
