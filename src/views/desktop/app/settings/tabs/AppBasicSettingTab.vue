@@ -154,11 +154,12 @@
                     <v-card-text>
                         <v-row>
                             <v-col cols="12" md="6">
-                                <v-select
+                                <v-combobox
                                     persistent-placeholder
                                     :label="tt('Transactions Per Page')"
                                     :placeholder="tt('Transactions Per Page')"
-                                    :items="[ 5, 10, 15, 20, 25, 30, 50 ]"
+                                    :items="[ 5, 10, 15, 20, 25, 30, 50, 100 ]"
+                                    :rules="[(v: number) => !v || (v >= 1) || tt('Value must be at least 1')]"
                                     v-model="itemsCountInTransactionListPage"
                                 />
                             </v-col>

@@ -113,6 +113,23 @@ You can also build a Docker image. Make sure you have [Docker](https://www.docke
 
     $ ./build.sh docker
 
+### Development Startup (Windows)
+To start the development environment on Windows with **hot-reload** support, ensure you have MSYS2 installed with MinGW64 and `air` installed (`go install github.com/air-verse/air@latest`). 
+
+You need to run two commands in separate terminal windows:
+
+**1. Start Frontend Dev Server (Vite):**
+```powershell
+npm run serve
+```
+
+**2. Start Backend with Hot-Reload (Air):**
+```powershell
+$env:Path = "C:\msys64\mingw64\bin;" + $env:Path; $env:CGO_ENABLED="1"; air
+```
+
+After starting both services, access the application at **`http://localhost:15080/`**. The backend will proxy frontend requests to Vite, enabling real-time hot updates for both Vue components and Go code.
+
 ## Contributing
 We welcome contributions of all kinds.
 
