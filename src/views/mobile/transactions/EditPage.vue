@@ -61,40 +61,38 @@
             ></f7-list-input>
 
             <f7-list-item
-                class="list-item-with-header-and-title"
+                class="transaction-edit-amount"
+                :class="sourceAmountClass"
             >
+                <template #header>{{ sourceAmountTitle }}</template>
                 <template #title>
-                    <div class="display-flex align-items-center">
-                        <span class="item-label">{{ sourceAmountTitle }}</span>
-                        <input type="text"
-                               class="amount-native-input"
-                               :placeholder="tt('Enter amount')"
-                               :value="isSourceAmountFocused ? sourceAmountInputValue : getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
-                               inputmode="decimal"
-                               @focus="onSourceAmountFocus"
-                               @blur="onSourceAmountBlur"
-                               @input="updateSourceAmount(($event.target as HTMLInputElement).value)"
-                               v-if="transaction.type !== TransactionType.ModifyBalance" />
-                    </div>
+                    <input type="text"
+                           class="amount-native-input-large"
+                           :placeholder="tt('Enter amount')"
+                           :value="isSourceAmountFocused ? sourceAmountInputValue : getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
+                           inputmode="decimal"
+                           @focus="onSourceAmountFocus"
+                           @blur="onSourceAmountBlur"
+                           @input="updateSourceAmount(($event.target as HTMLInputElement).value)"
+                           v-if="transaction.type !== TransactionType.ModifyBalance" />
                 </template>
             </f7-list-item>
 
             <f7-list-item
-                class="list-item-with-header-and-title"
+                class="transaction-edit-amount text-color-primary"
+                :class="destinationAmountClass"
             >
+                <template #header>{{ transferInAmountTitle }}</template>
                 <template #title>
-                    <div class="display-flex align-items-center">
-                        <span class="item-label">{{ transferInAmountTitle }}</span>
-                        <input type="text"
-                               class="amount-native-input"
-                               :placeholder="tt('Enter amount')"
-                               :value="isDestinationAmountFocused ? destinationAmountInputValue : getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
-                               inputmode="decimal"
-                               @focus="onDestinationAmountFocus"
-                               @blur="onDestinationAmountBlur"
-                               @input="updateDestinationAmount(($event.target as HTMLInputElement).value)"
-                               v-if="transaction.type === TransactionType.Transfer" />
-                    </div>
+                    <input type="text"
+                           class="amount-native-input-large"
+                           :placeholder="tt('Enter amount')"
+                           :value="isDestinationAmountFocused ? destinationAmountInputValue : getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
+                           inputmode="decimal"
+                           @focus="onDestinationAmountFocus"
+                           @blur="onDestinationAmountBlur"
+                           @input="updateDestinationAmount(($event.target as HTMLInputElement).value)"
+                           v-if="transaction.type === TransactionType.Transfer" />
                 </template>
             </f7-list-item>
 
@@ -1504,28 +1502,22 @@ init();
     padding-top: calc(var(--f7-typography-padding) / 2);
 }
 
-.amount-native-input {
-    flex: 1;
+.amount-native-input-large {
+    width: 100%;
     border: none;
     outline: none;
     background: transparent;
-    font-size: inherit;
+    font-size: 28px;
     font-weight: bolder;
     color: inherit;
     text-align: right;
     padding: 8px 0;
-    min-width: 0;
-    width: 100%;
 }
 
-.amount-native-input::placeholder {
+.amount-native-input-large::placeholder {
     color: var(--f7-color-gray);
     opacity: 0.6;
-}
-
-.item-label {
-    margin-inline-end: 8px;
-    white-space: nowrap;
+    font-weight: normal;
 }
 
 .transaction-edit-datetime .item-title {
