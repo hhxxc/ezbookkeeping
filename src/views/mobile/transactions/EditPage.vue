@@ -60,27 +60,39 @@
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate"
             ></f7-list-input>
 
-            <f7-list-input
-                type="number"
-                inputmode="decimal"
-                clear-button
-                :label="sourceAmountTitle"
-                :placeholder="tt('Enter amount')"
-                :value="getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
-                @input="updateSourceAmount($event.target.value)"
-                v-if="transaction.type !== TransactionType.ModifyBalance"
-            ></f7-list-input>
+            <f7-list-item
+                class="list-item-with-header-and-title"
+            >
+                <template #title>
+                    <div class="display-flex align-items-center">
+                        <span class="item-label">{{ sourceAmountTitle }}</span>
+                        <input type="text"
+                               class="amount-native-input"
+                               :placeholder="tt('Enter amount')"
+                               :value="getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
+                               inputmode="decimal"
+                               @input="updateSourceAmount(($event.target as HTMLInputElement).value)"
+                               v-if="transaction.type !== TransactionType.ModifyBalance" />
+                    </div>
+                </template>
+            </f7-list-item>
 
-            <f7-list-input
-                type="number"
-                inputmode="decimal"
-                clear-button
-                :label="transferInAmountTitle"
-                :placeholder="tt('Enter amount')"
-                :value="getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
-                @input="updateDestinationAmount($event.target.value)"
-                v-if="transaction.type === TransactionType.Transfer"
-            ></f7-list-input>
+            <f7-list-item
+                class="list-item-with-header-and-title"
+            >
+                <template #title>
+                    <div class="display-flex align-items-center">
+                        <span class="item-label">{{ transferInAmountTitle }}</span>
+                        <input type="text"
+                               class="amount-native-input"
+                               :placeholder="tt('Enter amount')"
+                               :value="getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
+                               inputmode="decimal"
+                               @input="updateDestinationAmount(($event.target as HTMLInputElement).value)"
+                               v-if="transaction.type === TransactionType.Transfer" />
+                    </div>
+                </template>
+            </f7-list-item>
 
             <f7-list-item
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
@@ -1412,6 +1424,30 @@ init();
 
 .transaction-edit-amount .item-header {
     padding-top: calc(var(--f7-typography-padding) / 2);
+}
+
+.amount-native-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: inherit;
+    font-weight: bolder;
+    color: inherit;
+    text-align: right;
+    padding: 8px 0;
+    min-width: 0;
+    width: 100%;
+}
+
+.amount-native-input::placeholder {
+    color: var(--f7-color-gray);
+    opacity: 0.6;
+}
+
+.item-label {
+    margin-inline-end: 8px;
+    white-space: nowrap;
 }
 
 .transaction-edit-datetime .item-title {
