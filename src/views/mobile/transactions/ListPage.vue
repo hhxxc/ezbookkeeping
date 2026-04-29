@@ -21,15 +21,24 @@
             </f7-nav-right>
 
             <f7-subnavbar :inner="false" v-if="showSearchbar">
-                <f7-searchbar
-                    custom-searchs
-                    :value="query.keyword"
-                    :placeholder="tt('Search by description or amount')"
-                    :disable-button-text="tt('Cancel')"
-                    @change="changeKeywordFilter($event.target.value)"
-                    @click:clear="changeKeywordFilter(''); showSearchbar = false"
-                    @searchbar:disable="changeKeywordFilter(''); showSearchbar = false"
-                ></f7-searchbar>
+                <div class="searchbar searchbar-init"
+                     :class="{ 'searchbar-enabled': showSearchbar }">
+                    <div class="searchbar-inner">
+                        <div class="searchbar-input-wrap">
+                            <input type="text"
+                                   class="searchbar-input"
+                                   :placeholder="tt('Search by description or amount')"
+                                   :value="query.keyword"
+                                   inputmode="decimal"
+                                   @input="changeKeywordFilter($event.target.value)"
+                                   @keyup.enter="changeKeywordFilter(query.keyword)" />
+                            <span class="input-clear-button" 
+                                  @click="changeKeywordFilter(''); showSearchbar = false"></span>
+                        </div>
+                        <span class="searchbar-disable-button" 
+                              @click="changeKeywordFilter(''); showSearchbar = false">{{ tt('Cancel') }}</span>
+                    </div>
+                </div>
             </f7-subnavbar>
         </f7-navbar>
 
