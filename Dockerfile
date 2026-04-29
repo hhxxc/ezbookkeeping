@@ -16,6 +16,7 @@ WORKDIR /go/src/github.com/mayswind/ezbookkeeping
 COPY . .
 RUN docker/backend-build-pre-setup.sh
 RUN apk add git gcc g++ libc-dev
+ENV CGO_ENABLED=1
 RUN ./build.sh backend
 
 # Build frontend files
