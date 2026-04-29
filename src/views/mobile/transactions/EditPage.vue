@@ -60,38 +60,27 @@
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Template && transaction instanceof TransactionTemplate"
             ></f7-list-input>
 
-            <f7-list-item
-                class="transaction-edit-amount"
-                link="#" no-chevron
-                :class="sourceAmountClass"
-                :header="sourceAmountTitle"
-                :title="getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
-                @click="showSourceAmountSheet = true"
-            >
-                <number-pad-sheet :min-value="TRANSACTION_MIN_AMOUNT"
-                                  :max-value="TRANSACTION_MAX_AMOUNT"
-                                  :currency="sourceAccountCurrency"
-                                  v-model:show="showSourceAmountSheet"
-                                  v-model="transaction.sourceAmount"
-                ></number-pad-sheet>
-            </f7-list-item>
+            <f7-list-input
+                type="number"
+                inputmode="decimal"
+                clear-button
+                :label="sourceAmountTitle"
+                :placeholder="tt('Enter amount')"
+                :value="getDisplayAmount(transaction.sourceAmount, transaction.hideAmount, sourceAccountCurrency)"
+                @input="updateSourceAmount($event.target.value)"
+                v-if="transaction.type !== TransactionType.ModifyBalance"
+            ></f7-list-input>
 
-            <f7-list-item
-                class="transaction-edit-amount text-color-primary"
-                link="#" no-chevron
-                :class="destinationAmountClass"
-                :header="transferInAmountTitle"
-                :title="getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
-                @click="showDestinationAmountSheet = true"
+            <f7-list-input
+                type="number"
+                inputmode="decimal"
+                clear-button
+                :label="transferInAmountTitle"
+                :placeholder="tt('Enter amount')"
+                :value="getDisplayAmount(transaction.destinationAmount, transaction.hideAmount, destinationAccountCurrency)"
+                @input="updateDestinationAmount($event.target.value)"
                 v-if="transaction.type === TransactionType.Transfer"
-            >
-                <number-pad-sheet :min-value="TRANSACTION_MIN_AMOUNT"
-                                  :max-value="TRANSACTION_MAX_AMOUNT"
-                                  :currency="destinationAccountCurrency"
-                                  v-model:show="showDestinationAmountSheet"
-                                  v-model="transaction.destinationAmount"
-                ></number-pad-sheet>
-            </f7-list-item>
+            ></f7-list-input>
 
             <f7-list-item
                 class="list-item-with-header-and-title list-item-title-hide-overflow"
@@ -1170,6 +1159,46 @@ function quickSave(): void {
     }
 
     save(AfterSaveAction.GoBack);
+}
+
+function updateSourceAmount(value: string): void {
+    if (mode.value === TransactionEditPageMode.View) {
+        return;
+    }
+
+    const parsedAmount = parseAmountFromLocalizedNumerals(value);
+
+    if (Number.isNaN(parsedAmount) || !Number.isFinite(parsedAmount)) {
+        transaction.value.sourceAmount = 0;
+        return;
+    }
+
+    if (parsedAmount < TRANSACTION_MIN_AMOUNT || parsedAmount > TRANSACTION_MAX_AMOUNT) {
+        showToast('Numeric Overflow');
+        return;
+    }
+
+    transaction.value.sourceAmount = parsedAmount;
+}
+
+function updateDestinationAmount(value: string): void {
+    if (mode.value === TransactionEditPageMode.View) {
+        return;
+    }
+
+    const parsedAmount = parseAmountFromLocalizedNumerals(value);
+
+    if (Number.isNaN(parsedAmount) || !Number.isFinite(parsedAmount)) {
+        transaction.value.destinationAmount = 0;
+        return;
+    }
+
+    if (parsedAmount < TRANSACTION_MIN_AMOUNT || parsedAmount > TRANSACTION_MAX_AMOUNT) {
+        showToast('Numeric Overflow');
+        return;
+    }
+
+    transaction.value.destinationAmount = parsedAmount;
 }
 
 function pasteAmount(type: 'sourceAmount' | 'destinationAmount'): void {
