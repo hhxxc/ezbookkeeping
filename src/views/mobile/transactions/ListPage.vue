@@ -24,7 +24,7 @@
                 <f7-searchbar
                     custom-searchs
                     :value="query.keyword"
-                    :placeholder="tt('Search transaction description')"
+                    :placeholder="tt('Search by description or amount')"
                     :disable-button-text="tt('Cancel')"
                     @change="changeKeywordFilter($event.target.value)"
                     @click:clear="changeKeywordFilter(''); showSearchbar = false"
