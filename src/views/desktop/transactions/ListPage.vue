@@ -1582,7 +1582,9 @@ function exportTransactions(fileExtension: string): void {
 function show(transaction: Transaction): void {
     editDialog.value?.open({
         id: transaction.id,
-        currentTransaction: transaction
+        currentTransaction: transaction,
+        // If transaction is editable, open in edit mode directly
+        forceEditMode: transaction.editable
     }).then(result => {
         if (result && result.message) {
             snackbar.value?.showMessage(result.message);

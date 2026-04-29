@@ -210,7 +210,7 @@
                         <f7-list-item swipeout chevron-center accordion-item
                                       class="transaction-info"
                                       :id="getTransactionDomId(transaction)"
-                                      :link="`/transaction/detail?id=${transaction.id}&type=${transaction.type}`"
+                                      :link="transaction.editable ? `/transaction/edit?id=${transaction.id}&type=${transaction.type}` : `/transaction/detail?id=${transaction.id}&type=${transaction.type}`"
                                       :key="transaction.id"
                                       v-for="(transaction, idx) in transactionMonthList.items"
                         >
