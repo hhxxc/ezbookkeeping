@@ -9,10 +9,18 @@
                     </div>
                     <v-spacer/>
                     <v-btn density="comfortable" color="default" variant="text" class="ms-2" :icon="true"
-                           :disabled="loading || submitting" v-if="mode !== TransactionEditPageMode.View && (activeTab === 'basicInfo' || (activeTab === 'map' && isSupportGetGeoLocationByClick()))">
+                           :disabled="loading || submitting" v-if="(mode !== TransactionEditPageMode.View || (mode === TransactionEditPageMode.View && type === TransactionEditPageType.Transaction && transaction.editable)) && (activeTab === 'basicInfo' || (activeTab === 'map' && isSupportGetGeoLocationByClick()))">
                         <v-icon :icon="mdiDotsVertical" />
                         <v-menu activator="parent">
                             <v-list v-if="activeTab === 'basicInfo'">
+                                <!-- Delete option (only in View mode) -->
+                                <v-list-item :prepend-icon="mdiTrashCanOutline"
+                                             :title="tt('Delete')"
+                                             color="red"
+                                             v-if="mode === TransactionEditPageMode.View && transaction.editable"
+                                             @click="remove"></v-list-item>
+                                <v-divider v-if="mode === TransactionEditPageMode.View && transaction.editable" />
+                                <!-- Edit options (only in Edit mode) -->
                                 <v-list-item :prepend-icon="mdiSwapHorizontal"
                                              :title="tt('Swap Account')"
                                              v-if="transaction.type === TransactionType.Transfer"
