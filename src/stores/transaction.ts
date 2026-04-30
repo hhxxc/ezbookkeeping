@@ -218,7 +218,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     continue;
                 }
 
-                for (let j = currentMonthListIndex + 1; j < transactions.value.length; j++) {
+                for (let j = 0; j < transactions.value.length; j++) {
                     if (transactions.value[j]!.year === transactionYear && transactions.value[j]!.month === transactionMonth) {
                         currentMonthListIndex = j;
                         currentMonthList = transactions.value[j] as TransactionMonthList;
