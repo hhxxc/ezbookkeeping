@@ -934,7 +934,9 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 accountIds: transactionsFilter.value.accountIds,
                 tagFilter: transactionsFilter.value.tagFilter,
                 amountFilter: transactionsFilter.value.amountFilter,
-                keyword: transactionsFilter.value.keyword
+                keyword: transactionsFilter.value.keyword,
+                sortBy: transactionsFilter.value.sortBy,
+                sortOrder: transactionsFilter.value.sortOrder
             }).then(response => {
                 const data = response.data;
 

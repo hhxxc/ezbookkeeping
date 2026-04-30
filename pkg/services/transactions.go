@@ -388,7 +388,7 @@ func (s *TransactionService) buildTransactionOrderByClause(sortBy string, sortOr
 }
 
 // GetTransactionsInMonthByPage returns all transactions in given year and month
-func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid int64, year int32, month int32, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string) ([]*models.Transaction, error) {
+func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid int64, year int32, month int32, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, sortBy string, sortOrder string) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
 	}
@@ -416,7 +416,8 @@ func (s *TransactionService) GetTransactionsInMonthByPage(c core.Context, uid in
 	sess := s.UserDataDB(uid).NewSession(c).Where(condition, conditionParams...)
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 
-	err = sess.OrderBy("transaction_time desc").Find(&transactions)
+	orderByClause := s.buildTransactionOrderByClause(sortBy, sortOrder)
+	err = sess.OrderBy(orderByClause).Find(&transactions)
 
 	transactionsInMonth := make([]*models.Transaction, 0, len(transactions))
 

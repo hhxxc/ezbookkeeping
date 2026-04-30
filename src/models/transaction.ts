@@ -602,6 +602,8 @@ export interface TransactionListInMonthByPageRequest {
     readonly tagFilter: string;
     readonly amountFilter: string;
     readonly keyword: string;
+    readonly sortBy?: string;
+    readonly sortOrder?: string;
 }
 
 export interface TransactionAllListRequest {
