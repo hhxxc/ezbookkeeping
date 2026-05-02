@@ -4,6 +4,7 @@
             <f7-nav-left :class="{ 'disabled': loading }" :back-link="tt('Back')"></f7-nav-left>
             <f7-nav-title :title="tt(title)"></f7-nav-title>
             <f7-nav-right :class="{ 'navbar-compact-icons': true, 'disabled': loading }" v-if="mode !== TransactionEditPageMode.View || transaction.type !== TransactionType.ModifyBalance">
+                <f7-link icon-f7="doc_on_doc" @click="duplicate(false, false)" v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance"></f7-link>
                 <f7-link icon-f7="ellipsis" @click="showMoreActionSheet = true"></f7-link>
                 <f7-link icon-f7="checkmark_alt" :class="{ 'disabled': inputIsEmpty || submitting }" @click="save(AfterSaveAction.GoBack)" v-if="mode !== TransactionEditPageMode.View"></f7-link>
             </f7-nav-right>
@@ -77,6 +78,17 @@
                            v-if="transaction.type !== TransactionType.ModifyBalance" />
                 </template>
             </f7-list-item>
+
+            <f7-list-input
+                type="textarea"
+                class="transaction-edit-comment"
+                style="height: auto"
+                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
+                :label="tt('Description')"
+                :placeholder="mode !== TransactionEditPageMode.View ? tt('Your transaction description (optional)') : ''"
+                v-textarea-auto-size
+                v-model:value="transaction.comment"
+            ></f7-list-input>
 
             <f7-list-item
                 class="transaction-edit-amount text-color-primary"
@@ -421,16 +433,6 @@
                 </template>
             </f7-list-item>
 
-            <f7-list-input
-                type="textarea"
-                class="transaction-edit-comment"
-                style="height: auto"
-                :class="{ 'readonly': mode === TransactionEditPageMode.View }"
-                :label="tt('Description')"
-                :placeholder="mode !== TransactionEditPageMode.View ? tt('Your transaction description (optional)') : ''"
-                v-textarea-auto-size
-                v-model:value="transaction.comment"
-            ></f7-list-input>
         </f7-list>
 
         <f7-actions close-by-outside-click close-on-escape :opened="showGeoLocationActionSheet" @actions:closed="showGeoLocationActionSheet = false">
@@ -671,6 +673,7 @@ const sourceAmountInputValue = ref<string>('');
 const destinationAmountInputValue = ref<string>('');
 const isSourceAmountFocused = ref<boolean>(false);
 const isDestinationAmountFocused = ref<boolean>(false);
+const shouldClearAmountOnFocus = ref<boolean>(false);
 
 const quickSaveButtonStyleType = computed<number>(() => settingsStore.appSettings.quickSaveButtonStyleInMobileTransactionListPage);
 const quickSaveButtonFloatingPosition = computed<string>(() => {
@@ -926,6 +929,7 @@ function init(): void {
                 editId.value = query['id'];
             } else if (mode.value === TransactionEditPageMode.Add) {
                 duplicateFromId.value = query['id'];
+                shouldClearAmountOnFocus.value = true;
             }
 
             promises.push(transactionsStore.getTransaction({ transactionId: query['id'], withPictures: mode.value !== TransactionEditPageMode.Add }));
@@ -1249,6 +1253,14 @@ function updateDestinationAmount(value: string): void {
 
 function onSourceAmountFocus(): void {
     isSourceAmountFocused.value = true;
+
+    if (shouldClearAmountOnFocus.value) {
+        sourceAmountInputValue.value = '';
+        transaction.value.sourceAmount = 0;
+        shouldClearAmountOnFocus.value = false;
+        return;
+    }
+
     // Initialize with current amount as plain number for editing
     if (transaction.value.sourceAmount === 0) {
         sourceAmountInputValue.value = '';
@@ -1270,6 +1282,14 @@ function onSourceAmountBlur(): void {
 
 function onDestinationAmountFocus(): void {
     isDestinationAmountFocused.value = true;
+
+    if (shouldClearAmountOnFocus.value) {
+        destinationAmountInputValue.value = '';
+        transaction.value.destinationAmount = 0;
+        shouldClearAmountOnFocus.value = false;
+        return;
+    }
+
     // Initialize with current amount as plain number for editing
     if (transaction.value.destinationAmount === 0) {
         destinationAmountInputValue.value = '';

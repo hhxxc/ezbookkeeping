@@ -3,7 +3,7 @@
              infinite
              :infinite-preloader="loadingMore"
              :infinite-distance="600"
-             :with-subnavbar="showSearchbar"
+             :with-subnavbar="true"
              @ptr:refresh="reload"
              @page:afterin="onPageAfterIn"
              @infinite="loadMore(true)">
@@ -16,13 +16,11 @@
                 </f7-link>
             </f7-nav-title>
             <f7-nav-right :class="{ 'navbar-compact-icons': true, 'disabled': loading }">
-                <f7-link icon-f7="search" @click="toggleSearchbar"></f7-link>
                 <f7-link icon-f7="plus" :class="{ 'disabled': !canAddTransaction }" @click="add"></f7-link>
             </f7-nav-right>
 
-            <f7-subnavbar :inner="false" v-if="showSearchbar">
-                <div class="searchbar searchbar-init"
-                     :class="{ 'searchbar-enabled': showSearchbar }">
+            <f7-subnavbar :inner="false">
+                <div class="searchbar searchbar-init searchbar-enabled">
                     <div class="searchbar-inner">
                         <div class="searchbar-input-wrap">
                             <input type="text"
@@ -32,11 +30,9 @@
                                    inputmode="decimal"
                                    @input="changeKeywordFilter($event.target.value)"
                                    @keyup.enter="changeKeywordFilter(query.keyword)" />
-                            <span class="input-clear-button" 
-                                  @click="changeKeywordFilter(''); showSearchbar = false"></span>
+                            <span class="input-clear-button"
+                                  @click="changeKeywordFilter('')"></span>
                         </div>
-                        <span class="searchbar-disable-button" 
-                              @click="changeKeywordFilter(''); showSearchbar = false">{{ tt('Cancel') }}</span>
                     </div>
                 </div>
             </f7-subnavbar>
@@ -728,7 +724,7 @@ const loadingMore = ref<boolean>(false);
 const transactionToDelete = ref<Transaction | null>(null);
 const transactionInvisibleYearMonths = ref<Record<TextualYearMonth, boolean>>({});
 const transactionYearMonthListHeights = ref<Record<TextualYearMonth, number>>({});
-const showSearchbar = ref<boolean>(false);
+const showSearchbar = ref<boolean>(true);
 const showCustomDateRangeSheet = ref<boolean>(false);
 const showCustomMonthSheet = ref<boolean>(false);
 const showDeleteActionSheet = ref<boolean>(false);
@@ -1299,18 +1295,6 @@ function filterMultipleTags(): void {
     props.f7router.navigate('/settings/filter/tag?type=transactionListCurrent');
 }
 
-
-function toggleSearchbar(): void {
-    if (!showSearchbar.value) {
-        showSearchbar.value = true;
-    } else {
-        showSearchbar.value = false;
-
-        if (query.value.keyword) {
-            changeKeywordFilter('');
-        }
-    }
-}
 
 function changeKeywordFilter(keyword: string): void {
     if (query.value.keyword === keyword) {
