@@ -232,6 +232,7 @@ const chartOptions = computed<object>(() => {
             trigger: 'item',
             backgroundColor: isDarkMode.value ? '#333' : '#fff',
             borderColor: isDarkMode.value ? '#333' : '#fff',
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             textStyle: {
                 color: isDarkMode.value ? '#eee' : '#333'
             },

@@ -140,6 +140,7 @@ const chartOptions = computed<object>(() => {
             trigger: 'item',
             backgroundColor: isDarkMode.value ? '#333' : '#fff',
             borderColor: isDarkMode.value ? '#333' : '#fff',
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             textStyle: {
                 color: isDarkMode.value ? '#eee' : '#333'
             },
@@ -170,11 +171,12 @@ const chartOptions = computed<object>(() => {
                             color: '#c07d43'
                         },
                         lineStyle: {
-                            color: '#c07d43'
+                            color: '#c07d43',
+                            width: 3
                         },
                         areaStyle: {
-                            color: isDarkMode.value ? '#c07d4380' : '#c07d4340'
-                        }
+                            color: isDarkMode.value ? '#c07d4350' : '#c07d4328'
+                        },
                     }
                 ],
                 top: 0,

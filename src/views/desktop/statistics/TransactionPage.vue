@@ -1372,20 +1372,26 @@ init(props);
 
 .statistics-overview-title {
     line-height: 2rem !important;
-    height: 46px;
+    min-height: 56px;
     display: flex;
     align-items: flex-end;
+    padding-bottom: 12px !important;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .statistics-overview-amount {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -0.02em;
 }
 
 .statistics-subtitle {
-    font-size: 1rem;
-    line-height: 1.75rem
+    font-size: 0.9375rem;
+    line-height: 1.75rem;
+    color: rgba(var(--v-theme-on-background), var(--v-medium-emphasis-opacity));
 }
 
 .statistics-overview-empty-tip {

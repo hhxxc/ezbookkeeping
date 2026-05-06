@@ -31,10 +31,13 @@ interface AxisChartDataItem {
     name: string;
     itemStyle: {
         color: ColorStyleValue;
+        borderRadius?: number[];
     };
     selected: boolean;
     type: string;
     areaStyle?: object;
+    lineStyle?: object;
+    smooth?: number;
     stack?: string;
     symbolSize?: (data: number) => number;
     animation: boolean;
@@ -213,10 +216,15 @@ const allSeries = computed<AxisChartDataItem[]>(() => {
 
         if (props.type === 'line') {
             finalItem.areaStyle = undefined;
+            finalItem.lineStyle = { width: 3 };
+            finalItem.smooth = 0.35;
         } else if (props.type === 'area') {
-            finalItem.areaStyle = {};
+            finalItem.areaStyle = { opacity: isDarkMode.value ? 0.25 : 0.15 };
+            finalItem.lineStyle = { width: 3 };
+            finalItem.smooth = 0.35;
         } else if (props.type === 'column') {
             finalItem.type = 'bar';
+            finalItem.itemStyle.borderRadius = [4, 4, 0, 0];
         } else if (props.type === 'bubble') {
             finalItem.type = 'scatter';
             finalItem.symbolSize = (data: number): number => {
@@ -278,6 +286,8 @@ const chartOptions = computed<object>(() => {
     return {
         tooltip: {
             trigger: 'axis',
+            padding: 12,
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             axisPointer: {
                 type: 'cross',
                 label: {
@@ -439,6 +449,8 @@ const chartOptions = computed<object>(() => {
                 type: 'category',
                 data: props.allCategoryNames,
                 inverse: textDirection.value === TextDirection.RTL,
+                axisLine: { show: false },
+                axisTick: { show: false },
                 axisLabel: {
                     color: isDarkMode.value ? '#888' : '#666'
                 }
@@ -449,6 +461,8 @@ const chartOptions = computed<object>(() => {
                 type: 'value',
                 min: props.oneHundredPercentStacked ? 0 : undefined,
                 max: props.oneHundredPercentStacked ? 100 : undefined,
+                axisLine: { show: false },
+                axisTick: { show: false },
                 axisLabel: {
                     color: isDarkMode.value ? '#888' : '#666',
                     formatter: (value: string) => {
@@ -464,7 +478,7 @@ const chartOptions = computed<object>(() => {
                 },
                 splitLine: {
                     lineStyle: {
-                        color: isDarkMode.value ? '#4f4f4f' : '#e1e6f2',
+                        color: isDarkMode.value ? '#3a3a3a' : '#f0f0f0',
                     }
                 }
             }

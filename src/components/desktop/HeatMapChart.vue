@@ -154,6 +154,7 @@ const chartOptions = computed<object>(() => {
         tooltip: {
             backgroundColor: isDarkMode.value ? '#333' : '#fff',
             borderColor: isDarkMode.value ? '#333' : '#fff',
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             textStyle: {
                 color: isDarkMode.value ? '#eee' : '#333'
             },
@@ -179,7 +180,7 @@ const chartOptions = computed<object>(() => {
                 orient: 'horizontal',
                 top: 0,
                 left: 'center',
-                itemHeight: 320,
+                itemHeight: 280,
                 min: heatMapData.value.minValue,
                 max: heatMapData.value.maxValue,
                 calculable: true,
