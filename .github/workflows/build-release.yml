@@ -49,6 +49,17 @@ jobs:
           echo "ezbookkeeping_package_artifact_name_prefix=ezbookkeeping-build-release-package-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
           echo "ezbookkeeping_backend_artifact_name_prefix=ezbookkeeping-build-release-backend-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
+      - name: Print build info
+        run: |
+          echo "========================================"
+          echo "  Build Type: release"
+          echo "  Version: ${{ github.ref_name }}"
+          echo "  Commit: $(git rev-parse --short=7 HEAD)"
+          echo "  Build Date: ${{ steps.variable.outputs.build_date }}"
+          echo "  Build Unix Time: ${{ steps.variable.outputs.build_unix_time }}"
+          echo "  Docker Tags: ${{ steps.meta.outputs.tags }}"
+          echo "========================================"
+
       - name: Rename docker bake meta file
         run: |
           mv "${{ steps.meta.outputs.bake-file }}" "${{ steps.variable.outputs.ezbookkeeping_docker_bake_meta_file_path }}"

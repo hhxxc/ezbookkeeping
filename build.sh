@@ -127,6 +127,14 @@ set_build_parameters() {
     if [ -z "$BUILD_DATE" ]; then
         BUILD_DATE="$(date '+%Y%m%d')"
     fi
+
+    echo "========================================"
+    echo "  Build Type: $RELEASE_TYPE"
+    echo "  Version: $VERSION"
+    echo "  Commit: $COMMIT_HASH"
+    echo "  Build Date: $BUILD_DATE"
+    echo "  Build Unix Time: $BUILD_UNIXTIME"
+    echo "========================================"
 }
 
 build_backend() {
