@@ -474,12 +474,15 @@
             </f7-actions-group>
         </f7-actions>
 
-        <template #fixed v-if="quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomLeftFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomCenterFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomRightFloating.type">
+        <template #fixed v-if="(quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomLeftFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomCenterFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomRightFloating.type) && mode !== TransactionEditPageMode.View">
             <f7-fab id="quick-save-button" :class="{ 'disabled': inputIsEmpty || submitting }" :position="quickSaveButtonFloatingPosition"
                     :text="tt(quickSaveButtonTitle)"
-                    @click="quickSave" v-if="mode !== TransactionEditPageMode.View">
+                    @click="quickSave">
             </f7-fab>
-            <f7-fab id="copy-button" position="center-bottom" color="primary" v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance"
+        </template>
+
+        <template #fixed v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance">
+            <f7-fab id="copy-button" position="center-bottom" color="primary"
                     @click="duplicate(false, false)">
                 <f7-icon f7="doc_on_doc"></f7-icon>
             </f7-fab>
