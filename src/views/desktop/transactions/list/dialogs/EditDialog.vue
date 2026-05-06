@@ -9,24 +9,17 @@
                     </div>
                     <v-spacer/>
                     <v-btn density="comfortable" color="default" variant="text" class="ms-2" :icon="true"
+                           :disabled="loading || submitting"
+                           v-if="mode === TransactionEditPageMode.View && type === TransactionEditPageType.Transaction && transaction.type !== TransactionType.ModifyBalance"
+                           @click="duplicate(false, false)">
+                        <v-icon :icon="mdiContentCopy" />
+                        <v-tooltip activator="parent">{{ tt('Duplicate') }}</v-tooltip>
+                    </v-btn>
+                    <v-btn density="comfortable" color="default" variant="text" class="ms-2" :icon="true"
                            :disabled="loading || submitting" v-if="(mode !== TransactionEditPageMode.View || (mode === TransactionEditPageMode.View && type === TransactionEditPageType.Transaction && transaction.editable)) && (activeTab === 'basicInfo' || (activeTab === 'map' && isSupportGetGeoLocationByClick()))">
                         <v-icon :icon="mdiDotsVertical" />
                         <v-menu activator="parent">
                             <v-list v-if="activeTab === 'basicInfo'">
-                                <!-- Duplicate options -->
-                                <v-list-item :prepend-icon="mdiContentCopy"
-                                             :title="tt('Duplicate')"
-                                             v-if="transaction.type !== TransactionType.ModifyBalance"
-                                             @click="duplicate(false, false)"></v-list-item>
-                                <v-list-item :prepend-icon="mdiClockOutline"
-                                             :title="tt('Duplicate with current time')"
-                                             v-if="transaction.type !== TransactionType.ModifyBalance"
-                                             @click="duplicate(true, false)"></v-list-item>
-                                <v-list-item :prepend-icon="mdiMapMarkerOutline"
-                                             :title="tt('Duplicate with current geolocation')"
-                                             v-if="transaction.type !== TransactionType.ModifyBalance && isSupportGetGeoLocationByClick()"
-                                             @click="duplicate(false, true)"></v-list-item>
-                                <v-divider v-if="transaction.type !== TransactionType.ModifyBalance" />
                                 <!-- Delete option (only in View mode) -->
                                 <v-list-item :prepend-icon="mdiTrashCanOutline"
                                              :title="tt('Delete')"
@@ -560,6 +553,7 @@ import logger from '@/lib/logger.ts';
 
 import {
     mdiDotsVertical,
+    mdiContentCopy,
     mdiEyeOffOutline,
     mdiEyeOutline,
     mdiSwapHorizontal,
