@@ -479,6 +479,10 @@
                     :text="tt(quickSaveButtonTitle)"
                     @click="quickSave" v-if="mode !== TransactionEditPageMode.View">
             </f7-fab>
+            <f7-fab id="copy-button" position="center-bottom" color="primary" v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance"
+                    @click="duplicate(false, false)">
+                <f7-icon f7="doc_on_doc"></f7-icon>
+            </f7-fab>
         </template>
 
         <f7-toolbar id="quick-save-button" tabbar bottom v-if="quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomFixed.type && mode !== TransactionEditPageMode.View">
