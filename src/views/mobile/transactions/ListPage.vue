@@ -27,7 +27,6 @@
                                    class="searchbar-input"
                                    :placeholder="tt('Search by description or amount')"
                                    :value="query.keyword"
-                                   inputmode="decimal"
                                    @input="changeKeywordFilter($event.target.value)"
                                    @keyup.enter="changeKeywordFilter(query.keyword)" />
                             <span class="input-clear-button"
