@@ -1098,7 +1098,11 @@ function save(afterAction: AfterSaveAction): void {
                         showToast('You have saved this transaction');
                     }
 
-                    router.back();
+                    if (duplicateFromId.value) {
+                        router.navigate('/transaction/list');
+                    } else {
+                        router.back();
+                    }
                 }
             }).catch(error => {
                 submitting.value = false;
