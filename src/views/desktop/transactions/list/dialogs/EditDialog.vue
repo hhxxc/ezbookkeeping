@@ -1,5 +1,5 @@
 <template>
-    <v-dialog width="1000" :persistent="false" v-model="showState" @click:outside="onDialogOutsideClick">
+    <v-dialog width="1000" persistent v-model="showState" @click:outside="onDialogOutsideClick">
         <v-card class="pa-sm-1 pa-md-2">
             <template #title>
                 <div class="d-flex align-center justify-center">
@@ -137,6 +137,18 @@
                                                   :placeholder="tt('Transfer In Amount')"
                                                   :enable-formula="mode !== TransactionEditPageMode.View"
                                                   v-model="transaction.destinationAmount"/>
+                                </v-col>
+                                <v-col cols="12" md="12">
+                                    <v-textarea
+                                        type="text"
+                                        persistent-placeholder
+                                        rows="3"
+                                        :readonly="mode === TransactionEditPageMode.View"
+                                        :disabled="loading || submitting"
+                                        :label="tt('Description')"
+                                        :placeholder="tt('Your transaction description (optional)')"
+                                        v-model="transaction.comment"
+                                    />
                                 </v-col>
                                 <v-col cols="12" md="12" v-if="transaction.type === TransactionType.Expense">
                                     <v-tooltip :disabled="hasVisibleExpenseCategories" :text="hasVisibleExpenseCategories ? '' : tt('No secondary expense categories are available')">
@@ -349,18 +361,6 @@
                                         :allow-add-new-tag="true"
                                         v-model="transaction.tagIds"
                                         @tag:saving="onSavingTag"
-                                    />
-                                </v-col>
-                                <v-col cols="12" md="12">
-                                    <v-textarea
-                                        type="text"
-                                        persistent-placeholder
-                                        rows="3"
-                                        :readonly="mode === TransactionEditPageMode.View"
-                                        :disabled="loading || submitting"
-                                        :label="tt('Description')"
-                                        :placeholder="tt('Your transaction description (optional)')"
-                                        v-model="transaction.comment"
                                     />
                                 </v-col>
                             </v-row>
