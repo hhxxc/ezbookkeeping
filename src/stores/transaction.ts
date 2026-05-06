@@ -832,6 +832,20 @@ export const useTransactionsStore = defineStore('transactions', () => {
         };
     }
 
+    function getAllTransactionsForExport(req: { startTime: number, endTime: number, withPictures?: boolean }): Promise<TransactionInfoResponse[]> {
+        return services.getAllTransactions({
+            startTime: req.startTime,
+            endTime: req.endTime,
+            withPictures: req.withPictures || false
+        }).then(response => {
+            const data = response.data;
+            if (data && data.data) {
+                return data.data as TransactionInfoResponse[];
+            }
+            return [];
+        });
+    }
+
     function loadTransactions({ reload, count, page, withCount, autoExpand, defaultCurrency }: { reload?: boolean, count?: number, page?: number, withCount?: boolean, autoExpand: boolean, defaultCurrency: string }): Promise<TransactionPageWrapper> {
         let actualMaxTime = transactionsNextTimeId.value;
 
@@ -1552,6 +1566,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         updateTransactionListFilter,
         getTransactionListPageParams,
         getExportTransactionDataRequestByTransactionFilter,
+        getAllTransactionsForExport,
         loadTransactions,
         loadMonthlyAllTransactions,
         getReconciliationStatements,
