@@ -660,6 +660,7 @@ const originalTransactionEditable = ref<boolean>(false);
 const noTransactionDraft = ref<boolean>(false);
 const geoMenuState = ref<boolean>(false);
 const removingPictureId = ref<string>('');
+const confirmDialogShowing = ref<boolean>(false);
 
 const initOptions = ref<TransactionEditOptions | undefined>(undefined);
 
@@ -1008,15 +1009,22 @@ function remove(): void {
 }
 
 function onDialogOutsideClick(): void {
+    if (confirmDialogShowing.value) {
+        return;
+    }
+
     if (mode.value === TransactionEditPageMode.View) {
         // In view mode, close directly
         cancel();
     } else if (mode.value === TransactionEditPageMode.Edit) {
         // In edit mode, show confirmation if modified
         if (isTransactionModified.value) {
+            confirmDialogShowing.value = true;
             confirmDialog.value?.open(tt('You have unsaved changes. Do you want to discard them?')).then(() => {
+                confirmDialogShowing.value = false;
                 cancel();
             }).catch(() => {
+                confirmDialogShowing.value = false;
                 // User cancelled, keep dialog open
             });
         } else {
@@ -1025,9 +1033,12 @@ function onDialogOutsideClick(): void {
     } else if (mode.value === TransactionEditPageMode.Add) {
         // In add mode, check if draft is modified
         if (isTransactionModified.value) {
+            confirmDialogShowing.value = true;
             confirmDialog.value?.open(tt('You have unsaved changes. Do you want to discard them?')).then(() => {
+                confirmDialogShowing.value = false;
                 cancel();
             }).catch(() => {
+                confirmDialogShowing.value = false;
                 // User cancelled, keep dialog open
             });
         } else {
