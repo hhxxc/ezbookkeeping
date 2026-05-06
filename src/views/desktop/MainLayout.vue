@@ -109,6 +109,9 @@
                     </router-link>
                 </li>
             </perfect-scrollbar>
+            <div class="nav-footer-version">
+                <span>{{ clientVersion }}</span>
+            </div>
         </div>
 
         <div class="layout-content-wrapper">
@@ -224,6 +227,7 @@ import { ThemeType } from '@/core/theme.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { getSystemTheme, setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
+import { getClientDisplayVersion } from '@/lib/version.ts';
 import logger from '@/lib/logger.ts';
 
 import {
@@ -295,6 +299,8 @@ const currentTheme = computed<string>({
         }
     }
 });
+
+const clientVersion = `${getClientDisplayVersion()}`;
 
 const showAddTransactionButtonInDesktopNavbar = computed<boolean>(() => settingsStore.appSettings.showAddTransactionButtonInDesktopNavbar);
 const isEnableApplicationLock = computed<boolean>(() => settingsStore.appSettings.applicationLock);

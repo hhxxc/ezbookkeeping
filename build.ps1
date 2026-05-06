@@ -87,6 +87,14 @@ function Set-Build-Parameters {
     if (-not $BuildDate) {
         $script:BuildDate = Get-Date -Format "yyyyMMdd"
     }
+
+    Write-Host "========================================"
+    Write-Host "  Build Type: $ReleaseType"
+    Write-Host "  Version: $Version"
+    Write-Host "  Commit: $CommitHash"
+    Write-Host "  Build Date: $BuildDate"
+    Write-Host "  Build Unix Time: $BuildUnixTime"
+    Write-Host "========================================"
 }
 
 function Build-Backend {

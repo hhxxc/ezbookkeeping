@@ -126,6 +126,30 @@ input[type=number] {
     min-inline-size: 100%;
 }
 
+.layout-vertical-nav {
+    display: flex;
+    flex-direction: column;
+
+    .nav-items {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .nav-footer-version {
+        flex-shrink: 0;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+        text-align: left;
+        background-color: rgba(var(--v-theme-on-surface), 0.03);
+        border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
 .title-and-toolbar {
     min-height: 38px;
     flex-wrap: wrap;
