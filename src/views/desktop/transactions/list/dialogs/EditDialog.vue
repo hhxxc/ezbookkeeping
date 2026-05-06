@@ -10,7 +10,7 @@
                     <v-spacer/>
                     <v-btn density="comfortable" color="default" variant="text" class="ms-2" :icon="true"
                            :disabled="loading || submitting"
-                           v-if="mode === TransactionEditPageMode.View && type === TransactionEditPageType.Transaction && transaction.type !== TransactionType.ModifyBalance"
+                           v-if="mode !== TransactionEditPageMode.Add && type === TransactionEditPageType.Transaction && transaction.type !== TransactionType.ModifyBalance"
                            @click="duplicate(false, false)">
                         <v-icon :icon="mdiContentCopy" />
                         <v-tooltip activator="parent">{{ tt('Duplicate') }}</v-tooltip>
@@ -946,7 +946,7 @@ function save(afterAction: AfterSaveAction): void {
 }
 
 function duplicate(withTime?: boolean, withGeoLocation?: boolean): void {
-    if (props.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.View) {
+    if (props.type !== TransactionEditPageType.Transaction || mode.value === TransactionEditPageMode.Add) {
         return;
     }
 
