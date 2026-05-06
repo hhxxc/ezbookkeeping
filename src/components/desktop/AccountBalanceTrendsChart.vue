@@ -40,10 +40,13 @@ interface AccountBalanceTrendsChartDataItem {
         color0?: ColorStyleValue;
         borderColor?: ColorStyleValue;
         borderColor0?: ColorStyleValue;
+        borderRadius?: number[];
     };
     selected: boolean;
     type: string;
     areaStyle?: object;
+    lineStyle?: object;
+    smooth?: number;
     stack: string;
     animation: boolean;
     data: (number | number[])[];
@@ -86,9 +89,15 @@ const allSeries = computed<AccountBalanceTrendsChartDataItem[]>(() => {
     };
 
     if (props.type === AccountBalanceTrendChartType.Area.type) {
-        series.areaStyle = {};
+        series.areaStyle = { opacity: isDarkMode.value ? 0.25 : 0.15 };
+        series.lineStyle = { width: 3 };
+        series.smooth = 0.35;
     } else if (props.type === AccountBalanceTrendChartType.Column.type) {
         series.type = 'bar';
+        series.itemStyle = {
+            ...series.itemStyle,
+            borderRadius: [4, 4, 0, 0]
+        };
     } else if (props.type === AccountBalanceTrendChartType.Boxplot.type) {
         series.type = 'boxplot';
         series.itemStyle.borderColor = series.itemStyle.color;
@@ -187,6 +196,8 @@ const chartOptions = computed<object>(() => {
     return {
         tooltip: {
             trigger: 'axis',
+            padding: 12,
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             axisPointer: {
                 type: 'cross',
                 label: {
@@ -295,6 +306,8 @@ const chartOptions = computed<object>(() => {
                 type: 'category',
                 data: allDisplayDateRanges.value,
                 inverse: textDirection.value === TextDirection.RTL,
+                axisLine: { show: false },
+                axisTick: { show: false },
                 axisLabel: {
                     color: isDarkMode.value ? '#888' : '#666'
                 }
@@ -303,6 +316,8 @@ const chartOptions = computed<object>(() => {
         yAxis: [
             {
                 type: 'value',
+                axisLine: { show: false },
+                axisTick: { show: false },
                 axisLabel: {
                     color: isDarkMode.value ? '#888' : '#666',
                     formatter: (value: string) => {
@@ -318,7 +333,7 @@ const chartOptions = computed<object>(() => {
                 },
                 splitLine: {
                     lineStyle: {
-                        color: isDarkMode.value ? '#4f4f4f' : '#e1e6f2',
+                        color: isDarkMode.value ? '#3a3a3a' : '#f0f0f0',
                     }
                 }
             }
@@ -416,7 +431,7 @@ function formatDisplayChangeRate(current: number, reference: number): string {
 <style scoped>
 .account-balance-trends-chart-container {
     width: 100%;
-    height: 418px;
+    height: 460px;
     margin-top: 10px;
 }
 </style>

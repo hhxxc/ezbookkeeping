@@ -482,13 +482,13 @@ defineExpose({
 <style scoped>
 .trends-chart-container {
     width: 100%;
-    height: 720px;
+    height: 780px;
     margin-top: 10px;
 }
 
 @media (min-width: 600px) {
     .trends-chart-container {
-        height: 790px;
+        height: 860px;
     }
 }
 </style>

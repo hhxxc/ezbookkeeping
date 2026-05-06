@@ -123,6 +123,7 @@ const chartOptions = computed<object>(() => {
             trigger: 'item',
             backgroundColor: isDarkMode.value ? '#333' : '#fff',
             borderColor: isDarkMode.value ? '#333' : '#fff',
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             textStyle: {
                 color: isDarkMode.value ? '#eee' : '#333'
             },
@@ -178,12 +179,17 @@ const chartOptions = computed<object>(() => {
                 data: seriesData.value,
                 top: 50,
                 startAngle: -90 + firstItemAndHalfCurrentItemTotalPercent.value * 360,
-                radius: [0, '75%'],
+                radius: ['40%', '72%'],
+                itemStyle: {
+                    borderRadius: 6,
+                    borderColor: isDarkMode.value ? '#1a1a1a' : '#fff',
+                    borderWidth: 2
+                },
                 emphasis: {
                     itemStyle: {
-                        shadowBlur: 10,
+                        shadowBlur: 20,
                         shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)',
+                        shadowColor: 'rgba(0, 0, 0, 0.4)',
                     }
                 },
                 label: {
@@ -261,12 +267,12 @@ function onLegendSelectChanged(e: { selected: Record<string, boolean> }): void {
 <style scoped>
 .pie-chart-container {
     width: 100%;
-    height: 460px;
+    height: 520px;
 }
 
 @media (min-width: 600px) {
     .pie-chart-container {
-        height: 650px;
+        height: 700px;
     }
 }
 

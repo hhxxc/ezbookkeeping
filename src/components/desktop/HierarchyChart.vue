@@ -127,12 +127,14 @@ const chartOptions = computed<object>(() => {
         levels: [
             {
                 itemStyle: {
-                    gapWidth: 2
+                    gapWidth: 2,
+                    borderRadius: 4
                 }
             },
             {
                 itemStyle: {
-                    gapWidth: 1
+                    gapWidth: 1,
+                    borderRadius: 2
                 }
             }
         ],
@@ -156,6 +158,7 @@ const chartOptions = computed<object>(() => {
         tooltip: {
             backgroundColor: isDarkMode.value ? '#333' : '#fff',
             borderColor: isDarkMode.value ? '#333' : '#fff',
+            extraCssText: 'border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.12);',
             textStyle: {
                 color: isDarkMode.value ? '#eee' : '#333'
             },
