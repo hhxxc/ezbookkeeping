@@ -29,14 +29,14 @@ export const ALL_ACCOUNT_COLORS: ColorValue[] = allAvailableColors;
 export const ALL_CATEGORY_COLORS: ColorValue[] = allAvailableColors;
 
 export const DEFAULT_CHART_COLORS: ColorValue[] = [
-    'cc4a66',
-    'e3564a',
-    'fc892c',
-    'ffc349',
-    '4dd291',
-    '24ceb3',
-    '2ab4d0',
-    '065786',
-    '713670',
-    '8e1d51'
+    '8EB69B',
+    '235347',
+    '5A9E7E',
+    '3D7A63',
+    'A8CFB4',
+    '6BB592',
+    '2C5E4E',
+    '163832',
+    '7FC4A0',
+    '4A8B72'
 ];

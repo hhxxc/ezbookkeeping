@@ -182,7 +182,7 @@ const chartOptions = computed<object>(() => {
                 radius: ['40%', '72%'],
                 itemStyle: {
                     borderRadius: 6,
-                    borderColor: isDarkMode.value ? '#1a1a1a' : '#fff',
+                    borderColor: isDarkMode.value ? '#0B2B26' : '#fff',
                     borderWidth: 2
                 },
                 emphasis: {
@@ -225,23 +225,17 @@ const chartOptions = computed<object>(() => {
 });
 
 function clickItem(e: ECElementEvent): void {
-    if (!props.enableClickItem || e.componentType !== 'series' || e.seriesType !=='pie') {
+    if (!props.enableClickItem || e.componentType !== 'series' || e.seriesType !== 'pie') {
         return;
     }
 
-    if (e.event && e.event.target && e.event.target.currentStates && e.event.target.currentStates[0] && e.event.target.currentStates[0] === 'emphasis') {
-        selectedIndex.value = e.dataIndex;
-        return;
-    }
+    selectedIndex.value = e.dataIndex;
 
-    if (!e.data) {
-        return;
-    }
-
-    const data = e.data as object;
-
-    if ('sourceItem' in data) {
-        emit('click', data.sourceItem as Record<string, unknown>);
+    if (e.data) {
+        const data = e.data as object;
+        if ('sourceItem' in data) {
+            emit('click', data.sourceItem as Record<string, unknown>);
+        }
     }
 }
 
