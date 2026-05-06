@@ -4,7 +4,7 @@
             <f7-nav-left :class="{ 'disabled': loading }" :back-link="tt('Back')"></f7-nav-left>
             <f7-nav-title :title="tt(title)"></f7-nav-title>
             <f7-nav-right :class="{ 'navbar-compact-icons': true, 'disabled': loading }" v-if="mode !== TransactionEditPageMode.View || transaction.type !== TransactionType.ModifyBalance">
-                <f7-link icon-f7="doc_on_doc" @click="duplicate(false, false)" v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance"></f7-link>
+                <f7-link icon-f7="doc_on_doc" @click="duplicate(false, false)" v-if="transaction.type !== TransactionType.ModifyBalance"></f7-link>
                 <f7-link icon-f7="ellipsis" @click="showMoreActionSheet = true"></f7-link>
                 <f7-link icon-f7="checkmark_alt" :class="{ 'disabled': inputIsEmpty || submitting }" @click="save(AfterSaveAction.GoBack)" v-if="mode !== TransactionEditPageMode.View"></f7-link>
             </f7-nav-right>
