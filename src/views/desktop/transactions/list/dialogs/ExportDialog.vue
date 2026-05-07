@@ -63,6 +63,7 @@
                     :items-per-page="10"
                     :no-data-text="tt('No data')"
                     :loading="loading"
+                    hide-default-footer
                     style="max-height: 300px"
                 />
             </v-card-text>
@@ -89,7 +90,7 @@
 import SnackBar from '@/components/desktop/SnackBar.vue';
 import DateTimeSelect from '@/components/desktop/DateTimeSelect.vue';
 
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, watch, useTemplateRef } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
 
@@ -114,7 +115,7 @@ import ExcelJS from 'exceljs';
 
 type SnackBarType = InstanceType<typeof SnackBar>;
 
-const { tt, formatDateTimeToShortDateTime } = useI18n();
+const { tt, formatDateTimeToShortDateTime, formatAmountToLocalizedNumeralsWithCurrency } = useI18n();
 
 const settingsStore = useSettingsStore();
 const userStore = useUserStore();
@@ -133,15 +134,15 @@ interface TimePreset {
 const timePresets: TimePreset[] = [
     { value: DateRange.Today.type, title: 'Today' },
     { value: DateRange.Yesterday.type, title: 'Yesterday' },
-    { value: DateRange.ThisWeek.type, title: 'This Week' },
-    { value: DateRange.LastWeek.type, title: 'Last Week' },
-    { value: DateRange.ThisMonth.type, title: 'This Month' },
-    { value: DateRange.LastMonth.type, title: 'Last Month' },
-    { value: DateRange.LastThirtyDays.type, title: 'Last 30 Days' },
-    { value: DateRange.ThisYear.type, title: 'This Year' },
-    { value: DateRange.LastYear.type, title: 'Last Year' },
-    { value: -2, title: 'Recent 3 Months' },
-    { value: DateRange.RecentTwelveMonths.type, title: 'Recent 12 Months' },
+    { value: DateRange.ThisWeek.type, title: 'This week' },
+    { value: DateRange.LastWeek.type, title: 'Last week' },
+    { value: DateRange.ThisMonth.type, title: 'This month' },
+    { value: DateRange.LastMonth.type, title: 'Last month' },
+    { value: DateRange.LastThirtyDays.type, title: 'Recent 30 days' },
+    { value: DateRange.ThisYear.type, title: 'This year' },
+    { value: DateRange.LastYear.type, title: 'Last year' },
+    { value: -2, title: 'Recent 3 months' },
+    { value: DateRange.RecentTwelveMonths.type, title: 'Recent 12 months' },
     { value: DateRange.All.type, title: 'All Time' },
     { value: -1, title: 'Custom' },
 ];
@@ -269,9 +270,7 @@ function getAccountName(tx: Transaction): string {
 }
 
 function formatAmount(tx: Transaction): string {
-    const currency = tx.sourceAccount?.currency || '';
-    const amount = tx.sourceAmount || 0;
-    return `${amount.toFixed(2)} ${currency}`;
+    return formatAmountToLocalizedNumeralsWithCurrency(tx.sourceAmount, tx.sourceAccount?.currency);
 }
 
 function formatUnixTimeToDate(unixTime: number): string {
@@ -281,6 +280,7 @@ function formatUnixTimeToDate(unixTime: number): string {
 
 function selectPreset(preset: TimePreset): void {
     selectedPreset.value = preset.value;
+    loadData();
 }
 
 function open(): void {
@@ -391,10 +391,10 @@ function doExport(): void {
                 category: getCategoryName(tx),
                 account: getAccountName(tx),
                 currency: tx.sourceAccount?.currency || '',
-                amount: tx.sourceAmount || 0,
+                amount: (tx.sourceAmount || 0) / 100,
                 relatedAccount: tx.destinationAccount?.name || '',
                 relatedCurrency: tx.destinationAccount?.currency || '',
-                relatedAmount: tx.destinationAmount || 0,
+                relatedAmount: (tx.destinationAmount || 0) / 100,
                 tags: tags,
                 comment: tx.comment || '',
                 geoLocation: geo,
@@ -478,6 +478,10 @@ function doExport(): void {
 function cancel(): void {
     showState.value = false;
 }
+
+watch(filterType, () => {
+    loadData();
+});
 
 defineExpose({
     open

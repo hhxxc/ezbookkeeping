@@ -839,8 +839,8 @@ export const useTransactionsStore = defineStore('transactions', () => {
             withPictures: req.withPictures || false
         }).then(response => {
             const data = response.data;
-            if (data && data.data) {
-                return data.data as TransactionInfoResponse[];
+            if (data && data.result) {
+                return data.result as TransactionInfoResponse[];
             }
             return [];
         });
