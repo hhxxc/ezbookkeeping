@@ -59,6 +59,16 @@ const itemsMap = computed<Record<string, Record<string, unknown>>>(() => {
     return map;
 });
 
+const validItemsMap = computed<Record<string, CommonPieChartDataItem>>(() => {
+    const map: Record<string, CommonPieChartDataItem> = {};
+
+    for (const item of validItems.value) {
+        map[item.id] = item;
+    }
+
+    return map;
+});
+
 const seriesData = computed<DesktopPieChartDataItem[]>(() => {
     const ret: DesktopPieChartDataItem[] = [];
 
@@ -169,8 +179,14 @@ const chartOptions = computed<object>(() => {
                 color: isDarkMode.value ? '#eee' : '#333'
             },
             formatter: (id: string) => {
-                const item = itemsMap.value[id];
-                return item && props.nameField && item[props.nameField] ? item[props.nameField] as string : id;
+                const item = validItemsMap.value[id];
+                const name = item ? item.displayName : id;
+
+                if (item && props.showValue && item.displayValue) {
+                    return `${name}  ${item.displayValue}`;
+                }
+
+                return name;
             }
         },
         series: [
@@ -215,7 +231,9 @@ const chartOptions = computed<object>(() => {
                     series: [
                         {
                             type: 'pie',
-                            top: 0
+                            top: 0,
+                            center: ['58%', '50%'],
+                            radius: ['35%', '60%']
                         }
                     ]
                 },
