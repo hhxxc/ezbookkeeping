@@ -149,11 +149,6 @@ import { parseDateTimeFromUnixTime } from '@/lib/datetime.ts';
 import { getClientDisplayVersion, getDesktopVersionPath } from '@/lib/version.ts';
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
-import {
-    getHomeSummaryBackgroundImage,
-    setHomeSummaryBackgroundImage,
-    removeHomeSummaryBackgroundImage
-} from '@/lib/settings.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
 const props = defineProps<{
@@ -175,7 +170,7 @@ const logouting = ref<boolean>(false);
 const showThemePopup = ref<boolean>(false);
 const showTimezonePopup = ref<boolean>(false);
 
-const homeBackgroundImage = ref<string>(getHomeSummaryBackgroundImage());
+const homeBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
 const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
 
 const currentNickName = computed<string>(() => userStore.currentUserNickname || tt('User'));
@@ -287,7 +282,7 @@ function uploadHomeBackgroundImage(event: Event): void {
             ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            setHomeSummaryBackgroundImage(dataUrl);
+            settingsStore.setHomeSummaryBackgroundImage(dataUrl);
             homeBackgroundImage.value = dataUrl;
         };
 
@@ -300,7 +295,7 @@ function uploadHomeBackgroundImage(event: Event): void {
 
 function onRemoveHomeBackgroundImage(): void {
     showConfirm('Remove home background image?', () => {
-        removeHomeSummaryBackgroundImage();
+        settingsStore.setHomeSummaryBackgroundImage('');
         homeBackgroundImage.value = '';
     });
 }

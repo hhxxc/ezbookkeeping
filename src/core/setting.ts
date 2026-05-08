@@ -71,6 +71,8 @@ export interface ApplicationSettings extends BaseApplicationSetting {
     // Browser Cache Management
     mapCacheExpiration: number,
     exchangeRatesDataCacheExpiration: number,
+    // Home Background Image
+    homeSummaryBackgroundImage: string,
     // Statistics Settings
     statistics: {
         defaultChartDataType: number;
@@ -149,6 +151,8 @@ export const ALL_ALLOWED_CLOUD_SYNC_APP_SETTING_KEY_TYPES: Record<string, UserAp
     // Browser Cache Management
     'mapCacheExpiration': UserApplicationCloudSettingType.Number,
     'exchangeRatesDataCacheExpiration': UserApplicationCloudSettingType.Number,
+    // Home Background Image
+    'homeSummaryBackgroundImage': UserApplicationCloudSettingType.String,
     // Statistics Settings
     'statistics.defaultChartDataType': UserApplicationCloudSettingType.Number,
     'statistics.defaultTimezoneType': UserApplicationCloudSettingType.Number,
@@ -209,6 +213,8 @@ export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
     // Browser Cache Management
     mapCacheExpiration: -1,
     exchangeRatesDataCacheExpiration: 0,
+    // Home Background Image
+    homeSummaryBackgroundImage: '',
     // Statistics Settings
     statistics: {
         defaultChartDataType: ChartDataType.Default.type,

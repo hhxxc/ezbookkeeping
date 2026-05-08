@@ -235,7 +235,7 @@ import type { RecognizedReceiptImageResponse } from '@/models/large_language_mod
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
-import { getHomeSummaryBackgroundImage } from '@/lib/settings.ts';
+import { useSettingsStore } from '@/stores/setting.ts';
 
 type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
 
@@ -254,7 +254,8 @@ const {
     getDisplayExpenseAmount
 } = useHomePageBase();
 
-const homeSummaryBackgroundImage = ref<string>(getHomeSummaryBackgroundImage());
+const settingsStore = useSettingsStore();
+const homeSummaryBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
 
 const homeSummaryCardStyle = computed(() => {
     if (homeSummaryBackgroundImage.value) {
@@ -384,7 +385,7 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 }
 
 function onPageAfterIn(): void {
-    homeSummaryBackgroundImage.value = getHomeSummaryBackgroundImage();
+    homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
 
     if (!loading.value) {
         reload();
