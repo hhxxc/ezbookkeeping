@@ -4,7 +4,7 @@
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
 
-        <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }">
+        <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle">
             <f7-card-header class="display-block" style="padding-top: 120px;">
                 <p class="no-margin">
                     <span class="card-header-content" v-if="loading">
@@ -235,6 +235,7 @@ import type { RecognizedReceiptImageResponse } from '@/models/large_language_mod
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { getHomeSummaryBackgroundImage } from '@/lib/settings.ts';
 
 type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
 
@@ -252,6 +253,20 @@ const {
     getDisplayIncomeAmount,
     getDisplayExpenseAmount
 } = useHomePageBase();
+
+const homeSummaryBackgroundImage = ref<string>(getHomeSummaryBackgroundImage());
+
+const homeSummaryCardStyle = computed(() => {
+    if (homeSummaryBackgroundImage.value) {
+        return {
+            'background-image': `url(${homeSummaryBackgroundImage.value})`,
+            'background-size': 'cover',
+            'background-position': 'center',
+            'background-repeat': 'no-repeat'
+        } as Record<string, string>;
+    }
+    return {} as Record<string, string>;
+});
 
 const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
@@ -369,6 +384,8 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 }
 
 function onPageAfterIn(): void {
+    homeSummaryBackgroundImage.value = getHomeSummaryBackgroundImage();
+
     if (!loading.value) {
         reload();
     }

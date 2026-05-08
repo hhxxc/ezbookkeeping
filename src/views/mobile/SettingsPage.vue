@@ -112,12 +112,27 @@
             <f7-list-item link="#" no-chevron :title="tt('Switch to Desktop Version')" @click="switchToDesktopVersion"></f7-list-item>
 
             <f7-list-item :title="tt('About')" link="/about" :after="version"></f7-list-item>
+
+            <f7-list-item>
+                <template #after-title>
+                    <span>{{ tt('Home Background Image') }}</span>
+                </template>
+                <template #after>
+                    <div class="display-flex align-items-center">
+                        <img v-if="homeBackgroundImage" :src="homeBackgroundImage" style="width: 40px; height: 20px; object-fit: cover; margin-right: 8px; border-radius: 4px;" />
+                        <f7-link @click="onHomeBackgroundImageClick">{{ homeBackgroundImage ? tt('Change') : tt('Upload') }}</f7-link>
+                        <f7-link v-if="homeBackgroundImage" @click="onRemoveHomeBackgroundImage" class="margin-inline-start-half">{{ tt('Remove') }}</f7-link>
+                    </div>
+                </template>
+            </f7-list-item>
         </f7-list>
+
+        <input ref="homeBgInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="uploadHomeBackgroundImage($event)" />
     </f7-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -134,6 +149,12 @@ import { parseDateTimeFromUnixTime } from '@/lib/datetime.ts';
 import { getClientDisplayVersion, getDesktopVersionPath } from '@/lib/version.ts';
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
+import {
+    getHomeSummaryBackgroundImage,
+    setHomeSummaryBackgroundImage,
+    removeHomeSummaryBackgroundImage
+} from '@/lib/settings.ts';
+import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -153,6 +174,9 @@ const version = `${getClientDisplayVersion()}`;
 const logouting = ref<boolean>(false);
 const showThemePopup = ref<boolean>(false);
 const showTimezonePopup = ref<boolean>(false);
+
+const homeBackgroundImage = ref<string>(getHomeSummaryBackgroundImage());
+const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
 
 const currentNickName = computed<string>(() => userStore.currentUserNickname || tt('User'));
 
@@ -210,6 +234,74 @@ const exchangeRatesLastUpdateDate = computed<string>(() => {
 function switchToDesktopVersion(): void {
     showConfirm('Are you sure you want to switch to desktop version?', () => {
         window.location.replace(getDesktopVersionPath());
+    });
+}
+
+function onHomeBackgroundImageClick(): void {
+    homeBgInput.value?.click();
+}
+
+function uploadHomeBackgroundImage(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+        const img = new Image();
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            if (!ctx) {
+                return;
+            }
+
+            const targetRatio = 2;
+            const maxOutputWidth = 800;
+
+            let sourceX = 0;
+            let sourceY = 0;
+            let sourceWidth = img.width;
+            let sourceHeight = img.height;
+            const currentRatio = sourceWidth / sourceHeight;
+
+            if (currentRatio > targetRatio) {
+                sourceWidth = sourceHeight * targetRatio;
+                sourceX = (img.width - sourceWidth) / 2;
+            } else if (currentRatio < targetRatio) {
+                sourceHeight = sourceWidth / targetRatio;
+                sourceY = (img.height - sourceHeight) / 2;
+            }
+
+            const outputWidth = Math.min(img.width, maxOutputWidth);
+            const outputHeight = outputWidth / targetRatio;
+
+            canvas.width = outputWidth;
+            canvas.height = outputHeight;
+            ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            setHomeSummaryBackgroundImage(dataUrl);
+            homeBackgroundImage.value = dataUrl;
+        };
+
+        img.src = e.target?.result as string;
+    };
+
+    reader.readAsDataURL(file);
+    target.value = '';
+}
+
+function onRemoveHomeBackgroundImage(): void {
+    showConfirm('Remove home background image?', () => {
+        removeHomeSummaryBackgroundImage();
+        homeBackgroundImage.value = '';
     });
 }
 

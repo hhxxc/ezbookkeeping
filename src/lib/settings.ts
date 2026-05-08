@@ -121,3 +121,17 @@ export function setSessionCurrentLanguageKey(languageKey: string): void {
 
     sessionStorage.setItem(currentLanguageSessionStorageKey, languageKey);
 }
+
+const homeSummaryBackgroundImageKey: string = 'ebk_home_summary_bg_image';
+
+export function getHomeSummaryBackgroundImage(): string {
+    return localStorage.getItem(homeSummaryBackgroundImageKey) || '';
+}
+
+export function setHomeSummaryBackgroundImage(image: string): void {
+    localStorage.setItem(homeSummaryBackgroundImageKey, image);
+}
+
+export function removeHomeSummaryBackgroundImage(): void {
+    localStorage.removeItem(homeSummaryBackgroundImageKey);
+}
