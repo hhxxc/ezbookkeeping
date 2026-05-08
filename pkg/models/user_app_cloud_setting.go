@@ -61,6 +61,8 @@ var ALL_ALLOWED_CLOUD_SYNC_APP_SETTING_KEY_TYPES = map[string]UserApplicationClo
 	"statistics.defaultTrendChartDataRangeType":       USER_APPLICATION_CLOUD_SETTING_TYPE_NUMBER,
 	"statistics.defaultAssetTrendsChartType":          USER_APPLICATION_CLOUD_SETTING_TYPE_NUMBER,
 	"statistics.defaultAssetTrendsChartDataRangeType": USER_APPLICATION_CLOUD_SETTING_TYPE_NUMBER,
+	// Home Background Image
+	"homeSummaryBackgroundImage": USER_APPLICATION_CLOUD_SETTING_TYPE_STRING,
 }
 
 // UserApplicationCloudSetting represents user application cloud setting stored in database

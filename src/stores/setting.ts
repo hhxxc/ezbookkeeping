@@ -337,6 +337,13 @@ export const useSettingsStore = defineStore('settings', () => {
         updateUserApplicationCloudSettingValue('exchangeRatesDataCacheExpiration', value);
     }
 
+    // Home Background Image
+    function setHomeSummaryBackgroundImage(value: string): void {
+        updateApplicationSettingsValue('homeSummaryBackgroundImage', value);
+        appSettings.value.homeSummaryBackgroundImage = value;
+        updateUserApplicationCloudSettingValue('homeSummaryBackgroundImage', value);
+    }
+
     // Statistics Settings
     function setStatisticsDefaultChartDataType(value: number): void {
         updateApplicationSettingsSubValue('statistics', 'defaultChartDataType', value);
@@ -563,6 +570,8 @@ export const useSettingsStore = defineStore('settings', () => {
         // -- Browser Cache Management
         setMapCacheExpiration,
         setExchangeRatesDataCacheExpiration,
+        // -- Home Background Image
+        setHomeSummaryBackgroundImage,
         // -- Statistics Settings
         setStatisticsDefaultChartDataType,
         setStatisticsDefaultTimezoneType,
