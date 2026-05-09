@@ -133,6 +133,12 @@
                                :icon="true" @click="(currentTheme === 'light' ? currentTheme = 'dark' : (currentTheme === 'dark' ? currentTheme = 'auto' : currentTheme = 'light'))">
                             <v-icon :icon="(currentTheme === 'light' ? mdiWeatherSunny : (currentTheme === 'dark' ? mdiWeatherNight : mdiThemeLightDark))" size="24" />
                         </v-btn>
+                        <v-btn color="primary" variant="text" class="me-2" :icon="true"
+                               v-if="isTransactionFromAIImageRecognitionEnabled()"
+                               @click="openAIImageRecognition">
+                            <v-icon :icon="mdiCamera" size="24" />
+                            <v-tooltip activator="parent">{{ tt('AI Image Recognition') }}</v-tooltip>
+                        </v-btn>
                         <v-avatar class="cursor-pointer" variant="tonal"
                                   :color="currentUserAvatar ? 'rgba(0,0,0,0)' : 'primary'">
                             <v-img :src="currentUserAvatar" v-if="currentUserAvatar">
@@ -195,6 +201,7 @@
         </div>
 
         <switch-to-mobile-dialog v-model:show="showMobileQrCode" />
+        <a-i-image-recognition-dialog ref="aiImageRecognitionDialog" />
 
         <div class="layout-overlay" :class="{ 'visible': showVerticalOverlayMenu }" @click="showVerticalOverlayMenu = false"></div>
 
@@ -208,6 +215,7 @@
 
 <script setup lang="ts">
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import AIImageRecognitionDialog from '@/views/desktop/transactions/list/dialogs/AIImageRecognitionDialog.vue';
 
 import { ref, computed, useTemplateRef } from 'vue';
 
@@ -225,8 +233,9 @@ import { APPLICATION_LOGO_PATH } from '@/consts/asset.ts';
 import { ThemeType } from '@/core/theme.ts';
 
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
-import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
+import { isUserScheduledTransactionEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { getSystemTheme, setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
+import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
 import { getClientDisplayVersion } from '@/lib/version.ts';
 import logger from '@/lib/logger.ts';
 
@@ -252,10 +261,12 @@ import {
     mdiAccount,
     mdiAccountCogOutline,
     mdiLockOutline,
-    mdiLogout
+    mdiLogout,
+    mdiCamera
 } from '@mdi/js';
 
 type SnackBarType = InstanceType<typeof SnackBar>;
+type AIImageRecognitionDialogType = InstanceType<typeof AIImageRecognitionDialog>;
 
 const display = useDisplay();
 const theme = useTheme();
@@ -270,6 +281,7 @@ const userStore = useUserStore();
 const desktopPageStore = useDesktopPageStore();
 
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+const aiImageRecognitionDialog = useTemplateRef<AIImageRecognitionDialogType>('aiImageRecognitionDialog');
 
 const logouting = ref<boolean>(false);
 const isVerticalNavScrolled = ref<boolean>(false);
@@ -350,6 +362,54 @@ function logout(): void {
 
 function showAddDialogInTransactionListPage(): void {
     desktopPageStore.setShowAddTransactionDialogInTransactionList();
+}
+
+function openAIImageRecognition(): void {
+    aiImageRecognitionDialog.value?.open().then((result: RecognizedReceiptImageResponse) => {
+        const params: string[] = [];
+
+        if (result.type) {
+            params.push(`type=${result.type}`);
+        }
+
+        if (result.time) {
+            params.push(`time=${result.time}`);
+        }
+
+        if (result.categoryId) {
+            params.push(`categoryId=${result.categoryId}`);
+        }
+
+        if (result.sourceAccountId) {
+            params.push(`accountId=${result.sourceAccountId}`);
+        }
+
+        if (result.destinationAccountId) {
+            params.push(`destinationAccountId=${result.destinationAccountId}`);
+        }
+
+        if (result.sourceAmount) {
+            params.push(`amount=${result.sourceAmount}`);
+        }
+
+        if (result.destinationAmount) {
+            params.push(`destinationAmount=${result.destinationAmount}`);
+        }
+
+        if (result.tagIds) {
+            params.push(`tagIds=${result.tagIds.join(',')}`);
+        }
+
+        if (result.comment) {
+            params.push(`comment=${encodeURIComponent(result.comment)}`);
+        }
+
+        params.push('noTransactionDraft=true');
+
+        router.push(`/transaction/add?${params.join('&')}`);
+    }).catch(() => {
+        // user cancelled
+    });
 }
 
 clearShareImageCache();
