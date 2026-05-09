@@ -151,25 +151,10 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 	transferCategoryMap := make(map[string]*models.TransactionCategory)
 	transferCategoryNames := make([]string, 0)
 
-	incomeParentCategoryId := int64(0)
-	expenseParentCategoryId := int64(0)
-	transferParentCategoryId := int64(0)
-
 	for i := 0; i < len(categories); i++ {
 		category := categories[i]
 
-		if category.Hidden {
-			continue
-		}
-
-		if category.ParentCategoryId == models.LevelOneTransactionCategoryParentId {
-			if category.Type == models.CATEGORY_TYPE_INCOME && incomeParentCategoryId == 0 {
-				incomeParentCategoryId = category.CategoryId
-			} else if category.Type == models.CATEGORY_TYPE_EXPENSE && expenseParentCategoryId == 0 {
-				expenseParentCategoryId = category.CategoryId
-			} else if category.Type == models.CATEGORY_TYPE_TRANSFER && transferParentCategoryId == 0 {
-				transferParentCategoryId = category.CategoryId
-			}
+		if category.Hidden || category.ParentCategoryId == models.LevelOneTransactionCategoryParentId {
 			continue
 		}
 
@@ -253,10 +238,10 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	return a.parseRecognizedReceiptImageResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap, incomeParentCategoryId, expenseParentCategoryId, transferParentCategoryId)
+	return a.parseRecognizedReceiptImageResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
 }
 
-func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.WebContext, uid int64, clientTimezone *time.Location, recognizedResult *models.RecognizedReceiptImageResult, accountMap map[string]*models.Account, expenseCategoryMap map[string]*models.TransactionCategory, incomeCategoryMap map[string]*models.TransactionCategory, transferCategoryMap map[string]*models.TransactionCategory, tagMap map[string]*models.TransactionTag, incomeParentCategoryId int64, expenseParentCategoryId int64, transferParentCategoryId int64) (*models.RecognizedReceiptImageResponse, *errs.Error) {
+func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.WebContext, uid int64, clientTimezone *time.Location, recognizedResult *models.RecognizedReceiptImageResult, accountMap map[string]*models.Account, expenseCategoryMap map[string]*models.TransactionCategory, incomeCategoryMap map[string]*models.TransactionCategory, transferCategoryMap map[string]*models.TransactionCategory, tagMap map[string]*models.TransactionTag) (*models.RecognizedReceiptImageResponse, *errs.Error) {
 	recognizedReceiptImageResponse := &models.RecognizedReceiptImageResponse{
 		Type: models.TRANSACTION_TYPE_EXPENSE,
 	}
@@ -274,11 +259,6 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 
 			if exists {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
-			} else {
-				newCategory := a.autoCreateCategory(c, uid, recognizedResult.CategoryName, models.CATEGORY_TYPE_INCOME, incomeParentCategoryId, &incomeCategoryMap)
-				if newCategory != nil {
-					recognizedReceiptImageResponse.CategoryId = newCategory.CategoryId
-				}
 			}
 		}
 	} else if recognizedResult.Type == "expense" {
@@ -289,11 +269,6 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 
 			if exists {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
-			} else {
-				newCategory := a.autoCreateCategory(c, uid, recognizedResult.CategoryName, models.CATEGORY_TYPE_EXPENSE, expenseParentCategoryId, &expenseCategoryMap)
-				if newCategory != nil {
-					recognizedReceiptImageResponse.CategoryId = newCategory.CategoryId
-				}
 			}
 		}
 	} else if recognizedResult.Type == "transfer" {
@@ -304,11 +279,6 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 
 			if exists {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
-			} else {
-				newCategory := a.autoCreateCategory(c, uid, recognizedResult.CategoryName, models.CATEGORY_TYPE_TRANSFER, transferParentCategoryId, &transferCategoryMap)
-				if newCategory != nil {
-					recognizedReceiptImageResponse.CategoryId = newCategory.CategoryId
-				}
 			}
 		}
 	} else if len(recognizedResult.Type) == 0 {
@@ -421,66 +391,6 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 	}
 
 	return recognizedReceiptImageResponse, nil
-}
-
-func (a *LargeLanguageModelsApi) autoCreateCategory(c *core.WebContext, uid int64, categoryName string, categoryType models.TransactionCategoryType, parentCategoryId int64, categoryMap *map[string]*models.TransactionCategory) *models.TransactionCategory {
-	if parentCategoryId == 0 {
-		parentName := "AI Generated"
-		if categoryType == models.CATEGORY_TYPE_INCOME {
-			parentName = "AI Generated Income"
-		} else if categoryType == models.CATEGORY_TYPE_EXPENSE {
-			parentName = "AI Generated Expense"
-		} else if categoryType == models.CATEGORY_TYPE_TRANSFER {
-			parentName = "AI Generated Transfer"
-		}
-
-		parentCategory := &models.TransactionCategory{
-			Uid:              uid,
-			Type:             categoryType,
-			ParentCategoryId: 0,
-			Name:             parentName,
-			DisplayOrder:     0,
-			Icon:             0,
-			Color:            "C0C0C0",
-		}
-
-		err := a.transactionCategories.CreateCategory(c, parentCategory)
-
-		if err != nil {
-			log.Warnf(c, "[large_language_models.autoCreateCategory] failed to auto-create parent category \"%s\" for user \"uid:%d\", because %s", parentName, uid, err.Error())
-			return nil
-		}
-
-		parentCategoryId = parentCategory.CategoryId
-	}
-
-	maxOrder, err := a.transactionCategories.GetMaxSubCategoryDisplayOrder(c, uid, categoryType, parentCategoryId)
-
-	if err != nil {
-		log.Warnf(c, "[large_language_models.autoCreateCategory] failed to get max display order for user \"uid:%d\", because %s", uid, err.Error())
-		maxOrder = 0
-	}
-
-	newCategory := &models.TransactionCategory{
-		Uid:              uid,
-		Type:             categoryType,
-		ParentCategoryId: parentCategoryId,
-		Name:             categoryName,
-		DisplayOrder:     maxOrder + 1,
-		Icon:             0,
-		Color:            "C0C0C0",
-	}
-
-	err = a.transactionCategories.CreateCategory(c, newCategory)
-
-	if err != nil {
-		log.Warnf(c, "[large_language_models.autoCreateCategory] failed to auto-create category \"%s\" for user \"uid:%d\", because %s", categoryName, uid, err.Error())
-		return nil
-	}
-
-	(*categoryMap)[categoryName] = newCategory
-
-	return newCategory
 }
 
 func (a *LargeLanguageModelsApi) getLongDateTime(dateTime string) string {
