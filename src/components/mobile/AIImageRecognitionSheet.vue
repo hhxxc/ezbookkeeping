@@ -14,15 +14,28 @@
             </div>
         </f7-toolbar>
         <f7-page-content class="no-margin-vertical no-padding-vertical">
-            <div class="image-container display-flex justify-content-center" @click="showOpenImage">
-                <img :src="imageSrc" v-if="imageSrc" />
-                <div class="image-container-background display-flex justify-content-center align-items-center text-align-center padding-horizontal" v-if="!imageSrc">
-                    <div class="display-inline-flex flex-direction-column" v-if="!loading">
-                        <span>{{ tt('Click here to select a receipt or transaction image') }}</span>
-                        <small class="margin-top-half">{{ tt('Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.') }}</small>
+            <div class="image-picker-area" @click="showOpenImage">
+                <div class="image-preview" v-if="imageSrc">
+                    <img :src="imageSrc" />
+                    <div class="image-preview-overlay">
+                        <f7-icon f7="camera_fill" size="24"></f7-icon>
+                        <span>{{ tt('Tap to change image') }}</span>
                     </div>
-                    <span v-else-if="loading">{{ tt('Loading image...') }}</span>
                 </div>
+                <div class="image-placeholder" v-else-if="!loading">
+                    <div class="placeholder-icon">
+                        <f7-icon f7="camera_fill" size="40" color="gray"></f7-icon>
+                    </div>
+                    <span class="placeholder-title">{{ tt('Tap to select image') }}</span>
+                    <small class="placeholder-hint">{{ tt('Select a receipt or transaction screenshot to recognize') }}</small>
+                </div>
+                <div class="image-placeholder" v-else-if="loading">
+                    <f7-preloader size="32"></f7-preloader>
+                    <span class="placeholder-title margin-top-half">{{ tt('Loading image...') }}</span>
+                </div>
+            </div>
+            <div class="privacy-notice">
+                <small>{{ tt('Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.') }}</small>
             </div>
         </f7-page-content>
 
@@ -191,26 +204,85 @@ defineExpose({
 </script>
 
 <style>
-.image-container {
-    --ebk-ai-image-recognition-height: 310px;
+.image-picker-area {
+    --ebk-ai-image-recognition-height: 280px;
     height: var(--ebk-ai-image-recognition-height);
-    border: 1px solid var(--f7-page-master-border-color);
-
-    > img {
-        height: var(--ebk-ai-image-recognition-height);
-    }
+    margin: 16px;
+    border: 2px dashed var(--f7-page-master-border-color);
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
 
     @media (min-height: 630px) {
-        --ebk-ai-image-recognition-height: 525px;
+        --ebk-ai-image-recognition-height: 460px;
     }
 }
 
-.image-container-background {
+.image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+    gap: 8px;
+
+    .placeholder-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background-color: var(--f7-list-group-title-bg-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
+    .placeholder-title {
+        font-size: var(--f7-list-item-title-font-size);
+        font-weight: 500;
+    }
+
+    .placeholder-hint {
+        opacity: 0.5;
+        max-width: 240px;
+    }
+}
+
+.image-preview {
     width: 100%;
     height: 100%;
+    position: relative;
 
-    > div {
-        font-size: var(--f7-input-font-size);
+    > img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
+}
+
+.image-preview-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    font-size: var(--f7-list-item-footer-font-size);
+    border-radius: 0 0 10px 10px;
+}
+
+.privacy-notice {
+    text-align: center;
+    padding: 0 16px 16px;
+    opacity: 0.5;
 }
 </style>
