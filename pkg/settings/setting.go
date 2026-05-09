@@ -246,6 +246,7 @@ type LLMConfig struct {
 	OpenAIModelID                       string
 	OpenAICompatibleBaseURL             string
 	OpenAICompatibleAPIKey              string
+	OpenAICompatibleAPIKeyFile          string
 	OpenAICompatibleModelID             string
 	AnthropicAPIKey                     string
 	AnthropicModelID                    string
@@ -885,7 +886,18 @@ func loadLLMConfiguration(configFile *ini.File, sectionName string) (*LLMConfig,
 
 	llmConfig.OpenAICompatibleBaseURL = getConfigItemStringValue(configFile, sectionName, "openai_compatible_base_url")
 	llmConfig.OpenAICompatibleAPIKey = getConfigItemStringValue(configFile, sectionName, "openai_compatible_api_key")
+	llmConfig.OpenAICompatibleAPIKeyFile = getConfigItemStringValue(configFile, sectionName, "openai_compatible_api_key_file")
 	llmConfig.OpenAICompatibleModelID = getConfigItemStringValue(configFile, sectionName, "openai_compatible_model_id")
+
+	if llmConfig.OpenAICompatibleAPIKey == "" && llmConfig.OpenAICompatibleAPIKeyFile != "" {
+		keyData, err := os.ReadFile(llmConfig.OpenAICompatibleAPIKeyFile)
+
+		if err != nil {
+			return nil, errs.ErrOperationFailed
+		}
+
+		llmConfig.OpenAICompatibleAPIKey = strings.TrimSpace(string(keyData))
+	}
 
 	llmConfig.AnthropicAPIKey = getConfigItemStringValue(configFile, sectionName, "anthropic_api_key")
 	llmConfig.AnthropicModelID = getConfigItemStringValue(configFile, sectionName, "anthropic_model_id")
