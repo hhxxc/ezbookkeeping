@@ -579,11 +579,26 @@
                 <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
             </f7-actions-group>
         </f7-actions>
+
+        <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
+                                     v-model:show="showAIReceiptImageRecognitionSheet"
+                                     @recognition:change="onReceiptRecognitionChanged"/>
+
+        <template #fixed>
+            <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
+                    position="right-bottom"
+                    class="ai-image-recognition-fab"
+                    @click="showAIReceiptImageRecognitionSheet = true">
+                <f7-icon f7="camera"></f7-icon>
+            </f7-fab>
+        </template>
     </f7-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
+
+import { ref, computed, nextTick, onMounted, onUnmounted, useTemplateRef } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -620,6 +635,10 @@ import { TransactionType } from '@/core/transaction.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
 
+import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
+
+import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+
 import {
     isDefined,
     isNumber,
@@ -649,6 +668,8 @@ const props = defineProps<{
     f7route: Router.Route;
     f7router: Router.Router;
 }>();
+
+type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
 
 const {
     tt,
@@ -727,6 +748,9 @@ const showSearchbar = ref<boolean>(true);
 const showCustomDateRangeSheet = ref<boolean>(false);
 const showCustomMonthSheet = ref<boolean>(false);
 const showDeleteActionSheet = ref<boolean>(false);
+const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
+
+const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
 
 const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
 const isDarkMode = computed<boolean>(() => environmentsStore.framework7DarkMode || false);
@@ -1432,6 +1456,50 @@ function onCategoryPopoverOpen(event: { $el: Framework7Dom }): void {
     scrollToSelectedItem(event.$el[0], '.popover-inner', '.popover-inner', 'li.list-item-checked');
 }
 
+function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
+    const params: string[] = [];
+
+    if (result.type) {
+        params.push(`type=${result.type}`);
+    }
+
+    if (result.time) {
+        params.push(`time=${result.time}`);
+    }
+
+    if (result.categoryId) {
+        params.push(`categoryId=${result.categoryId}`);
+    }
+
+    if (result.sourceAccountId) {
+        params.push(`accountId=${result.sourceAccountId}`);
+    }
+
+    if (result.destinationAccountId) {
+        params.push(`destinationAccountId=${result.destinationAccountId}`);
+    }
+
+    if (result.sourceAmount) {
+        params.push(`amount=${result.sourceAmount}`);
+    }
+
+    if (result.destinationAmount) {
+        params.push(`destinationAmount=${result.destinationAmount}`);
+    }
+
+    if (result.tagIds) {
+        params.push(`tagIds=${result.tagIds.join(',')}`);
+    }
+
+    if (result.comment) {
+        params.push(`comment=${encodeURIComponent(result.comment)}`);
+    }
+
+    params.push('noTransactionDraft=true');
+
+    props.f7router.navigate(`/transaction/add?${params.join('&')}`);
+}
+
 function onPageAfterIn(): void {
     if (transactionsStore.transactionListStateInvalid && !loading.value) {
         reload();
@@ -1677,5 +1745,9 @@ html[dir="rtl"] .list.transaction-info-list li.transaction-info .transaction-foo
 
 .transaction-calendar-container .dp__main .dp__calendar .dp__calendar_row > .dp__calendar_item .transaction-calendar-daily-amounts > span.transaction-calendar-daily-amount {
     font-size: var(--ebk-transaction-calendar-amount-font-size);
+}
+
+.ai-image-recognition-fab {
+    bottom: calc(var(--f7-toolbar-height) + var(--f7-safe-area-bottom) + 16px) !important;
 }
 </style>
