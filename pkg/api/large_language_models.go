@@ -339,6 +339,8 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 
 	if len(recognizedResult.TagNames) > 0 {
 		tagIds := make([]string, 0, len(recognizedResult.TagNames))
+		var nextDisplayOrder int32 = 0
+		var maxOrderFetched bool = false
 
 		for i := 0; i < len(recognizedResult.TagNames); i++ {
 			tagName := recognizedResult.TagNames[i]
@@ -346,7 +348,39 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 
 			if exists {
 				tagIds = append(tagIds, utils.Int64ToString(tag.TagId))
+				continue
 			}
+
+			if !maxOrderFetched {
+				maxOrder, err := a.transactionTags.GetMaxDisplayOrder(c, uid, 0)
+
+				if err != nil {
+					log.Warnf(c, "[large_language_models.parseRecognizedReceiptImageResponse] failed to get max display order for user \"uid:%d\", because %s", uid, err.Error())
+				} else {
+					nextDisplayOrder = maxOrder
+				}
+
+				maxOrderFetched = true
+			}
+
+			nextDisplayOrder++
+
+			newTag := &models.TransactionTag{
+				Uid:          uid,
+				Name:         tagName,
+				TagGroupId:   0,
+				DisplayOrder: nextDisplayOrder,
+			}
+
+			err := a.transactionTags.CreateTag(c, newTag)
+
+			if err != nil {
+				log.Warnf(c, "[large_language_models.parseRecognizedReceiptImageResponse] failed to auto-create tag \"%s\" for user \"uid:%d\", because %s", tagName, uid, err.Error())
+				continue
+			}
+
+			tagMap[tagName] = newTag
+			tagIds = append(tagIds, utils.Int64ToString(newTag.TagId))
 		}
 
 		recognizedReceiptImageResponse.TagIds = tagIds

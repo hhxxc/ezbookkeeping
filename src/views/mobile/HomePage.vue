@@ -209,6 +209,15 @@
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
+
+        <template #fixed>
+            <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
+                    position="right-bottom"
+                    class="ai-image-recognition-fab"
+                    @click="showAIReceiptImageRecognitionSheet = true">
+                <f7-icon f7="camera"></f7-icon>
+            </f7-fab>
+        </template>
     </f7-page>
 </template>
 
@@ -474,5 +483,9 @@ init();
 .template-popover-menu .popover-inner {
     max-height: 400px;
     overflow-y: auto;
+}
+
+.ai-image-recognition-fab {
+    bottom: calc(var(--f7-toolbar-height) + var(--f7-safe-area-bottom) + 16px) !important;
 }
 </style>
