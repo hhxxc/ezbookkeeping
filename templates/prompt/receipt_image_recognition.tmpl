@@ -28,6 +28,8 @@ Your task is to extract structured transaction data from images provided by the 
 4. If the image contains no transaction information, simply return an empty JSON object.
 5. Always return valid JSON.
 6. The current time is {{.CurrentDateTime}}.
+7. The category, account, and tag values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
+8. When none of the provided categories is an exact match, choose the most semantically similar one (e.g. baby/infant supplies should go to a parenting or childcare expense category).
 
 ## Options
 ### Expense categories:
