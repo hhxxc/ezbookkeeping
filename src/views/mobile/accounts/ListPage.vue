@@ -13,7 +13,7 @@
             </f7-nav-right>
         </f7-navbar>
 
-        <f7-card class="account-overview-card" :class="{ 'skeleton-text': loading }">
+        <f7-card class="account-overview-card" :class="{ 'skeleton-text': loading }" :style="accountOverviewCardStyle">
             <f7-card-header class="display-block" style="padding-top: 120px;">
                 <p class="no-margin">
                     <small class="card-header-content" v-if="loading">Net assets</small>
@@ -230,6 +230,7 @@ import { useAccountListPageBase } from '@/views/base/accounts/AccountListPageBas
 
 import { useRootStore } from '@/stores/index.ts';
 import { useAccountsStore } from '@/stores/account.ts';
+import { useSettingsStore } from '@/stores/setting.ts';
 
 import { TextDirection } from '@/core/text.ts';
 import { AccountType, AccountCategory } from '@/core/account.ts';
@@ -262,6 +263,7 @@ const {
 
 const rootStore = useRootStore();
 const accountsStore = useAccountsStore();
+const settingsStore = useSettingsStore();
 
 const loadingError = ref<unknown | null>(null);
 const sortable = ref<boolean>(false);
@@ -286,6 +288,19 @@ const noAvailableAccount = computed<boolean>(() => {
     } else {
         return accountsStore.allVisibleAccountsCount < 1;
     }
+});
+
+const accountOverviewCardStyle = computed(() => {
+    const bgImage = settingsStore.appSettings.homeSummaryBackgroundImage;
+    if (bgImage) {
+        return {
+            'background-image': `url(${bgImage})`,
+            'background-size': 'cover',
+            'background-position': 'center',
+            'background-repeat': 'no-repeat'
+        } as Record<string, string>;
+    }
+    return {} as Record<string, string>;
 });
 
 function hasAccount(accountCategory: AccountCategory, visibleOnly: boolean): boolean {
