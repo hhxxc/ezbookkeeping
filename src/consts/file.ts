@@ -1,6 +1,7 @@
 import type { ImportFileCategoryAndTypes } from '@/core/file.ts';
 
 export const SUPPORTED_IMAGE_EXTENSIONS: string = '.jpg,.jpeg,.png,.gif,.webp';
+export const SUPPORTED_IMAGE_MIME_TYPES: string = 'image/jpeg,image/png,image/gif,image/webp';
 
 export const DEFAULT_DOCUMENT_LANGUAGE_FOR_IMPORT_FILE: string = 'en';
 export const SUPPORTED_DOCUMENT_LANGUAGES_FOR_IMPORT_FILE: Record<string, string> = {
