@@ -39,7 +39,7 @@
             </div>
         </f7-page-content>
 
-        <input ref="imageInput" type="file" style="display: none" :accept="`${SUPPORTED_IMAGE_EXTENSIONS};capture=camera`" @change="openImage($event)" />
+        <input ref="imageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="openImage($event)" />
     </f7-sheet>
 </template>
 
