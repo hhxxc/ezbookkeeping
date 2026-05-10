@@ -39,7 +39,7 @@
             </div>
         </f7-page-content>
 
-        <input ref="imageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="openImage($event)" />
+        <input ref="imageInput" type="file" style="display: none" accept="image/*" @change="openImage($event)" />
     </f7-sheet>
 </template>
 
@@ -53,7 +53,6 @@ import { useI18nUIComponents, closeAllDialog } from '@/lib/ui/mobile.ts';
 import { useTransactionsStore } from '@/stores/transaction.ts';
 
 import { KnownFileType } from '@/core/file.ts';
-import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
 import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
 
