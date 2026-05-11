@@ -46,11 +46,13 @@
     </v-dialog>
 
     <snack-bar ref="snackbar" />
+    <confirm-dialog ref="confirmDialog" />
     <input ref="imageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="openImage($event)" />
 </template>
 
 <script setup lang="ts">
 import SnackBar from '@/components/desktop/SnackBar.vue';
+import ConfirmDialog from '@/components/desktop/ConfirmDialog.vue';
 
 import { ref, computed, useTemplateRef } from 'vue';
 import { useTheme } from 'vuetify';
@@ -67,9 +69,11 @@ import type { RecognizedReceiptImageResponse } from '@/models/large_language_mod
 
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
+import { findPotentialDuplicateTransactions, buildDuplicateConfirmMessage } from '@/lib/ai_recognition.ts';
 import logger from '@/lib/logger.ts';
 
 type SnackBarType = InstanceType<typeof SnackBar>;
+type ConfirmDialogType = InstanceType<typeof ConfirmDialog>;
 
 const theme = useTheme();
 
@@ -78,6 +82,7 @@ const { tt } = useI18n();
 const transactionsStore = useTransactionsStore();
 
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
+const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
 let resolveFunc: ((response: RecognizedReceiptImageResponse) => void) | null = null;
@@ -151,7 +156,7 @@ function openImage(event: Event): void {
     loadImage(image);
 }
 
-function recognize(): void {
+async function recognize(): Promise<void> {
     if (loading.value || recognizing.value || !imageFile.value) {
         return;
     }
@@ -159,26 +164,35 @@ function recognize(): void {
     cancelRecognizingUuid.value = generateRandomUUID();
     recognizing.value = true;
 
-    transactionsStore.recognizeReceiptImage({
-        imageFile: imageFile.value,
-        cancelableUuid: cancelRecognizingUuid.value
-    }).then(response => {
+    try {
+        const response = await transactionsStore.recognizeReceiptImage({
+            imageFile: imageFile.value,
+            cancelableUuid: cancelRecognizingUuid.value
+        });
+
+        const duplicates = await findPotentialDuplicateTransactions(response);
+
+        if (duplicates.length > 0) {
+            const details = buildDuplicateConfirmMessage(duplicates);
+            const confirmMessage = tt('A similar transaction already exists, do you still want to add it?') + '\n\n' + details;
+
+            await confirmDialog.value?.open(tt('Possible duplicate transaction found'), confirmMessage);
+        }
+
         resolveFunc?.(response);
         showState.value = false;
-        recognizing.value = false;
-        cancelRecognizingUuid.value = undefined;
-    }).catch(error => {
-        if (error.canceled) {
+    } catch (error) {
+        if ((error as Record<string, unknown>)['canceled']) {
             return;
         }
 
+        if (!(error as Record<string, unknown>)['processed']) {
+            snackbar.value?.showError(error as string | { message: string });
+        }
+    } finally {
         recognizing.value = false;
         cancelRecognizingUuid.value = undefined;
-
-        if (!error.processed) {
-            snackbar.value?.showError(error);
-        }
-    });
+    }
 }
 
 function cancelRecognize(): void {
