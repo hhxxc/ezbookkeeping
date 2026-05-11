@@ -1995,6 +1995,8 @@
     "Click here to select a receipt or transaction image": "Click here to select a receipt or transaction image",
     "Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.": "Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.",
     "AI can make mistakes. Check important info.": "AI can make mistakes. Check important info.",
+    "Possible duplicate transaction found": "Possible duplicate transaction found",
+    "A similar transaction already exists, do you still want to add it?": "A similar transaction already exists, do you still want to add it?",
     "Category": "Category",
     "Secondary Category": "Secondary Category",
     "Expense Category": "Expense Category",

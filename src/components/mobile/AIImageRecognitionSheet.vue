@@ -59,6 +59,7 @@ import type { RecognizedReceiptImageResponse } from '@/models/large_language_mod
 
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
+import { findPotentialDuplicateTransactions, buildDuplicateConfirmMessage } from '@/lib/ai_recognition.ts';
 import logger from '@/lib/logger.ts';
 
 defineProps<{
@@ -71,7 +72,7 @@ const emit = defineEmits<{
 }>();
 
 const { tt } = useI18n();
-const { showCancelableLoading, showToast } = useI18nUIComponents();
+const { showCancelableLoading, showToast, showConfirm } = useI18nUIComponents();
 
 const transactionsStore = useTransactionsStore();
 
@@ -143,8 +144,21 @@ function confirm(): void {
         recognizing.value = false;
         cancelRecognizingUuid.value = undefined;
         closeAllDialog();
-        emit('update:show', false);
-        emit('recognition:change', response);
+
+        findPotentialDuplicateTransactions(response).then(duplicates => {
+            if (duplicates.length > 0) {
+                const details = buildDuplicateConfirmMessage(duplicates);
+                const confirmMessage = tt('A similar transaction already exists, do you still want to add it?') + '\n\n' + details;
+
+                showConfirm(confirmMessage, () => {
+                    emit('update:show', false);
+                    emit('recognition:change', response);
+                });
+            } else {
+                emit('update:show', false);
+                emit('recognition:change', response);
+            }
+        });
     }).catch(error => {
         if (error.canceled) {
             return;
