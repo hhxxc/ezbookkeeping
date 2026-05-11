@@ -27,9 +27,17 @@ Your task is to extract structured transaction data from images provided by the 
 3. If the image contains multiple items, please combine them into a single transaction.
 4. If the image contains no transaction information, simply return an empty JSON object.
 5. Always return valid JSON.
-6. The current time is {{.CurrentDateTime}}.
+6. The current time is {{.CurrentDateTime}}. Use this as the fallback time only if no transaction time can be found on the image.
 7. The category, account, and tag values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
 8. Special mapping for category selection: if the receipt contains items related to 婴儿/宝宝/baby/infant/diapers/formula, select the most appropriate parenting/childcare expense category (e.g. 育儿花销, 育儿, etc.). If your options list contains multiple parenting categories, pick the most general one.
+
+## Time extraction rules (IMPORTANT)
+1. Carefully scan the image for any date/time text. Receipts and transaction records almost always contain a transaction time.
+2. Look for time labels such as: 下单时间, 交易时间, 支付时间, 付款时间, 成交时间, 创建时间, 订单时间, Date, Time, Order Time, Transaction Time, Payment Time, Purchase Time, etc.
+3. If a time is found on the image, use that as the "time" field value (convert to YYYY-MM-DD HH:mm:ss format).
+4. If multiple times appear on the image, prioritize in this order: transaction time > payment time > order time > shipping time.
+5. If the date/time on the image only has a date (no specific time), append "00:00:00".
+6. Only if absolutely no time can be found on the image, use the current time {{.CurrentDateTime}}.
 
 ## Options
 ### Expense categories:
