@@ -1,176 +1,108 @@
-# ezBookkeeping
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/mayswind/ezbookkeeping/blob/master/LICENSE)
-[![Go Report](https://goreportcard.com/badge/github.com/mayswind/ezbookkeeping)](https://goreportcard.com/report/github.com/mayswind/ezbookkeeping)
-[![Latest Release](https://img.shields.io/github/release/mayswind/ezbookkeeping.svg?style=flat)](https://github.com/mayswind/ezbookkeeping/releases)
-[![Latest Build](https://img.shields.io/github/actions/workflow/status/mayswind/ezbookkeeping/build-snapshot.yml?branch=main)](https://github.com/mayswind/ezbookkeeping/actions)
-[![Latest Docker Image Size](https://img.shields.io/docker/image-size/mayswind/ezbookkeeping.svg?style=flat)](https://hub.docker.com/r/mayswind/ezbookkeeping)
-[![Docker Pulls](https://img.shields.io/docker/pulls/mayswind/ezbookkeeping)](https://hub.docker.com/r/mayswind/ezbookkeeping)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/mayswind/ezbookkeeping)
+# 巢记 / NestKeep
 
-[![Recommend By HelloGitHub](https://api.hellogithub.com/v1/widgets/recommend.svg?rid=ded5af09da574ec1811ddb154f1b2093&claim_uid=LT7EZxeBukCnh0K)](https://hellogithub.com/en/repository/mayswind/ezbookkeeping)
-[![Trending](https://trendshift.io/api/badge/repositories/12917)](https://trendshift.io/repositories/12917)
+> 轻量级、自托管的个人记账应用，移动端+桌面端双端适配，Docker 一键部署。
 
-## Introduction
-ezBookkeeping is a lightweight, self-hosted personal finance app with a user-friendly interface and powerful bookkeeping features. It helps you record daily transactions, import data from various sources, and quickly search and filter your bills. You can analyze historical data using built-in charts or perform custom queries with your own chart dimensions to better understand spending patterns and financial trends. ezBookkeeping is easy to deploy, and you can start it with just one single Docker command. Designed to be resource-efficient, it runs smoothly on devices such as Raspberry Pi, NAS, and MicroServers.
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 
-ezBookkeeping offers tailored interfaces for both mobile and desktop devices. With support for PWA (Progressive Web Apps), you can even [add it to your mobile home screen](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/mobile/add_to_home_screen.gif) and use it like a native app.
+> 📌 本项目基于 [mayswind/ezBookkeeping](https://github.com/mayswind/ezbookkeeping) 二次开发，感谢原作者的杰出工作。
 
-Live Demo: [https://ezbookkeeping-demo.mayswind.net](https://ezbookkeeping-demo.mayswind.net)
+## 简介
 
-## Features
-- **Open Source & Self-Hosted**
-    - Built for privacy and control
-- **Lightweight & Fast**
-    - Minimal resource usage, runs smoothly even on low-resource devices
-- **Easy Installation**
-    - Docker support
-    - Supports SQLite, MySQL, PostgreSQL
-    - Cross-platform (Windows, macOS, Linux)
-    - Works on x86, amd64, ARM architectures
-- **User-Friendly Interface**
-    - UI optimized for both mobile and desktop
-    - PWA support for native-like mobile experience
-    - Dark mode
-- **AI-Powered Features**
-    - Receipt image recognition
-    - MCP (Model Context Protocol) support for AI integration
-    - Agent Skill and API command-line script tools support for AI integration
-- **Powerful Bookkeeping**
-    - Two-level accounts and categories
-    - Image attachments for transactions
-    - Location tracking with maps
-    - Scheduled transactions
-    - Advanced filtering, search, visualization and analysis
-- **Localization & Internationalization**
-    - Multi-language and multi-currency support
-    - Multiple exchange rate sources with automatic updates
-    - Multi-timezone support
-    - Custom formats for dates, numbers and currencies
-- **Security**
-    - Two-factor authentication (2FA)
-    - OIDC external authentication
-    - Login rate limiting
-    - Application lock (PIN code / WebAuthn)
-- **Data Import & Export**
-    - Supports CSV, OFX, QFX, QIF, IIF, Camt.052, Camt.053, MT940, GnuCash, Firefly III, Beancount and more
+巢记是一款面向个人的轻量记账工具，帮助你随手记录每一笔收支。支持移动端 PWA（可添加到手机主屏幕像原生 App 一样使用）和桌面端 Web 界面，数据完全自托管，隐私安全可控。
 
-For a full list of features, visit the [Full Feature List](https://ezbookkeeping.mayswind.net/comparison/).
+- 🏠 **私有部署** — Docker 一行命令跑起来，数据留在自己手里
+- 📱 **移动优先** — iOS/Android 添加到桌面即用，PWA 离线可用
+- 🌙 **深色模式** — 明暗主题自动切换
+- 🤖 **AI 智能** — 拍小票自动识别金额、分类、时间
+- 📊 **多维统计** — 收支趋势、分类占比一目了然
+- 💱 **多币种** — 自动汇率更新
 
-## Screenshots
-### Desktop Version
-[![ezBookkeeping](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/desktop/en.png)](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/desktop/en.png)
+## 功能亮点
 
-### Mobile Version
-[![ezBookkeeping](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/mobile/en.png)](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/mobile/en.png)
+- **双端适配** — 移动端 iOS 风格交互，桌面端 Materio 管理布局
+- **AI 图像识别** — 拍照识别小票/发票，自动填单
+- **二级分类** — 收支类别支持两级层级
+- **多账户** — 支持现金、银行卡、信用卡等多种账户
+- **周期账单** — 固定收支定时提醒
+- **地图定位** — 交易记录带地图位置
+- **数据导入** — 支持支付宝/微信账单、CSV、OFX、QIF、GnuCash 等多种格式
+- **数据导出** — Excel、CSV 格式导出
+- **安全** — 双因素认证(2FA)、OIDC 外部登录、应用锁(PIN/WebAuthn)
+- **多语言** — 内置 20 种语言翻译
 
-## Installation
-### Run with Docker
-Visit [Docker Hub](https://hub.docker.com/r/mayswind/ezbookkeeping) to see all images and tags.
+## 截图
 
-**Latest Release:**
+### 移动端
 
-    $ docker run -p8080:8080 mayswind/ezbookkeeping
+![NestKeep Mobile](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/mobile/en.png)
 
-**Latest Daily Build:**
+### 桌面端
 
-    $ docker run -p8080:8080 mayswind/ezbookkeeping:latest-snapshot
+![NestKeep Desktop](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/desktop/en.png)
 
-### Install from Binary
-Download the latest release: [https://github.com/mayswind/ezbookkeeping/releases](https://github.com/mayswind/ezbookkeeping/releases)
+## 快速开始
+
+### Docker 部署
+
+```bash
+docker run -p8080:8080 mayswind/ezbookkeeping
+```
+
+访问 `http://localhost:8080` 即可使用。
+
+### 二进制安装
+
+从 [Releases](https://github.com/mayswind/ezbookkeeping/releases) 下载对应平台二进制文件：
 
 **Linux / macOS**
-
-    $ ./ezbookkeeping server run
+```bash
+./ezbookkeeping server run
+```
 
 **Windows**
+```powershell
+.\ezbookkeeping.exe server run
+```
 
-    > .\ezbookkeeping.exe server run
+### 从源码构建
 
-By default, ezBookkeeping listens on port 8080. You can then visit `http://{YOUR_HOST_ADDRESS}:8080/` .
-
-### Build from Source
-Make sure you have [Golang](https://golang.org/), [GCC](https://gcc.gnu.org/), [Node.js](https://nodejs.org/) and [NPM](https://www.npmjs.com/) installed. Then download the source code, and follow these steps:
+需要 Golang、GCC、Node.js 和 NPM。
 
 **Linux / macOS**
-
-    $ ./build.sh package -o ezbookkeeping.tar.gz
-
-All the files will be packaged in `ezbookkeeping.tar.gz`.
+```bash
+./build.sh package -o nestkeep.tar.gz
+```
 
 **Windows**
+```powershell
+.\build.bat package -o nestkeep.zip
+```
 
-    > .\build.bat package -o ezbookkeeping.zip
+### 开发环境 (Windows)
 
-or
+需要安装 MSYS2 (MinGW64) 和 [air](https://github.com/air-verse/air)：
 
-    PS > .\build.ps1 package -Output ezbookkeeping.zip
-
-All the files will be packaged in `ezbookkeeping.zip`.
-
-You can also build a Docker image. Make sure you have [Docker](https://www.docker.com/) installed, then follow these steps:
-
-**Linux**
-
-    $ ./build.sh docker
-
-### Development Startup (Windows)
-To start the development environment on Windows with **hot-reload** support, ensure you have MSYS2 installed with MinGW64 and `air` installed (`go install github.com/air-verse/air@latest`). 
-
-You need to run two commands in separate terminal windows:
-
-**1. Start Frontend Dev Server (Vite):**
+**1. 启动前端开发服务器：**
 ```powershell
 npm run serve
 ```
 
-**2. Start Backend with Hot-Reload (Air):**
+**2. 启动后端热重载：**
 ```powershell
 $env:Path = "C:\msys64\mingw64\bin;" + $env:Path; $env:CGO_ENABLED="1"; air
 ```
 
-After starting both services, access the application at **`http://localhost:15080/`**. The backend will proxy frontend requests to Vite, enabling real-time hot updates for both Vue components and Go code.
+访问 `http://localhost:15080/`，前后端均支持热更新。
 
-## Contributing
-We welcome contributions of all kinds.
+## 文档
 
-If you find a bug, please [submit an issue](https://github.com/mayswind/ezbookkeeping/issues) on GitHub.
+- [English](https://ezbookkeeping.mayswind.net)
+- [中文 (简体)](https://ezbookkeeping.mayswind.net/zh_Hans)
 
-If you would like to contribute code, you can fork the repository and open a pull request.
+## 鸣谢
 
-Improvements to documentation, feature suggestions, and other forms of feedback are also appreciated.
+本项目基于 [ezBookkeeping](https://github.com/mayswind/ezbookkeeping)（作者 [@mayswind](https://github.com/mayswind)），采用 MIT 协议开源。感谢原项目作者及所有[贡献者](https://github.com/mayswind/ezbookkeeping/graphs/contributors)。
 
-You can view existing contributors on the [Contributor Graph](https://github.com/mayswind/ezbookkeeping/graphs/contributors).
+## 协议
 
-## Translating
-Help make ezBookkeeping accessible to users around the world. We welcome help to improve existing translations or add new ones. If you would like to contribute a translation, please refer to the [translation guide](https://ezbookkeeping.mayswind.net/translating).
-
-Currently available translations:
-
-| Tag | Language | Progress | Contributors |
-| --- | --- | --- | --- |
-| de | Deutsch | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fde.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/de.json) | [@chrgm](https://github.com/chrgm), [@1270o1](https://github.com/1270o1) |
-| en | English | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fen.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/en.json) | / |
-| es | Español | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fes.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/es.json) | [@Miguelonlonlon](https://github.com/Miguelonlonlon), [@abrugues](https://github.com/abrugues), [@AndresTeller](https://github.com/AndresTeller), [@diegofercri](https://github.com/diegofercri) |
-| fr | Français | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Ffr.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/fr.json) | [@brieucdlf](https://github.com/brieucdlf) |
-| it | Italiano | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fit.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/it.json) | [@waron97](https://github.com/waron97) |
-| ja | 日本語 | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fja.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/ja.json) | [@tkymmm](https://github.com/tkymmm) |
-| kn | ಕನ್ನಡ | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fkn.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/kn.json) | [@Darshanbm05](https://github.com/Darshanbm05) |
-| ko | 한국어 | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fko.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/ko.json) | [@overworks](https://github.com/overworks) |
-| nl | Nederlands | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fnl.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/nl.json) | [@automagics](https://github.com/automagics) |
-| pt-BR | Português (Brasil) | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fpt-BR.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/pt-BR.json) | [@thecodergus](https://github.com/thecodergus), [@balaios](https://github.com/balaios) |
-| ru | Русский | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fru.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/ru.json) | [@artegoser](https://github.com/artegoser), [@dshemin](https://github.com/dshemin) |
-| sl | Slovenščina | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fsl.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/sl.json) | [@thehijacker](https://github.com/thehijacker) |
-| ta | தமிழ் | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fta.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/ta.json) | [@hhharsha36](https://github.com/hhharsha36) |
-| th | ไทย | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fth.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/th.json) | [@natthavat28](https://github.com/natthavat28) |
-| tr | Türkçe | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Ftr.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/tr.json) | [@aydnykn](https://github.com/aydnykn) |
-| uk | Українська | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fuk.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/uk.json) | [@nktlitvinenko](https://github.com/nktlitvinenko) |
-| vi | Tiếng Việt | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fvi.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/vi.json) | [@f97](https://github.com/f97) |
-| zh-Hans | 中文 (简体) | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fzh-Hans.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/zh-Hans.json) | / |
-| zh-Hant | 中文 (繁體) | [![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmayswind%2FezBookkeeping-i18n-badge%2Fmain%2Fbadges%2Fzh-Hant.json)](https://github.com/mayswind/ezBookkeeping-i18n-badge/blob/main/untranslated/zh-Hant.json) | / |
-
-## Documentation
-1. [English](https://ezbookkeeping.mayswind.net)
-1. [中文 (简体)](https://ezbookkeeping.mayswind.net/zh_Hans)
-
-## License
-[MIT](https://github.com/mayswind/ezbookkeeping/blob/master/LICENSE)
+[MIT](./LICENSE)
