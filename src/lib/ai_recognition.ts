@@ -37,11 +37,19 @@ export async function findPotentialDuplicateTransactions(
         const allTransactions = response.data.result;
         const duplicates: TransactionInfoResponse[] = [];
 
+        const recognizedComment = (result.comment ?? '').trim();
+
         for (const transaction of allTransactions) {
             const sourceMatch = Math.abs(transaction.sourceAmount - recognizedAmount) <= DUPLICATE_AMOUNT_TOLERANCE;
             const destMatch = Math.abs(transaction.destinationAmount - recognizedAmount) <= DUPLICATE_AMOUNT_TOLERANCE;
+            const amountMatch = sourceMatch || destMatch;
 
-            if (sourceMatch || destMatch) {
+            const timeMatch = Math.abs(transaction.time - result.time) <= DUPLICATE_TIME_TOLERANCE_SECONDS;
+
+            const txComment = (transaction.comment || '').trim();
+            const commentMatch = recognizedComment === txComment;
+
+            if (amountMatch && timeMatch && commentMatch) {
                 duplicates.push(transaction);
             }
         }
