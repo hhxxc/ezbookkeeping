@@ -118,9 +118,9 @@ export default defineConfig(() => {
                 injectRegister: false,
                 manifestFilename: 'manifest.json',
                 manifest: {
-                    name: 'ezBookkeeping',
-                    short_name: 'ezBookkeeping',
-                    description: 'A lightweight, self-hosted personal finance app with a user-friendly interface and powerful bookkeeping features.',
+                    name: '巢记',
+                    short_name: '巢记',
+                    description: '巢记 - 轻量级个人记账应用',
                     theme_color: '#C67E48',
                     background_color: '#F6F7F8',
                     start_url: './',
@@ -130,12 +130,12 @@ export default defineConfig(() => {
                     prefer_related_applications: false,
                     icons: [
                         {
-                            src: 'img/ezbookkeeping-192.png',
+                            src: 'img/nestkeep-logo-192.png',
                             sizes: '192x192',
                             type: 'image/png'
                         },
                         {
-                            src: 'img/ezbookkeeping-512.png',
+                            src: 'img/nestkeep-logo-512.png',
                             sizes: '512x512',
                             type: 'image/png'
                         }

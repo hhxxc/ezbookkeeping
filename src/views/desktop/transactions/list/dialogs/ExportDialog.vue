@@ -328,7 +328,7 @@ function doExport(): void {
 
     try {
         const workbook = new ExcelJS.Workbook();
-        workbook.creator = userStore.currentUserNickname || 'ezBookkeeping';
+        workbook.creator = userStore.currentUserNickname || 'NestKeep';
         workbook.created = new Date();
 
         const sheet = workbook.addWorksheet(tt('Transactions'));
@@ -458,7 +458,7 @@ function doExport(): void {
             const nickname = userStore.currentUserNickname;
             const filename = nickname
                 ? `${nickname}_transactions.xlsx`
-                : 'ezbookkeeping_transactions.xlsx';
+                : 'nestkeep_transactions.xlsx';
 
             startDownloadFile(filename, blob);
             exporting.value = false;
