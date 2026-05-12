@@ -4,7 +4,10 @@
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
 
-        <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle">
+        <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="showBackgroundGallery = true">
+            <f7-link class="home-card-gallery-btn" @click="showBackgroundGallery = true">
+                <f7-icon f7="photo_on_rectangle" style="font-size: 18px; color: rgba(255,255,255,0.7);"></f7-icon>
+            </f7-link>
             <f7-card-header class="display-block" style="padding: 100px 0 20px;">
                 <p class="no-margin">
                     <span class="card-header-content" v-if="loading">
@@ -210,6 +213,11 @@
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
 
+        <background-selection-sheet
+            v-model:show="showBackgroundGallery"
+            v-model="homeGalleryBackgroundId"
+        />
+
         <template #fixed>
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
@@ -223,8 +231,9 @@
 
 <script setup lang="ts">
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
+import BackgroundSelectionSheet from '@/components/mobile/BackgroundSelectionSheet.vue';
 
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, useTemplateRef, watch } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -245,6 +254,7 @@ import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
+import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
 
 type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
 
@@ -265,6 +275,12 @@ const {
 
 const settingsStore = useSettingsStore();
 const homeSummaryBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
+const homeGalleryBackgroundId = ref<string>(settingsStore.appSettings.homeGalleryBackgroundId || '');
+const showBackgroundGallery = ref<boolean>(false);
+
+watch(homeGalleryBackgroundId, (newId) => {
+    settingsStore.setHomeGalleryBackgroundId(newId);
+});
 
 const homeSummaryCardStyle = computed(() => {
     if (homeSummaryBackgroundImage.value) {
@@ -274,6 +290,12 @@ const homeSummaryCardStyle = computed(() => {
             'background-position': 'center',
             'background-repeat': 'no-repeat'
         } as Record<string, string>;
+    }
+    if (homeGalleryBackgroundId.value) {
+        const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
+        if (bg) {
+            return { 'background': bg.css } as Record<string, string>;
+        }
     }
     return {} as Record<string, string>;
 });
@@ -412,6 +434,36 @@ init();
     color: #fff;
     overflow: hidden;
     margin-top: 8px;
+}
+
+.home-summary-card::after {
+    display: none;
+}
+
+.home-summary-card .card-header,
+.home-summary-card .card-content,
+.home-summary-card .card-footer {
+    background: transparent !important;
+}
+
+.home-card-gallery-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 5;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    transition: background 0.15s ease;
+}
+
+.home-card-gallery-btn:active {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .home-summary-card::before {
