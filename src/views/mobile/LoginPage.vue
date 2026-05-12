@@ -1,79 +1,83 @@
 <template>
-    <f7-page no-navbar no-swipeback login-screen hide-toolbar-on-scroll>
-        <f7-login-screen-title>
-            <img alt="logo" class="login-page-logo" :src="APPLICATION_LOGO_PATH" />
-            <f7-block class="login-page-tile margin-vertical-half">{{ tt('global.app.title') }}</f7-block>
-        </f7-login-screen-title>
+    <f7-page no-navbar no-swipeback login-screen hide-toolbar-on-scroll class="nestkeep-login-page">
+        <div class="login-bg-gradient"></div>
 
-        <f7-list inset v-if="tips">
-            <f7-block-footer>{{ tips }}</f7-block-footer>
-        </f7-list>
+        <div class="login-content">
+            <div class="login-brand">
+                <img alt="logo" class="login-page-logo" :src="APPLICATION_LOGO_PATH" />
+                <h1 class="login-page-tile">{{ tt('global.app.title') }}</h1>
+                <p class="login-page-subtitle">轻量记账 · 数据自有</p>
+            </div>
 
-        <f7-list form dividers class="margin-bottom-half" v-if="isInternalAuthEnabled()">
-            <f7-list-input
-                type="text"
-                autocomplete="username"
-                autocapitalize="none"
-                autocorrect="off"
-                spellcheck="false"
-                inputmode="email"
-                clear-button
-                :disabled="loggingInByPassword || loggingInByOAuth2"
-                :label="tt('Username')"
-                :placeholder="tt('Your username or email')"
-                v-model:value.trim="username"
-                @input="tempToken = ''"
-            ></f7-list-input>
-            <f7-list-input
-                type="password"
-                autocomplete="current-password"
-                clear-button
-                :disabled="loggingInByPassword || loggingInByOAuth2"
-                :label="tt('Password')"
-                :placeholder="tt('Your password')"
-                v-model:value="password"
-                @input="tempToken = ''"
-                @keyup.enter="loginByPressEnter"
-            ></f7-list-input>
-        </f7-list>
+            <div class="login-card">
+                <f7-list class="no-margin-top" v-if="tips">
+                    <f7-block-footer>{{ tips }}</f7-block-footer>
+                </f7-list>
 
-        <f7-list class="no-margin-vertical">
-            <f7-list-item>
-                <template #title>
-                    <small>
-                        <f7-link :class="{ 'disabled': loggingInByPassword || loggingInByOAuth2 }" @click="switchToDesktopVersion">{{ tt('Switch to Desktop Version') }}</f7-link>
-                    </small>
-                </template>
-                <template #after>
-                    <small>
-                        <f7-link :class="{ 'disabled': !isUserForgetPasswordEnabled() || loggingInByPassword || loggingInByOAuth2 }" @click="forgetPasswordEmail = ''; showForgetPasswordSheet = true">{{ tt('Forget Password?') }}</f7-link>
-                    </small>
-                </template>
-            </f7-list-item>
-        </f7-list>
+                <f7-list form class="no-margin-vertical login-form-list" v-if="isInternalAuthEnabled()">
+                    <f7-list-input
+                        type="text"
+                        autocomplete="username"
+                        autocapitalize="none"
+                        autocorrect="off"
+                        spellcheck="false"
+                        inputmode="email"
+                        clear-button
+                        :disabled="loggingInByPassword || loggingInByOAuth2"
+                        :label="tt('Username')"
+                        :placeholder="tt('Your username or email')"
+                        v-model:value.trim="username"
+                        @input="tempToken = ''"
+                    ></f7-list-input>
+                    <f7-list-input
+                        type="password"
+                        autocomplete="current-password"
+                        clear-button
+                        :disabled="loggingInByPassword || loggingInByOAuth2"
+                        :label="tt('Password')"
+                        :placeholder="tt('Your password')"
+                        v-model:value="password"
+                        @input="tempToken = ''"
+                        @keyup.enter="loginByPressEnter"
+                    ></f7-list-input>
+                </f7-list>
 
-        <f7-list class="margin-vertical-half">
-            <f7-list-button :class="{ 'disabled': inputIsEmpty || loggingInByPassword || loggingInByOAuth2 }" :text="tt('Log In')"
-                            @click="login" v-if="isInternalAuthEnabled()"></f7-list-button>
-            <f7-list-item class="login-divider display-flex align-items-center" v-if="isInternalAuthEnabled() && isOAuth2Enabled()">
-                <hr class="margin-inline-end-half" />
-                <small>{{ tt('or') }}</small>
-                <hr class="margin-inline-start-half" />
-            </f7-list-item>
-            <f7-list-button external :class="{ 'disabled': loggingInByPassword || loggingInByOAuth2 }" :href="oauth2LoginUrl" :text="oauth2LoginDisplayName"
-                            @click="loginByOAuth2" v-if="isOAuth2Enabled()"></f7-list-button>
-            <f7-block-footer v-if="isInternalAuthEnabled()">
-                <span>{{ tt('Don\'t have an account?') }}</span>&nbsp;
-                <f7-link :class="{ 'disabled': !isUserRegistrationEnabled() || loggingInByPassword || loggingInByOAuth2 }" href="/signup" :text="tt('Create an account')"></f7-link>
-            </f7-block-footer>
-            <f7-block-footer class="padding-bottom">
-            </f7-block-footer>
-        </f7-list>
+                <f7-list class="no-margin-vertical login-actions-list">
+                    <f7-list-item>
+                        <template #title>
+                            <small>
+                                <f7-link :class="{ 'disabled': loggingInByPassword || loggingInByOAuth2 }" @click="switchToDesktopVersion">{{ tt('Switch to Desktop Version') }}</f7-link>
+                            </small>
+                        </template>
+                        <template #after>
+                            <small>
+                                <f7-link :class="{ 'disabled': !isUserForgetPasswordEnabled() || loggingInByPassword || loggingInByOAuth2 }" @click="forgetPasswordEmail = ''; showForgetPasswordSheet = true">{{ tt('Forget Password?') }}</f7-link>
+                            </small>
+                        </template>
+                    </f7-list-item>
+                </f7-list>
+
+                <f7-list class="no-margin-vertical">
+                    <f7-list-button :class="{ 'disabled': inputIsEmpty || loggingInByPassword || loggingInByOAuth2 }" :text="tt('Log In')"
+                                    @click="login" v-if="isInternalAuthEnabled()"></f7-list-button>
+                    <f7-list-item class="login-divider display-flex align-items-center" v-if="isInternalAuthEnabled() && isOAuth2Enabled()">
+                        <hr class="margin-inline-end-half" />
+                        <small>{{ tt('or') }}</small>
+                        <hr class="margin-inline-start-half" />
+                    </f7-list-item>
+                    <f7-list-button external :class="{ 'disabled': loggingInByPassword || loggingInByOAuth2 }" :href="oauth2LoginUrl" :text="oauth2LoginDisplayName"
+                                    @click="loginByOAuth2" v-if="isOAuth2Enabled()"></f7-list-button>
+                    <f7-block-footer v-if="isInternalAuthEnabled()">
+                        <span>{{ tt('Don\'t have an account?') }}</span>&nbsp;
+                        <f7-link :class="{ 'disabled': !isUserRegistrationEnabled() || loggingInByPassword || loggingInByOAuth2 }" href="/signup" :text="tt('Create an account')"></f7-link>
+                    </f7-block-footer>
+                </f7-list>
+            </div>
+        </div>
 
         <f7-list class="login-page-bottom">
             <f7-block-footer>
                 <language-select-button :disabled="loggingInByPassword || loggingInByOAuth2" />
-
                 <div class="login-page-powered-by margin-top-half">
                     <span>Powered by</span>
                     <f7-link @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping')" target="_blank">NestKeep</f7-link>
@@ -84,7 +88,6 @@
 
         <f7-toolbar class="login-page-fixed-bottom" tabbar bottom :outline="false">
             <language-select-button :disabled="loggingInByPassword || loggingInByOAuth2" />
-
             <div class="login-page-powered-by margin-top-half">
                 <span>Powered by</span>
                 <f7-link @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping')" target="_blank">NestKeep</f7-link>
@@ -427,29 +430,124 @@ oauth2ClientSessionId.value = generateRandomUUID();
 </script>
 
 <style>
+.nestkeep-login-page {
+    background: #f6f6f8;
+}
+
+.login-bg-gradient {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(160deg, #c67e48 0%, #e8a87c 40%, #f0c8a0 70%, #f6f6f8 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.dark .login-bg-gradient {
+    background: linear-gradient(160deg, #6c330f 0%, #8a4c22 30%, #1a1a1a 70%, #121212 100%);
+}
+
+.login-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 16px 0;
+    min-height: 100vh;
+}
+
+.login-brand {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.login-brand .login-page-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.login-brand .login-page-tile {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin: 12px 0 4px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.login-page-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    margin: 0;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 400px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    padding: 8px 0;
+    overflow: hidden;
+}
+
+.dark .login-card {
+    background: rgba(30, 30, 30, 0.85);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.login-card .list {
+    margin: 0;
+}
+
+.login-card .list ul::before,
+.login-card .list ul::after {
+    display: none;
+}
+
+.login-form-list {
+    margin: 0 !important;
+}
+
+.login-form-list ul {
+    background: transparent !important;
+}
+
+.login-actions-list ul {
+    background: transparent !important;
+}
+
 .login-divider > .item-content {
     width: 100%;
     min-height: 0;
     white-space: nowrap;
+}
 
-    > .item-inner {
-        padding-top: 0;
-        padding-bottom: 0;
-        min-height: 0;
+.login-divider > .item-content > .item-inner {
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: 0;
+}
 
-        > small {
-            opacity: 0.7;
-        }
+.login-divider > .item-content > .item-inner > small {
+    opacity: 0.7;
+}
 
-        > hr {display: block;
-            flex: 1 1 100%;
-            height: 0;
-            max-height: 0;
-            border-style: solid;
-            border-width: thin 0 0 0;
-            opacity: 0.12;
-            transition: inherit;
-        }
-    }
+.login-divider > .item-content > .item-inner > hr {
+    display: block;
+    flex: 1 1 100%;
+    height: 0;
+    max-height: 0;
+    border-style: solid;
+    border-width: thin 0 0 0;
+    opacity: 0.12;
+    transition: inherit;
 }
 </style>

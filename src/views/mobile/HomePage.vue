@@ -5,7 +5,7 @@
         </f7-navbar>
 
         <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle">
-            <f7-card-header class="display-block" style="padding-top: 80px;">
+            <f7-card-header class="display-block" style="padding: 100px 0 20px;">
                 <p class="no-margin">
                     <span class="card-header-content" v-if="loading">
                         <span class="home-summary-month">Month</span>
@@ -408,30 +408,46 @@ init();
 .home-summary-card {
     background: var(--ebk-primary-gradient);
     border-radius: var(--ebk-card-border-radius);
-    box-shadow: var(--ebk-card-shadow);
+    box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
     overflow: hidden;
+    margin-top: 8px;
+}
+
+.home-summary-card::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -20%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .home-summary-card .card-header-content {
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .home-summary-card .home-summary-month {
     font-size: 1.3em;
+    letter-spacing: 0.02em;
 }
 
 .home-summary-card .month-expense {
-    font-size: 1.5em;
-    font-weight: 600;
+    font-size: 2em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .home-summary-card .home-summary-misc {
-    opacity: 0.7;
+    opacity: 0.75;
+    font-size: 0.95em;
 }
 
 .home-summary-card a {
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .home-summary-card .ebk-hide-icon {
@@ -448,7 +464,7 @@ init();
 
 .dark .home-summary-card {
     background: var(--ebk-primary-gradient-dark);
-    box-shadow: var(--ebk-card-shadow-dark);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .overview-transaction-list .item-title > div {

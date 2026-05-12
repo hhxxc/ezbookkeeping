@@ -423,6 +423,33 @@ html[dir="rtl"] i.icon.icon-with-direction {
     background-color: inherit;
 }
 
+/* Enhanced navbar */
+.ios .navbar {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.ios .navbar .navbar-inner {
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.ios .dark .navbar .navbar-inner {
+    background: rgba(18, 18, 18, 0.85);
+}
+
+/* Enhanced list items */
+.ios .list.inset > ul {
+    border-radius: var(--ebk-list-border-radius);
+}
+
+.ios .list strong .item-link.active-state {
+    background-color: rgba(var(--ebk-primary-color), 0.08);
+}
+
+.dark .ios .list strong .item-link.active-state {
+    background-color: rgba(var(--ebk-primary-color), 0.12);
+}
+
 .toolbar.toolbar-bottom .toolbar-inner {
     padding-bottom: 0 !important;
     gap: 2px;

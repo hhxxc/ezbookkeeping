@@ -1,35 +1,34 @@
 <template>
-    <f7-page no-navbar no-swipeback login-screen hide-toolbar-on-scroll>
-        <f7-login-screen-title>
-            <img alt="logo" class="login-page-logo" :src="APPLICATION_LOGO_PATH" />
-            <f7-block class="login-page-tile margin-vertical-half">{{ tt('global.app.title') }}</f7-block>
-        </f7-login-screen-title>
+    <f7-page no-navbar no-swipeback login-screen hide-toolbar-on-scroll class="nestkeep-login-page">
+        <div class="login-bg-gradient"></div>
 
-        <f7-list form>
-            <f7-list-item class="no-padding no-margin">
-                <template #inner>
-                    <div class="display-flex justify-content-center full-line">{{ tt('Unlock Application') }}</div>
-                </template>
-            </f7-list-item>
-            <f7-list-item class="list-item-pincode-input padding-horizontal margin-horizontal">
-                <pin-code-input :secure="true" :length="6" :auto-confirm="true" v-model="pinCode" @pincode:confirm="unlockByPin" />
-            </f7-list-item>
-        </f7-list>
+        <div class="login-content">
+            <div class="login-brand">
+                <img alt="logo" class="login-page-logo" :src="APPLICATION_LOGO_PATH" />
+                <h1 class="login-page-tile">{{ tt('global.app.title') }}</h1>
+                <p class="login-page-subtitle">{{ tt('Unlock Application') }}</p>
+            </div>
 
-        <f7-list>
-            <f7-list-button :class="{ 'disabled': !isPinCodeValid(pinCode) }" :text="tt('Unlock with PIN Code')" @click="unlockByPin"></f7-list-button>
-            <f7-list-button v-if="isWebAuthnAvailable" :text="tt('Unlock with WebAuthn')" @click="unlockByWebAuthn"></f7-list-button>
-            <f7-block-footer>
-                <f7-link :text="tt('Re-login')" @click="relogin"></f7-link>
-            </f7-block-footer>
-            <f7-block-footer class="padding-bottom">
-            </f7-block-footer>
-        </f7-list>
+            <div class="login-card">
+                <f7-list form class="no-margin-vertical">
+                    <f7-list-item class="list-item-pincode-input padding-horizontal margin-horizontal">
+                        <pin-code-input :secure="true" :length="6" :auto-confirm="true" v-model="pinCode" @pincode:confirm="unlockByPin" />
+                    </f7-list-item>
+                </f7-list>
+
+                <f7-list class="no-margin-vertical">
+                    <f7-list-button :class="{ 'disabled': !isPinCodeValid(pinCode) }" :text="tt('Unlock with PIN Code')" @click="unlockByPin"></f7-list-button>
+                    <f7-list-button v-if="isWebAuthnAvailable" :text="tt('Unlock with WebAuthn')" @click="unlockByWebAuthn"></f7-list-button>
+                    <f7-block-footer>
+                        <f7-link :text="tt('Re-login')" @click="relogin"></f7-link>
+                    </f7-block-footer>
+                </f7-list>
+            </div>
+        </div>
 
         <f7-list class="login-page-bottom">
             <f7-block-footer>
                 <language-select-button />
-
                 <div class="login-page-powered-by margin-top-half">
                     <span>Powered by</span>
                     <f7-link @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping')" target="_blank">NestKeep</f7-link>
@@ -40,7 +39,6 @@
 
         <f7-toolbar class="login-page-fixed-bottom" tabbar bottom :outline="false">
             <language-select-button />
-
             <div class="login-page-powered-by margin-top-half">
                 <span>Powered by</span>
                 <f7-link @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping')" target="_blank">NestKeep</f7-link>
