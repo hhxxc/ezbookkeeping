@@ -113,9 +113,17 @@
 
             <f7-list-item :title="tt('About')" link="/about" :after="version"></f7-list-item>
 
+            <f7-list-item
+                link="#"
+                class="list-item-no-item-after"
+                :title="tt('Home Background Image')"
+                :after="homeGalleryBackgroundName || tt('Default')"
+                @click="showBackgroundGallery = true"
+            ></f7-list-item>
+
             <f7-list-item>
                 <template #after-title>
-                    <span>{{ tt('Home Background Image') }}</span>
+                    <span>{{ tt('Custom Background') }}</span>
                 </template>
                 <template #after>
                     <div class="display-flex align-items-center">
@@ -128,11 +136,16 @@
         </f7-list>
 
         <input ref="homeBgInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="uploadHomeBackgroundImage($event)" />
+
+        <background-selection-sheet
+            v-model:show="showBackgroundGallery"
+            v-model="homeGalleryBackgroundId"
+        />
     </f7-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, useTemplateRef, watch } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -150,6 +163,8 @@ import { getClientDisplayVersion, getDesktopVersionPath } from '@/lib/version.ts
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
+import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
+import BackgroundSelectionSheet from '@/components/mobile/BackgroundSelectionSheet.vue';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -171,7 +186,19 @@ const showThemePopup = ref<boolean>(false);
 const showTimezonePopup = ref<boolean>(false);
 
 const homeBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
+const homeGalleryBackgroundId = ref<string>(settingsStore.appSettings.homeGalleryBackgroundId || '');
+const showBackgroundGallery = ref<boolean>(false);
 const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
+
+const homeGalleryBackgroundName = computed<string>(() => {
+    if (!homeGalleryBackgroundId.value) return '';
+    const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
+    return bg ? bg.name : '';
+});
+
+watch(homeGalleryBackgroundId, (newId) => {
+    settingsStore.setHomeGalleryBackgroundId(newId);
+});
 
 const currentNickName = computed<string>(() => userStore.currentUserNickname || tt('User'));
 
