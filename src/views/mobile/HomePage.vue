@@ -8,7 +8,7 @@
             <f7-link class="home-card-gallery-btn" @click="showBackgroundGallery = true">
                 <f7-icon f7="photo_on_rectangle" style="font-size: 18px; color: rgba(255,255,255,0.7);"></f7-icon>
             </f7-link>
-            <f7-card-header class="display-block" style="padding: 100px 0 20px;">
+            <f7-card-header class="display-block" style="padding: 100px 24px 20px 28px;">
                 <p class="no-margin">
                     <span class="card-header-content" v-if="loading">
                         <span class="home-summary-month">Month</span>
@@ -279,10 +279,23 @@ const homeGalleryBackgroundId = ref<string>(settingsStore.appSettings.homeGaller
 const showBackgroundGallery = ref<boolean>(false);
 
 watch(homeGalleryBackgroundId, (newId) => {
+    if (newId) {
+        settingsStore.setHomeSummaryBackgroundImage('');
+        homeSummaryBackgroundImage.value = '';
+    }
     settingsStore.setHomeGalleryBackgroundId(newId);
 });
 
 const homeSummaryCardStyle = computed(() => {
+    if (homeGalleryBackgroundId.value) {
+        const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
+        if (bg) {
+            return {
+                'background': bg.css,
+                'background-image': 'none'
+            } as Record<string, string>;
+        }
+    }
     if (homeSummaryBackgroundImage.value) {
         return {
             'background-image': `url(${homeSummaryBackgroundImage.value})`,
@@ -290,12 +303,6 @@ const homeSummaryCardStyle = computed(() => {
             'background-position': 'center',
             'background-repeat': 'no-repeat'
         } as Record<string, string>;
-    }
-    if (homeGalleryBackgroundId.value) {
-        const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
-        if (bg) {
-            return { 'background': bg.css } as Record<string, string>;
-        }
     }
     return {} as Record<string, string>;
 });
@@ -428,21 +435,25 @@ init();
 
 <style>
 .home-summary-card {
-    background: var(--ebk-primary-gradient);
+    background: var(--ebk-primary-gradient) !important;
     border-radius: var(--ebk-card-border-radius);
     box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
     overflow: hidden;
     margin-top: 4px;
+    border: none;
+    outline: none;
 }
 
-.home-summary-card > *,
-.home-summary-card .card-header,
-.home-summary-card .card-content,
-.home-summary-card .card-footer,
-.home-summary-card .card-header > *,
-.home-summary-card .card-header > * > * {
-    background: transparent !important;
+.home-summary-card::before,
+.home-summary-card::after {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+}
+
+.home-summary-card * {
+    background-color: transparent !important;
 }
 
 .home-card-gallery-btn {
