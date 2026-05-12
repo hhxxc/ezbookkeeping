@@ -1,6 +1,14 @@
 /** Global style **/
 html, body {
     position: fixed;
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+}
+
+html {
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
 }
 
 body {
@@ -923,4 +931,51 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
 .statistics-multi-percent-line > div:last-child > .progressbar {
     border-top-right-radius: var(--f7-progressbar-border-radius);
     border-bottom-right-radius: var(--f7-progressbar-border-radius);
+}
+
+/* ---- 120fps GPU compositing optimizations ---- */
+
+/* Containment: isolate list item rendering */
+.list .item-content,
+.list .item-inner,
+.transaction-info,
+.transaction-info-list li {
+    contain: layout style paint;
+}
+
+/* Skip rendering off-screen content */
+.transaction-month-list,
+.combination-list-content,
+.infinite-scroll-content > .list {
+    content-visibility: auto;
+    contain-intrinsic-size: 200px;
+}
+
+/* GPU layer promotion for transaction list items during scroll */
+.transaction-info li.item {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Prevent overscroll chain on inner scrollable areas */
+.page-content,
+.infinite-scroll-content {
+    overscroll-behavior: contain;
+}
+
+/* Prevent layout shifts from images during load */
+img {
+    aspect-ratio: auto;
+}
+
+/* Respect reduced-motion accessibility setting */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

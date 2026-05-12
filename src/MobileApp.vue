@@ -188,7 +188,7 @@ onMounted(() => {
         if (!e.target || !('closest' in e.target) || !isFunction(e.target.closest) || !e.target.closest('.dragenabled')) {
             e.preventDefault();
         }
-    }, true);
+    }, { capture: true, passive: true });
 });
 
 watch(currentNotificationContent, (newValue) => {
