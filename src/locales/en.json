@@ -1,7 +1,7 @@
 {
     "global": {
         "app": {
-            "title": "ezBookkeeping"
+            "title": "NestKeep"
         }
     },
     "language": {
@@ -141,20 +141,20 @@
             "clearTransactionsInAccountTip": "You CANNOT undo this action. This will clear your transactions data in {account}. Please enter your current password to confirm.",
             "accountActivationAndResendValidationEmailTip": "Account activation link has been sent to your email address: {email}, If you don't receive the mail, please fill password again and click the button below to resend the validation mail.",
             "resendValidationEmailTip": "If you don't receive the mail, please fill password again and click the button below to resend the validation mail to: {email}",
-            "oauth2bindTip": "You're signing in to the {userName} user using {providerName}. Please enter your ezBookkeeping password to verify."
+            "oauth2bindTip": "You're signing in to the {userName} user using {providerName}. Please enter your NestKeep password to verify."
         }
     },
     "dataExport": {
-        "defaultExportFilename": "ezBookkeeping_export_data",
-        "exportFilename": "ezBookkeeping_{nickname}_export_data",
-        "defaultExportStatisticsFileName": "ezBookkeeping_statistics_data",
-        "exportStatisticsFileName": "ezBookkeeping_{nickname}_statistics_data",
-        "defaultExportReconciliationStatementsFileName": "ezBookkeeping_reconciliation_statements",
-        "exportReconciliationStatementsFileName": "ezBookkeeping_{nickname}_reconciliation_statements",
-        "defaultImportDataMappingFileName": "ezBookkeeping_import_data_mapping",
-        "defaultImportHandlingScript": "ezBookkeeping_handling_script",
-        "defaultImportReplaceRuleFileName": "ezBookkeeping_import_replace_rule",
-        "defaultImportCheckResultFileName": "ezBookkeeping_import_check_result"
+        "defaultExportFilename": "NestKeep_export_data",
+        "exportFilename": "NestKeep_{nickname}_export_data",
+        "defaultExportStatisticsFileName": "NestKeep_statistics_data",
+        "exportStatisticsFileName": "NestKeep_{nickname}_statistics_data",
+        "defaultExportReconciliationStatementsFileName": "NestKeep_reconciliation_statements",
+        "exportReconciliationStatementsFileName": "NestKeep_{nickname}_reconciliation_statements",
+        "defaultImportDataMappingFileName": "NestKeep_import_data_mapping",
+        "defaultImportHandlingScript": "NestKeep_handling_script",
+        "defaultImportReplaceRuleFileName": "NestKeep_import_replace_rule",
+        "defaultImportCheckResultFileName": "NestKeep_import_check_result"
     },
     "calendar": {
         "Gregorian": "Gregorian",

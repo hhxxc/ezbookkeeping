@@ -468,7 +468,7 @@ const vuetify = createVuetify({
         rtl: getRtlLocales(),
         adapter: ((i18nGlobal: Composer) => {
             const instance: LocaleInstance = {
-                name: 'ezBookkeeping i18n',
+                name: 'NestKeep i18n',
                 decimalSeparator: ref<string>(DecimalSeparator.Default.symbol), // should never use vuetify to format numbers
                 messages: i18nGlobal.messages,
                 current: i18nGlobal.locale,

@@ -89,6 +89,27 @@ input[type=number] {
     pointer-events: none !important;
 }
 
+.skeleton-text .skeleton-block,
+.skeleton-text .item-title,
+.skeleton-text .item-after,
+.skeleton-text .item-footer,
+.skeleton-text .item-header,
+.skeleton-text .card-header-content,
+.skeleton-text .month-expense,
+.skeleton-text .home-summary-month,
+.skeleton-text .home-summary-misc {
+    color: transparent !important;
+    background: linear-gradient(90deg, var(--f7-list-bg-color) 25%, rgba(180,180,180,0.15) 50%, var(--f7-list-bg-color) 75%);
+    background-size: 200% 100%;
+    animation: ebk-shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes ebk-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 .segmented.readonly .button:not(.button-active) > span,
 .list.readonly .item-content .item-title.item-label,
 .list.readonly .item-content .item-title > .item-header {
@@ -184,6 +205,32 @@ i.icon.la, i.icon.las, i.icon.lab {
     --default-icon-color: #000;
     --ebk-primary-color: 198, 126, 72;
     --ebk-transaction-tag-chip-bg-color: rgba(0, 0, 0, 0.04);
+
+    /* Design tokens */
+    --ebk-card-border-radius: 16px;
+    --ebk-list-border-radius: 14px;
+    --ebk-transition-fast: 0.15s ease;
+    --ebk-transition-normal: 0.25s ease;
+
+    /* Primary color palette */
+    --ebk-primary-50: #fdf2e8;
+    --ebk-primary-100: #fae0cc;
+    --ebk-primary-200: #f5c499;
+    --ebk-primary-300: #f0a866;
+    --ebk-primary-400: #eb8c33;
+    --ebk-primary-500: #c67e48;
+    --ebk-primary-600: #a86535;
+    --ebk-primary-700: #8a4c22;
+    --ebk-primary-800: #6c330f;
+    --ebk-primary-900: #4e1a00;
+
+    /* Gradients */
+    --ebk-primary-gradient: linear-gradient(135deg, #c67e48 0%, #e8a87c 100%);
+    --ebk-primary-gradient-dark: linear-gradient(135deg, #a66335 0%, #c67e48 100%);
+
+    /* Card shadows */
+    --ebk-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    --ebk-card-shadow-dark: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 :root.dark {
@@ -400,6 +447,54 @@ html[dir="rtl"] i.icon.icon-with-direction {
 .tabbar-primary-link,
 .tabbar-item-changed {
     color: var(--f7-theme-color);
+}
+
+/* Tab bar active indicator */
+.tabbar .link {
+    position: relative;
+    transition: color var(--ebk-transition-fast);
+}
+
+.tabbar .tabbar-primary-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--f7-theme-color);
+    transition: opacity var(--ebk-transition-fast);
+}
+
+.tabbar .link:not(.tabbar-primary-link)::before {
+    opacity: 0;
+}
+
+.tabbar .tabbar-primary-link::before {
+    opacity: 1;
+}
+
+/* Tab bar glass effect (light mode) */
+.ios .toolbar.tabbar::before {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Center add button glow */
+.ebk-tarbar-big-icon {
+    filter: drop-shadow(0 2px 6px rgba(198, 126, 72, 0.3));
+    transition: transform var(--ebk-transition-fast), filter var(--ebk-transition-fast);
+}
+
+.tabbar-primary-link .ebk-tarbar-big-icon {
+    filter: drop-shadow(0 2px 8px rgba(198, 126, 72, 0.45));
+}
+
+/* List item transitions */
+.list .item-link {
+    transition: background-color var(--ebk-transition-fast);
 }
 
 .tabbar-text-with-ellipsis > span {
@@ -933,6 +1028,16 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
     border-bottom-right-radius: var(--f7-progressbar-border-radius);
 }
 
+/* Page fade-in transition */
+@keyframes ebk-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.page-content {
+    animation: ebk-fade-in var(--ebk-transition-normal) both;
+}
+
 /* ---- 120fps GPU compositing optimizations ---- */
 
 /* Containment: isolate list item rendering */
@@ -977,5 +1082,9 @@ img {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+
+    .page-content {
+        animation: none;
     }
 }

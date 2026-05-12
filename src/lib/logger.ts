@@ -1,36 +1,37 @@
+import { APP_NAME_EN } from '@/consts/brand';
 import { isEnableDebug } from './settings.ts';
 
 function logDebug(msg: string, obj?: unknown): void {
     if (isEnableDebug()) {
         if (obj) {
-            console.debug('[ezBookkeeping Debug] ' + msg, obj);
+            console.debug('[' + APP_NAME_EN + ' Debug] ' + msg, obj);
         } else {
-            console.debug('[ezBookkeeping Debug] ' + msg);
+            console.debug('[' + APP_NAME_EN + ' Debug] ' + msg);
         }
     }
 }
 
 function logInfo(msg: string, obj?: unknown): void {
     if (obj) {
-        console.info('[ezBookkeeping Info] ' + msg, obj);
+        console.info('[' + APP_NAME_EN + ' Info] ' + msg, obj);
     } else {
-        console.info('[ezBookkeeping Info] ' + msg);
+        console.info('[' + APP_NAME_EN + ' Info] ' + msg);
     }
 }
 
 function logWarn(msg: string, obj?: unknown): void {
     if (obj) {
-        console.warn('[ezBookkeeping Warn] ' + msg, obj);
+        console.warn('[' + APP_NAME_EN + ' Warn] ' + msg, obj);
     } else {
-        console.warn('[ezBookkeeping Warn] ' + msg);
+        console.warn('[' + APP_NAME_EN + ' Warn] ' + msg);
     }
 }
 
 function logError(msg: string, obj?: unknown): void {
     if (obj) {
-        console.error('[ezBookkeeping Error] ' + msg, obj);
+        console.error('[' + APP_NAME_EN + ' Error] ' + msg, obj);
     } else {
-        console.error('[ezBookkeeping Error] ' + msg);
+        console.error('[' + APP_NAME_EN + ' Error] ' + msg);
     }
 }
 
