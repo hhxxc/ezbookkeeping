@@ -61,7 +61,6 @@
 
     // ℹ️ Wobble effect
     transition: margin-inline 0.15s ease-in-out;
-    will-change: margin-inline;
 
     // Reduce margin inline end when vertical nav is in collapsed mode and not hovered
     .layout-nav-type-vertical.layout-vertical-nav-collapsed .layout-vertical-nav:not(.hovered) & {

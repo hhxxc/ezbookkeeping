@@ -9,6 +9,11 @@ input[type=number] {
     -moz-appearance: textfield;
 }
 
+html {
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
+}
+
 /** Common class **/
 .disabled {
     opacity: 0.55 !important;
@@ -555,4 +560,16 @@ body .v-btn-group {
 
 html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
     transform: scaleX(-1);
+}
+
+/* Respect reduced-motion accessibility setting */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }

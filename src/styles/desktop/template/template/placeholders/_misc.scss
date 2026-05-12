@@ -2,6 +2,8 @@
 /** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
 
 %blurry-bg {
+    isolation: isolate;
+    contain: paint;
     /* stylelint-disable property-no-vendor-prefix */
     -webkit-backdrop-filter: blur(9px);
     backdrop-filter: blur(9px);
