@@ -56,6 +56,7 @@ const backgrounds = GALLERY_BACKGROUNDS;
 
 function select(id: string): void {
     emit('update:modelValue', id);
+    emit('update:show', false);
 }
 </script>
 

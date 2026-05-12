@@ -197,6 +197,10 @@ const homeGalleryBackgroundName = computed<string>(() => {
 });
 
 watch(homeGalleryBackgroundId, (newId) => {
+    if (newId) {
+        settingsStore.setHomeSummaryBackgroundImage('');
+        homeBackgroundImage.value = '';
+    }
     settingsStore.setHomeGalleryBackgroundId(newId);
 });
 

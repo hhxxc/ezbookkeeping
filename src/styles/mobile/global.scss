@@ -4,6 +4,7 @@ html, body {
     will-change: scroll-position;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
+    font-family: 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html {
@@ -117,16 +118,20 @@ input[type=number] {
 }
 
 /** Replacing the default style of framework7 **/
-.ios .page {
-    background: linear-gradient(180deg, #faf6f2 0%, #f6f6f8 30%);
-}
-
-.ios .dark .page,
-.ios.dark .page {
-    background: linear-gradient(180deg, #1c1612 0%, #121212 30%);
+/* Dark mode: pure black, no gray */
+:root.dark {
+    --f7-page-bg-color: #000;
+    --f7-page-bg-color-rgb: 0, 0, 0;
+    --f7-card-bg-color: #111;
+    --f7-list-bg-color: #111;
+    --f7-list-strong-bg-color: #1a1a1a;
+    --f7-list-strong-bg-color-rgb: 26, 26, 26;
+    --f7-navbar-bg-color: #000;
+    --f7-toolbar-bg-color: #000;
 }
 
 :root {
+    --f7-font-family: 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --f7-toolbar-inner-padding-left: 8px;
     --f7-toolbar-inner-padding-right: 8px;
     --f7-fab-size: 44px;
@@ -439,11 +444,11 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .ios .navbar .navbar-inner {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.85);
 }
 
 .ios .dark .navbar .navbar-inner {
-    background: rgba(18, 18, 18, 0.85);
+    background: rgba(0, 0, 0, 0.9);
 }
 
 /* Enhanced list items */

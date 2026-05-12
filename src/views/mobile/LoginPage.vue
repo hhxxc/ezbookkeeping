@@ -493,14 +493,14 @@ oauth2ClientSessionId.value = generateRandomUUID();
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: 20px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
     padding: 8px 0;
     overflow: hidden;
 }
 
 .dark .login-card {
-    background: rgba(30, 30, 30, 0.85);
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    background: rgba(20, 20, 20, 0.9);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
 .login-card .list {
