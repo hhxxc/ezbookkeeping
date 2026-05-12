@@ -43,5 +43,8 @@ function onPopoverOpen(event: { $el: Framework7Dom }): void {
 .language-select-button {
     display: initial;
     padding: 8px 10px 8px 10px;
+    background: transparent !important;
+    color: var(--f7-text-color);
+    opacity: 0.6;
 }
 </style>

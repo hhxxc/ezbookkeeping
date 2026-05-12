@@ -433,16 +433,15 @@ init();
     box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
     overflow: hidden;
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
-.home-summary-card::after {
-    display: none;
-}
-
+.home-summary-card > *,
 .home-summary-card .card-header,
 .home-summary-card .card-content,
-.home-summary-card .card-footer {
+.home-summary-card .card-footer,
+.home-summary-card .card-header > *,
+.home-summary-card .card-header > * > * {
     background: transparent !important;
 }
 

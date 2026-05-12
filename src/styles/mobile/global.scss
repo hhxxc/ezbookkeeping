@@ -117,6 +117,15 @@ input[type=number] {
 }
 
 /** Replacing the default style of framework7 **/
+.ios .page {
+    background: linear-gradient(180deg, #faf6f2 0%, #f6f6f8 30%);
+}
+
+.ios .dark .page,
+.ios.dark .page {
+    background: linear-gradient(180deg, #1c1612 0%, #121212 30%);
+}
+
 :root {
     --f7-toolbar-inner-padding-left: 8px;
     --f7-toolbar-inner-padding-right: 8px;

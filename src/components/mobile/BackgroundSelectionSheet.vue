@@ -1,11 +1,12 @@
 <template>
     <f7-sheet swipe-to-close swipe-handler=".swipe-handler"
-              style="height: auto; max-height: 80%;"
+              style="height: 70vh;"
               :opened="show" @sheet:closed="$emit('update:show', false)">
         <div class="swipe-handler"></div>
-        <f7-page-content>
+        <div class="sheet-scroll-area">
             <div class="display-flex padding justify-content-space-between align-items-center">
                 <div class="ebk-sheet-title"><b>{{ tt('Background Image') }}</b></div>
+                <f7-link @click="$emit('update:show', false)">{{ tt('Done') }}</f7-link>
             </div>
             <div class="padding-horizontal padding-bottom">
                 <div class="gallery-grid">
@@ -31,7 +32,7 @@
                     </div>
                 </div>
             </div>
-        </f7-page-content>
+        </div>
     </f7-sheet>
 </template>
 
@@ -55,11 +56,17 @@ const backgrounds = GALLERY_BACKGROUNDS;
 
 function select(id: string): void {
     emit('update:modelValue', id);
-    emit('update:show', false);
 }
 </script>
 
 <style scoped>
+.sheet-scroll-area {
+    height: calc(70vh - 50px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
 .gallery-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
