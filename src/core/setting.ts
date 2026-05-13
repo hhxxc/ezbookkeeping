@@ -220,12 +220,12 @@ export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
     homeGalleryBackgroundId: '',
     // Statistics Settings
     statistics: {
-        defaultChartDataType: ChartDataType.Default.type,
+        defaultChartDataType: ChartDataType.ExpenseBySecondaryCategory.type,
         defaultTimezoneType: TimezoneTypeForStatistics.Default.type,
         defaultAccountFilter: {},
         defaultTransactionCategoryFilter: {},
         defaultSortingType: ChartSortingType.Default.type,
-        defaultCategoricalChartType: CategoricalChartType.Default.type,
+        defaultCategoricalChartType: CategoricalChartType.Bar.type,
         defaultCategoricalChartDataRangeType: DEFAULT_CATEGORICAL_CHART_DATA_RANGE.type,
         defaultTrendChartType: TrendChartType.Default.type,
         defaultTrendChartDataRangeType: DEFAULT_TREND_CHART_DATA_RANGE.type,
