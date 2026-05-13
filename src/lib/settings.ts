@@ -30,6 +30,25 @@ function getStoredApplicationSettings(): BaseApplicationSetting {
 export function getApplicationSettings(): ApplicationSettings {
     const storedApplicationSettings = getStoredApplicationSettings();
 
+    // Migrate old statistics defaults to new defaults (ExpenseByPrimaryCategory→ExpenseBySecondaryCategory, Pie→Bar)
+    const stats = storedApplicationSettings['statistics'] as Record<string, unknown> | undefined;
+    if (stats) {
+        let migrated = false;
+        // Old code default was ExpenseByPrimaryCategory (type 1)
+        if (stats['defaultChartDataType'] === 1) {
+            stats['defaultChartDataType'] = DEFAULT_APPLICATION_SETTINGS.statistics.defaultChartDataType;
+            migrated = true;
+        }
+        // Old code default was Pie (type 0)
+        if (stats['defaultCategoricalChartType'] === 0) {
+            stats['defaultCategoricalChartType'] = DEFAULT_APPLICATION_SETTINGS.statistics.defaultCategoricalChartType;
+            migrated = true;
+        }
+        if (migrated) {
+            localStorage.setItem(settingsLocalStorageKey, JSON.stringify(storedApplicationSettings));
+        }
+    }
+
     for (const key of keys(storedApplicationSettings)) {
         if (typeof(DEFAULT_APPLICATION_SETTINGS[key]) === 'object') {
             storedApplicationSettings[key] = Object.assign({}, DEFAULT_APPLICATION_SETTINGS[key], storedApplicationSettings[key]);
