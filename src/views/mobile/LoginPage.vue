@@ -446,7 +446,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 }
 
 .dark .login-bg-gradient {
-    background: linear-gradient(160deg, #6c330f 0%, #8a4c22 30%, #1a1a1a 70%, #121212 100%);
+    background: linear-gradient(160deg, #6c330f 0%, #8a4c22 25%, #1a1a1a 55%, #000 100%);
 }
 
 .login-content {
