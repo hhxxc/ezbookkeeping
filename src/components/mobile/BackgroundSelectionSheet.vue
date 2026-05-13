@@ -1,7 +1,7 @@
 <template>
     <f7-sheet swipe-to-close swipe-handler=".swipe-handler"
               style="height: 70vh;"
-              :opened="show" @sheet:closed="$emit('update:show', false)">
+              :opened="show" @sheet:open="onSheetOpen" @sheet:closed="$emit('update:show', false)">
         <div class="swipe-handler"></div>
         <div class="sheet-scroll-area">
             <div class="display-flex padding justify-content-space-between align-items-center">
@@ -14,21 +14,21 @@
                         v-for="bg in backgrounds"
                         :key="bg.id"
                         class="gallery-item"
-                        :class="{ 'gallery-item-selected': modelValue === bg.id }"
+                        :class="{ 'gallery-item-selected': currentValue === bg.id }"
                         :style="{ background: bg.css }"
                         @click="select(bg.id)"
                     >
                         <span class="gallery-item-name">{{ bg.name }}</span>
-                        <f7-icon v-if="modelValue === bg.id" class="gallery-check" f7="checkmark_alt_circle_fill"></f7-icon>
+                        <f7-icon v-if="currentValue === bg.id" class="gallery-check" f7="checkmark_alt_circle_fill"></f7-icon>
                     </div>
                     <div
                         class="gallery-item gallery-item-none"
-                        :class="{ 'gallery-item-selected': !modelValue }"
+                        :class="{ 'gallery-item-selected': !currentValue }"
                         @click="select('')"
                     >
                         <f7-icon f7="xmark_circle" style="font-size: 24px; opacity: 0.5;"></f7-icon>
                         <span class="gallery-item-name">{{ tt('None') }}</span>
-                        <f7-icon v-if="!modelValue" class="gallery-check" f7="checkmark_alt_circle_fill"></f7-icon>
+                        <f7-icon v-if="!currentValue" class="gallery-check" f7="checkmark_alt_circle_fill"></f7-icon>
                     </div>
                 </div>
             </div>
@@ -37,10 +37,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+
 import { useI18n } from '@/locales/helpers.ts';
 import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
 
-defineProps<{
+const props = defineProps<{
     show: boolean;
     modelValue: string;
 }>();
@@ -54,7 +56,14 @@ const { tt } = useI18n();
 
 const backgrounds = GALLERY_BACKGROUNDS;
 
+const currentValue = ref<string>(props.modelValue);
+
+function onSheetOpen(): void {
+    currentValue.value = props.modelValue;
+}
+
 function select(id: string): void {
+    currentValue.value = id;
     emit('update:modelValue', id);
     emit('update:show', false);
 }
