@@ -122,9 +122,9 @@ function setThemeColorMeta(darkMode: boolean | undefined): void {
 
     if (darkMode) {
         if (hasBackdrop.value) {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#0b0b0b');
+            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
         } else {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#121212');
+            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
         }
     } else {
         if (hasBackdrop.value) {

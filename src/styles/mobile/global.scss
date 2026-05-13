@@ -118,18 +118,6 @@ input[type=number] {
 }
 
 /** Replacing the default style of framework7 **/
-/* Dark mode: pure black, no gray */
-:root.dark {
-    --f7-page-bg-color: #000;
-    --f7-page-bg-color-rgb: 0, 0, 0;
-    --f7-card-bg-color: #111;
-    --f7-list-bg-color: #111;
-    --f7-list-strong-bg-color: #1a1a1a;
-    --f7-list-strong-bg-color-rgb: 26, 26, 26;
-    --f7-navbar-bg-color: #000;
-    --f7-toolbar-bg-color: #000;
-}
-
 :root {
     --f7-font-family: 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --f7-toolbar-inner-padding-left: 8px;
@@ -151,7 +139,16 @@ input[type=number] {
     --f7-notification-title-text-transform: unset;
 }
 
+/* Dark mode: pure black, no gray */
 :root.dark {
+    --f7-page-bg-color: #000;
+    --f7-page-bg-color-rgb: 0, 0, 0;
+    --f7-card-bg-color: #111;
+    --f7-list-bg-color: #111;
+    --f7-list-strong-bg-color: #1a1a1a;
+    --f7-list-strong-bg-color-rgb: 26, 26, 26;
+    --f7-navbar-bg-color: #000;
+    --f7-toolbar-bg-color: #000;
     --f7-fab-bg-color: var(--f7-glass-bg-color);
     --f7-fab-pressed-bg-color: var(--f7-glass-bg-color);
     --f7-fab-text-color: var(--f7-theme-color);
@@ -363,6 +360,28 @@ i.icon.la, i.icon.las, i.icon.lab {
     }
 }
 
+.dark .login-page-fixed-bottom {
+    background-color: #000 !important;
+}
+
+.login-page-bottom {
+    background-color: transparent;
+}
+
+.dark .login-page-bottom {
+    background-color: #000;
+}
+
+.login-page-bottom .block-footer,
+.login-page-fixed-bottom .block-footer {
+    background-color: transparent;
+}
+
+.dark .login-page-bottom .block-footer,
+.dark .login-page-fixed-bottom .block-footer {
+    background-color: transparent;
+}
+
 .login-page-fixed-bottom > .toolbar-inner {
     display: inline !important;
     text-align: center;
@@ -447,8 +466,9 @@ html[dir="rtl"] i.icon.icon-with-direction {
     background: rgba(255, 255, 255, 0.85);
 }
 
-.ios .dark .navbar .navbar-inner {
-    background: rgba(0, 0, 0, 0.9);
+.dark .ios .navbar .navbar-inner,
+.ios.dark .navbar .navbar-inner {
+    background: #000 !important;
 }
 
 /* Enhanced list items */
@@ -517,10 +537,21 @@ html[dir="rtl"] i.icon.icon-with-direction {
     opacity: 1;
 }
 
-/* Tab bar glass effect (light mode) */
-.ios .toolbar.tabbar::before {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+/* Tab bar: solid in dark mode */
+.ios .toolbar.tabbar {
+    background: var(--f7-toolbar-bg-color);
+}
+
+.dark .ios .toolbar.tabbar,
+.ios.dark .toolbar.tabbar {
+    background: #000 !important;
+}
+
+.dark .ios .toolbar.tabbar::before,
+.ios.dark .toolbar.tabbar::before {
+    background: #000 !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 /* Center add button glow */
