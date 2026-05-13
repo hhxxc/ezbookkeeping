@@ -436,7 +436,7 @@ init();
 
 <style>
 .home-summary-card {
-    background: var(--ebk-primary-gradient) !important;
+    background: var(--ebk-primary-gradient);
     border-radius: var(--ebk-card-border-radius);
     box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
