@@ -424,6 +424,7 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 
 function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
+    homeGalleryBackgroundId.value = settingsStore.appSettings.homeGalleryBackgroundId || '';
 
     if (!loading.value) {
         reload();
