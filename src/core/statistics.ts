@@ -21,7 +21,7 @@ export class CategoricalChartType implements TypeAndName {
     public static readonly Bar = new CategoricalChartType(1, 'Bar Chart', false);
     public static readonly Radar = new CategoricalChartType(2, 'Radar Chart', true);
 
-    public static readonly Default = CategoricalChartType.Pie;
+    public static readonly Default = CategoricalChartType.Bar;
 
     public readonly type: number;
     public readonly name: string;
@@ -132,7 +132,7 @@ export class ChartDataType implements TypeAndName {
     public static readonly NetIncome = new ChartDataType(10, 'Net Income', false, false, StatisticsAnalysisType.TrendAnalysis);
     public static readonly NetWorth = new ChartDataType(17, 'Net Worth', false, false, StatisticsAnalysisType.AssetTrends);
 
-    public static readonly Default = ChartDataType.ExpenseByPrimaryCategory;
+    public static readonly Default = ChartDataType.ExpenseBySecondaryCategory;
     public static readonly DefaultForAssetTrends = ChartDataType.NetWorth;
 
     public readonly type: number;
