@@ -214,7 +214,7 @@ i.icon.la, i.icon.las, i.icon.lab {
 /** custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 198, 126, 72;
+    --ebk-primary-color: 83, 58, 253;
     --ebk-transaction-tag-chip-bg-color: rgba(0, 0, 0, 0.04);
 
     /* Design tokens */
@@ -224,20 +224,20 @@ i.icon.la, i.icon.las, i.icon.lab {
     --ebk-transition-normal: 0.25s ease;
 
     /* Primary color palette */
-    --ebk-primary-50: #fdf2e8;
-    --ebk-primary-100: #fae0cc;
-    --ebk-primary-200: #f5c499;
-    --ebk-primary-300: #f0a866;
-    --ebk-primary-400: #eb8c33;
-    --ebk-primary-500: #c67e48;
-    --ebk-primary-600: #a86535;
-    --ebk-primary-700: #8a4c22;
-    --ebk-primary-800: #6c330f;
-    --ebk-primary-900: #4e1a00;
+    --ebk-primary-50: #ece8ff;
+    --ebk-primary-100: #d5ceff;
+    --ebk-primary-200: #b9b9f9;
+    --ebk-primary-300: #8e8afc;
+    --ebk-primary-400: #665efd;
+    --ebk-primary-500: #533afd;
+    --ebk-primary-600: #4434d4;
+    --ebk-primary-700: #2e2b8c;
+    --ebk-primary-800: #1c1e54;
+    --ebk-primary-900: #0a0e2a;
 
     /* Gradients */
-    --ebk-primary-gradient: linear-gradient(135deg, #c67e48 0%, #e8a87c 100%);
-    --ebk-primary-gradient-dark: linear-gradient(135deg, #a66335 0%, #c67e48 100%);
+    --ebk-primary-gradient: linear-gradient(135deg, #533afd 0%, #665efd 100%);
+    --ebk-primary-gradient-dark: linear-gradient(135deg, #4434d4 0%, #533afd 100%);
 
     /* Card shadows */
     --ebk-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -425,7 +425,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #533afd;
     --dp-background-color: inherit;
     --dp-border-color: #aaa;
     --dp-menu-border-color: #aaa;
@@ -436,7 +436,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #665efd;
     --dp-background-color: inherit;
     --dp-border-color: #555;
     --dp-menu-border-color: #555;
