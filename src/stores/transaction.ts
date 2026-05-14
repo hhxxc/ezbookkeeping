@@ -859,7 +859,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
             services.getTransactions({
                 maxTime: actualMaxTime,
                 minTime: transactionsFilter.value.minTime * 1000,
-                count: count || 50,
+                count: count || 10,
                 page: page || 1,
                 withCount: !!withCount,
                 type: transactionsFilter.value.type,
