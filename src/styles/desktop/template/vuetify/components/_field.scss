@@ -1,5 +1,4 @@
-/** Materio Template Vuetify styles **/
-/** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
+/** Stripe-Inspired Field styles **/
 
 @use "@/styles/desktop/configured-variables/template" as variables;
 @use "sass:map";
@@ -7,9 +6,7 @@
 @use "@/styles/desktop/template/base/mixins";
 @use "@/styles/desktop/template/base/utils";
 
-// 👉 VField
-// Override Vuetify's default outline color for text fields to match the theme
-// ℹ️ We cannot override directly border color because it does not work with dirty or focus state
+// 👉 VField — Stripe: hairline-input borders (#a8c3de), primary focus, 6px radius
 .v-field__outline {
     color: rgba(var(--v-theme-on-surface));
 
@@ -34,6 +31,10 @@
 
     &.v-input.v-input--density-compact:not(.v-textarea) .v-field__input {
         min-block-size: 40px;
+    }
+
+    .v-field__outline {
+        border-radius: 6px;
     }
 }
 

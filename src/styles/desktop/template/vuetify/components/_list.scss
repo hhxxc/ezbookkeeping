@@ -1,13 +1,7 @@
-/** Materio Template Vuetify styles **/
-/** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
+/** Stripe-Inspired List styles **/
 
 // 👉 VList
-
 .v-list {
-    // .v-icon {
-    //   font-size: 1.375rem;font-sizefont-size
-    // }
-
     .v-list-item {
         &.v-list-item--active:not(.v-list-group__header) {
             .v-list-item__content,
@@ -22,4 +16,10 @@
             }
         }
     }
+}
+
+// Nav list items: clean spacing, indigo active
+.v-list-item {
+    border-radius: 8px;
+    margin-inline: 4px;
 }
