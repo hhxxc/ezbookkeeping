@@ -471,6 +471,11 @@ html[dir="rtl"] i.icon.icon-with-direction {
     background: #000 !important;
 }
 
+/* Remove navbar bottom hairline */
+.ios .navbar::after {
+    background: transparent !important;
+}
+
 /* Enhanced list items */
 .ios .list.inset > ul {
     border-radius: var(--ebk-list-border-radius);
@@ -537,9 +542,15 @@ html[dir="rtl"] i.icon.icon-with-direction {
     opacity: 1;
 }
 
-/* Tab bar: solid in dark mode */
+/* Toolbar/Tabbar: clean, no hairline shadow */
 .ios .toolbar.tabbar {
     background: var(--f7-toolbar-bg-color);
+}
+
+.ios .toolbar.tabbar::before {
+    background: transparent !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .dark .ios .toolbar.tabbar,
@@ -549,7 +560,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 .dark .ios .toolbar.tabbar::before,
 .ios.dark .toolbar.tabbar::before {
-    background: #000 !important;
+    background: transparent !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
