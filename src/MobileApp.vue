@@ -1,6 +1,6 @@
 <template>
     <f7-app v-bind="f7params">
-        <f7-view id="main-view" class="safe-areas" main url="/"></f7-view>
+        <f7-view id="main-view" class="safe-areas" main url="/" :show-progressbar="true" progressbar-color="#c67e48" />
     </f7-app>
 </template>
 
