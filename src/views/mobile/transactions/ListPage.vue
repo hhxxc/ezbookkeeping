@@ -646,7 +646,6 @@ import {
 } from '@/lib/common.ts';
 import {
     getCurrentUnixTime,
-    parseDateTimeFromUnixTime,
     getDayFirstDateTimeBySpecifiedUnixTime,
     getYearMonthFirstUnixTime,
     getYearMonthLastUnixTime,
@@ -980,24 +979,11 @@ function reload(done?: () => void): void {
         transactionCategoriesStore.loadAllCategories({ force: false }),
         transactionTagsStore.loadAllTags({ force: false })
     ]).then(() => {
-        if (queryMonthlyData.value) {
-            const currentMonthMinDate = parseDateTimeFromUnixTime(query.value.minTime);
-            const currentYear = currentMonthMinDate.getGregorianCalendarYear();
-            const currentMonth = currentMonthMinDate.getGregorianCalendarMonth();
-
-            return transactionsStore.loadMonthlyAllTransactions({
-                year: currentYear,
-                month: currentMonth,
-                autoExpand: true,
-                defaultCurrency: defaultCurrency.value
-            });
-        } else {
-            return transactionsStore.loadTransactions({
-                reload: true,
-                autoExpand: true,
-                defaultCurrency: defaultCurrency.value
-            });
-        }
+        return transactionsStore.loadTransactions({
+            reload: true,
+            autoExpand: true,
+            defaultCurrency: defaultCurrency.value
+        });
     }).then(() => {
         done?.();
 
