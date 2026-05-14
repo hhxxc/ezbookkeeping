@@ -118,6 +118,18 @@ input[type=number] {
 }
 
 /** Replacing the default style of framework7 **/
+/* Dark mode: pure black, no gray */
+:root.dark {
+    --f7-page-bg-color: #000;
+    --f7-page-bg-color-rgb: 0, 0, 0;
+    --f7-card-bg-color: #111;
+    --f7-list-bg-color: #111;
+    --f7-list-strong-bg-color: #1a1a1a;
+    --f7-list-strong-bg-color-rgb: 26, 26, 26;
+    --f7-navbar-bg-color: #000;
+    --f7-toolbar-bg-color: #000;
+}
+
 :root {
     --f7-font-family: 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --f7-toolbar-inner-padding-left: 8px;
@@ -139,16 +151,7 @@ input[type=number] {
     --f7-notification-title-text-transform: unset;
 }
 
-/* Dark mode: pure black, no gray */
 :root.dark {
-    --f7-page-bg-color: #000;
-    --f7-page-bg-color-rgb: 0, 0, 0;
-    --f7-card-bg-color: #111;
-    --f7-list-bg-color: #111;
-    --f7-list-strong-bg-color: #1a1a1a;
-    --f7-list-strong-bg-color-rgb: 26, 26, 26;
-    --f7-navbar-bg-color: #000;
-    --f7-toolbar-bg-color: #000;
     --f7-fab-bg-color: var(--f7-glass-bg-color);
     --f7-fab-pressed-bg-color: var(--f7-glass-bg-color);
     --f7-fab-text-color: var(--f7-theme-color);
@@ -214,7 +217,7 @@ i.icon.la, i.icon.las, i.icon.lab {
 /** custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 83, 58, 253;
+    --ebk-primary-color: 198, 126, 72;
     --ebk-transaction-tag-chip-bg-color: rgba(0, 0, 0, 0.04);
 
     /* Design tokens */
@@ -224,20 +227,20 @@ i.icon.la, i.icon.las, i.icon.lab {
     --ebk-transition-normal: 0.25s ease;
 
     /* Primary color palette */
-    --ebk-primary-50: #ece8ff;
-    --ebk-primary-100: #d5ceff;
-    --ebk-primary-200: #b9b9f9;
-    --ebk-primary-300: #8e8afc;
-    --ebk-primary-400: #665efd;
-    --ebk-primary-500: #533afd;
-    --ebk-primary-600: #4434d4;
-    --ebk-primary-700: #2e2b8c;
-    --ebk-primary-800: #1c1e54;
-    --ebk-primary-900: #0a0e2a;
+    --ebk-primary-50: #fdf2e8;
+    --ebk-primary-100: #fae0cc;
+    --ebk-primary-200: #f5c499;
+    --ebk-primary-300: #f0a866;
+    --ebk-primary-400: #eb8c33;
+    --ebk-primary-500: #c67e48;
+    --ebk-primary-600: #a86535;
+    --ebk-primary-700: #8a4c22;
+    --ebk-primary-800: #6c330f;
+    --ebk-primary-900: #4e1a00;
 
     /* Gradients */
-    --ebk-primary-gradient: linear-gradient(135deg, #533afd 0%, #665efd 100%);
-    --ebk-primary-gradient-dark: linear-gradient(135deg, #4434d4 0%, #533afd 100%);
+    --ebk-primary-gradient: linear-gradient(135deg, #c67e48 0%, #e8a87c 100%);
+    --ebk-primary-gradient-dark: linear-gradient(135deg, #a66335 0%, #c67e48 100%);
 
     /* Card shadows */
     --ebk-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -360,28 +363,6 @@ i.icon.la, i.icon.las, i.icon.lab {
     }
 }
 
-.dark .login-page-fixed-bottom {
-    background-color: #000 !important;
-}
-
-.login-page-bottom {
-    background-color: transparent;
-}
-
-.dark .login-page-bottom {
-    background-color: #000;
-}
-
-.login-page-bottom .block-footer,
-.login-page-fixed-bottom .block-footer {
-    background-color: transparent;
-}
-
-.dark .login-page-bottom .block-footer,
-.dark .login-page-fixed-bottom .block-footer {
-    background-color: transparent;
-}
-
 .login-page-fixed-bottom > .toolbar-inner {
     display: inline !important;
     text-align: center;
@@ -425,7 +406,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #533afd;
+    --dp-primary-color: #c67e48;
     --dp-background-color: inherit;
     --dp-border-color: #aaa;
     --dp-menu-border-color: #aaa;
@@ -436,7 +417,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #665efd;
+    --dp-primary-color: #c67e48;
     --dp-background-color: inherit;
     --dp-border-color: #555;
     --dp-menu-border-color: #555;
@@ -466,14 +447,8 @@ html[dir="rtl"] i.icon.icon-with-direction {
     background: rgba(255, 255, 255, 0.85);
 }
 
-.dark .ios .navbar .navbar-inner,
-.ios.dark .navbar .navbar-inner {
-    background: #000 !important;
-}
-
-/* Remove navbar bottom hairline */
-.ios .navbar::after {
-    background: transparent !important;
+.ios .dark .navbar .navbar-inner {
+    background: rgba(0, 0, 0, 0.9);
 }
 
 /* Enhanced list items */
@@ -542,27 +517,10 @@ html[dir="rtl"] i.icon.icon-with-direction {
     opacity: 1;
 }
 
-/* Toolbar/Tabbar: clean, no hairline shadow */
-.ios .toolbar.tabbar {
-    background: var(--f7-toolbar-bg-color);
-}
-
+/* Tab bar glass effect (light mode) */
 .ios .toolbar.tabbar::before {
-    background: transparent !important;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-}
-
-.dark .ios .toolbar.tabbar,
-.ios.dark .toolbar.tabbar {
-    background: #000 !important;
-}
-
-.dark .ios .toolbar.tabbar::before,
-.ios.dark .toolbar.tabbar::before {
-    background: transparent !important;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 /* Center add button glow */
@@ -1111,20 +1069,14 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
     border-bottom-right-radius: var(--f7-progressbar-border-radius);
 }
 
-/* Page fade-in transition - smooth easing */
+/* Page fade-in transition */
 @keyframes ebk-fade-in {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 .page-content {
-    animation: ebk-fade-in 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
-}
-
-/* Router loading progress bar: smooth, subtle */
-.progressbar.progressbar-inline {
-    height: 2px;
-    transition: opacity 0.3s ease;
+    animation: ebk-fade-in var(--ebk-transition-normal) both;
 }
 
 /* ---- 120fps GPU compositing optimizations ---- */

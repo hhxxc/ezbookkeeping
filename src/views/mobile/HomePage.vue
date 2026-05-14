@@ -291,8 +291,10 @@ const homeSummaryCardStyle = computed(() => {
         const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
         if (bg) {
             return {
-                'background': bg.css,
-                'background-image': 'none'
+                'background-image': bg.css,
+                'background-size': 'cover',
+                'background-position': 'center',
+                'background-repeat': 'no-repeat'
             } as Record<string, string>;
         }
     }
