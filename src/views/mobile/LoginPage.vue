@@ -440,13 +440,13 @@ oauth2ClientSessionId.value = generateRandomUUID();
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(160deg, #c67e48 0%, #e8a87c 40%, #f0c8a0 70%, #f6f6f8 100%);
+    background: linear-gradient(160deg, #533afd 0%, #665efd 40%, #8e8afc 70%, #f6f9fc 100%);
     pointer-events: none;
     z-index: 0;
 }
 
 .dark .login-bg-gradient {
-    background: linear-gradient(160deg, #6c330f 0%, #8a4c22 25%, #1a1a1a 55%, #000 100%);
+    background: linear-gradient(160deg, #1c1e54 0%, #2e2b8c 25%, #0a0e1a 55%, #000 100%);
 }
 
 .login-content {
