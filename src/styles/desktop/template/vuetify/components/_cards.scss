@@ -1,8 +1,8 @@
 /** Stripe-Inspired Card styles **/
 
-// 👉 Card — Stripe: flat with hairline border, 12px radius, Level 1 shadow
+// 👉 Card — Stripe: flat with visible hairline border, 12px radius, Level 1 shadow
 .v-card {
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(var(--v-shadow-key-umbra-color), 0.08);
+    box-shadow: 0 1px 3px rgba(var(--v-shadow-key-umbra-color), 0.1), 0 1px 2px rgba(var(--v-shadow-key-umbra-color), 0.06);
 }

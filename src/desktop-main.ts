@@ -376,7 +376,7 @@ const vuetify = createVuetify({
                     'dragged-opacity': 0.1,
                     'disabled-opacity': 0.4,
                     'border-color': '#0d253d',
-                    'border-opacity': 0.1,
+                    'border-opacity': 0.12,
                     'table-header-color': '#f6f9fc',
                     'high-emphasis-opacity': 0.9,
                     'medium-emphasis-opacity': 0.7,
