@@ -1,122 +1,129 @@
-/** Materio Template Vuetify variables **/
-/** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
+/** Stripe-Inspired Vuetify variables **/
+/** Based on DESIGN.md design tokens **/
 
-$font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Segoe UI", roboto,
+$font-family-custom: "Inter", -apple-system, blinkmacsystemfont, "Segoe UI", roboto,
     "Helvetica Neue", arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 /* stylelint-disable length-zero-no-unit */
 @forward "@/styles/desktop/template/base/libs/vuetify/variables" with (
     $body-font-family: $font-family-custom !default,
-    $border-radius-root: 6px,
+    $border-radius-root: 8px,
 
     $rounded: (
-        "sm": 4px,
+        "sm": 6px,
         "shaped": 25px 0,
-        "lg":8px,
+        "lg": 12px,
     ) !default,
 
-    // 👉 Typography
+    // 👉 Typography — Stripe: weight 300, negative letter-spacing on display tiers
     $typography: (
         "h1": (
             "size": 2.875rem,
-            "weight": 500,
-            "line-height": 4.25rem,
-            "letter-spacing": normal,
+            "weight": 300,
+            "line-height": 3.25rem,
+            "letter-spacing": -0.04em,
         ),
         "h2": (
             "size": 2.375rem,
-            "weight": 500,
-            "line-height": 3.5rem,
-            "letter-spacing": normal,
+            "weight": 300,
+            "line-height": 2.75rem,
+            "letter-spacing": -0.03em,
         ),
         "h3": (
             "size": 1.75rem,
-            "weight": 500,
-            "line-height": 2.625rem,
-            "letter-spacing": normal,
+            "weight": 300,
+            "line-height": 2.125rem,
+            "letter-spacing": -0.02em,
         ),
         "h4": (
             "size": 1.5rem,
-            "weight": 500,
-            "line-height": 2.375rem,
-            "letter-spacing": normal,
+            "weight": 300,
+            "line-height": 1.875rem,
+            "letter-spacing": -0.015em,
         ),
         "h5": (
             "size": 1.125rem,
-            "weight": 500,
-            "line-height": 1.75rem,
-            "letter-spacing": normal,
+            "weight": 300,
+            "line-height": 1.625rem,
+            "letter-spacing": -0.01em,
         ),
         "h6": (
             "size": 0.9375rem,
+            "weight": 400,
             "line-height": 1.375rem,
             "letter-spacing": normal,
         ),
         "subtitle-1": (
             "size": 0.9375rem,
+            "weight": 400,
             "line-height": 1.375rem,
             "letter-spacing": normal,
         ),
         "subtitle-2": (
             "size": 0.8125rem,
+            "weight": 400,
             "line-height": 1.25rem,
             "letter-spacing": normal,
         ),
         "body-1": (
             "size": 0.9375rem,
-            "line-height": 1.375rem,
+            "weight": 300,
+            "line-height": 1.4,
             "letter-spacing": normal,
         ),
         "body-2": (
             "size": 0.8125rem,
-            "line-height": 1.25rem,
+            "weight": 300,
+            "line-height": 1.4,
             "letter-spacing": normal,
         ),
         "caption": (
             "size": 0.8125rem,
-            "line-height": 1.125rem,
-            "letter-spacing": 0.025rem,
+            "weight": 400,
+            "line-height": 1.4,
+            "letter-spacing": -0.03em,
         ),
         "overline": (
             "weight": 400,
+            "size": 0.625rem,
             "line-height": 0.875rem,
             "letter-spacing": 0.05rem,
         ),
         "button": (
             "size": 0.9375rem,
-            "weight": 500,
+            "weight": 400,
             "letter-spacing": normal,
             "font-family": $font-family-custom,
-            "text-transform": capitalize,
+            "text-transform": none,
         ),
     )!default,
 
-    //  👉 Shadows
+    // 👉 Shadows — Stripe: blue-tinted, subtle, using shadow-blue #003770
     $shadow-key-umbra: (
-        0: (0 0 0 0 rgba(var(--v-shadow-key-umbra-color), 1)),
-        1: (0 2px 4px rgba(var(--v-shadow-key-umbra-color), 0.12)),
-        2: (0 2px 4px 0 rgba(var(--v-shadow-key-umbra-color), var(--v-shadow-xs-opacity))),
-        3: (0 3px 8px rgba(var(--v-shadow-key-umbra-color), 0.14)),
-        4: (0 3px 6px 0 rgba(var(--v-shadow-key-umbra-color), var(--v-shadow-sm-opacity))),
-        5: (0 4px 10px rgba(var(--v-shadow-key-umbra-color), 0.15)),
-        6: (0 4px 10px 0 rgba(var(--v-shadow-key-umbra-color), var(--v-shadow-md-opacity))),
-        7: (0 4px 18px rgba(var(--v-shadow-key-umbra-color), 0.1)),
-        8: (0 6px 16px 0 rgba(var(--v-shadow-key-umbra-color), var(--v-shadow-lg-opacity))),
-        9: (0 5px 14px rgba(var(--v-shadow-key-umbra-color), 0.18)),
-        10: (0 8px 28px 0 rgba(var(--v-shadow-key-umbra-color), var(--v-shadow-xl-opacity))),
-        11: (0 5px 16px rgba(var(--v-shadow-key-umbra-color), 0.2)),
-        12: (0 6px 17px rgba(var(--v-shadow-key-umbra-color), 0.22)),
-        13: (0 6px 18px rgba(var(--v-shadow-key-umbra-color), 0.22)),
-        14: (0 6px 19px rgba(var(--v-shadow-key-umbra-color), 0.24)),
-        15: (0 7px 20px rgba(var(--v-shadow-key-umbra-color), 0.24)),
-        16: (0 7px 21px rgba(var(--v-shadow-key-umbra-color), 0.26)),
-        17: (0 7px 22px rgba(var(--v-shadow-key-umbra-color), 0.26)),
-        18: (0 8px 23px rgba(var(--v-shadow-key-umbra-color), 0.28)),
-        19: (0 8px 24px 6px rgba(var(--v-shadow-key-umbra-color), 0.28)),
-        20: (0 9px 25px rgba(var(--v-shadow-key-umbra-color), 0.3)),
-        21: (0 9px 26px rgba(var(--v-shadow-key-umbra-color), 0.32)),
-        22: (0 9px 27px rgba(var(--v-shadow-key-umbra-color), 0.32)),
-        23: (0 10px 28px rgba(var(--v-shadow-key-umbra-color), 0.34)),
-        24: (0 10px 30px rgba(var(--v-shadow-key-umbra-color), 0.34))
+        0: (0 0 0 0 rgba(var(--v-shadow-key-umbra-color), 0)),
+        1: (0 1px 3px rgba(var(--v-shadow-key-umbra-color), 0.08)),
+        2: (0 2px 6px rgba(var(--v-shadow-key-umbra-color), 0.04), 0 8px 24px rgba(var(--v-shadow-key-umbra-color), 0.08)),
+        3: (0 3px 8px rgba(var(--v-shadow-key-umbra-color), 0.06)),
+        4: (0 4px 12px rgba(var(--v-shadow-key-umbra-color), 0.06)),
+        5: (0 4px 14px rgba(var(--v-shadow-key-umbra-color), 0.06)),
+        6: (0 4px 16px rgba(var(--v-shadow-key-umbra-color), 0.06), 0 2px 6px rgba(var(--v-shadow-key-umbra-color), 0.04)),
+        7: (0 4px 18px rgba(var(--v-shadow-key-umbra-color), 0.07)),
+        8: (0 6px 20px rgba(var(--v-shadow-key-umbra-color), 0.07), 0 2px 8px rgba(var(--v-shadow-key-umbra-color), 0.04)),
+        9: (0 5px 14px rgba(var(--v-shadow-key-umbra-color), 0.08)),
+        10: (0 8px 28px rgba(var(--v-shadow-key-umbra-color), 0.08), 0 2px 8px rgba(var(--v-shadow-key-umbra-color), 0.04)),
+        11: (0 5px 16px rgba(var(--v-shadow-key-umbra-color), 0.09)),
+        12: (0 6px 17px rgba(var(--v-shadow-key-umbra-color), 0.09)),
+        13: (0 6px 18px rgba(var(--v-shadow-key-umbra-color), 0.10)),
+        14: (0 6px 19px rgba(var(--v-shadow-key-umbra-color), 0.10)),
+        15: (0 7px 20px rgba(var(--v-shadow-key-umbra-color), 0.10)),
+        16: (0 7px 21px rgba(var(--v-shadow-key-umbra-color), 0.11)),
+        17: (0 7px 22px rgba(var(--v-shadow-key-umbra-color), 0.11)),
+        18: (0 8px 23px rgba(var(--v-shadow-key-umbra-color), 0.12)),
+        19: (0 8px 24px 6px rgba(var(--v-shadow-key-umbra-color), 0.12)),
+        20: (0 9px 25px rgba(var(--v-shadow-key-umbra-color), 0.12)),
+        21: (0 9px 26px rgba(var(--v-shadow-key-umbra-color), 0.13)),
+        22: (0 9px 27px rgba(var(--v-shadow-key-umbra-color), 0.13)),
+        23: (0 10px 28px rgba(var(--v-shadow-key-umbra-color), 0.14)),
+        24: (0 10px 30px rgba(var(--v-shadow-key-umbra-color), 0.14))
     ) !default,
 
     $shadow-key-penumbra: (
@@ -183,9 +190,9 @@ $font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Se
     $alert-text-line-height: 1.625rem !default,
 
     // 👉 Autocomplete
-    $autocomplete-content-elevation: 8 !default,
-    $combobox-content-elevation: 8 !default,
-    $select-content-elevation: 8 !default,
+    $autocomplete-content-elevation: 4 !default,
+    $combobox-content-elevation: 4 !default,
+    $select-content-elevation: 4 !default,
 
     // 👉 Badge
     $badge-height: 1.375rem !default,
@@ -195,37 +202,37 @@ $font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Se
     $badge-border-radius: 50px !default,
     $badge-font-size: 0.8125rem !default,
 
-    // 👉 Buttons
-    $button-height: 38px !default,
+    // 👉 Buttons — Stripe: flat, pill, 36px, no elevation
+    $button-height: 36px !default,
     $button-padding-ratio: 2.15 !default,
     $button-margin-start: 0 !default,
     $button-disabled-opacity: .45 !default,
-    $button-elevation: ('default': 2, 'hover': 2, 'active': 0) !default,
+    $button-elevation: ('default': 0, 'hover': 0, 'active': 0) !default,
     $button-density: ('default': 0, 'comfortable': -1, 'compact': -2) !default,
-    $button-line-height: 1.375rem !default,
+    $button-line-height: 1.0 !default,
     $button-margin-end: 0.375rem !default,
-    $button-card-actions-padding: 0 18px !default,
+    $button-card-actions-padding: 0 16px !default,
 
     // 👉 Chip
     $chip-font-size: 13px !default,
     $chip-close-size: 20px !default,
     $chip-font-weight: 500 !default,
 
-    // 👉 Cards
-    $card-actions-padding: 0 6px 6px !default,
+    // 👉 Cards — Stripe: flat with hairline border, 12px radius, no elevation
+    $card-actions-padding: 0 12px 12px !default,
     $card-title-font-size: 1.125rem !default,
-    $card-title-line-height: 1.75rem !default,
+    $card-title-line-height: 1.5rem !default,
     $card-text-font-size: 0.9375rem !default,
-    $card-text-line-height: 1.375rem !default,
+    $card-text-line-height: 1.4 !default,
     $card-subtitle-font-size: 0.9375rem !default,
-    $card-subtitle-line-height: 1.375rem !default,
+    $card-subtitle-line-height: 1.4 !default,
     $card-subtitle-font-weight: 400 !default,
     $card-subtitle-header-padding: 0 !default,
 
     // 👉 Dialog
-    $dialog-elevation: 10 !default,
-    $dialog-card-header-padding: 20px !default,
-    $dialog-card-text-padding: 0 20px 20px !default,
+    $dialog-elevation: 4 !default,
+    $dialog-card-header-padding: 24px 24px 0 !default,
+    $dialog-card-text-padding: 0 24px 24px !default,
 
     // 👉 Expansion Panel
     $expansion-panel-active-margin: 0.5rem !default,
@@ -234,7 +241,7 @@ $font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Se
     $expansion-panel-title-min-height: 46px !default,
     $expansion-panel-active-title-min-height: 46px !default,
 
-    // 👉 Field
+    // 👉 Field — Stripe: 6px radius, 15px font
     $field-outline-opacity: 0.22 !default,
     $field-control-affixed-padding: 16px !default,
     $field-control-affixed-inner-padding: 10px !default,
@@ -246,7 +253,7 @@ $font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Se
 
     // 👉 List
     $list-item-one-line-min-height: 38px !default,
-    $list-subheader-min-height: 38px !default,
+    $list-subheader-min-height: 32px !default,
     $list-item-padding: 8px 20px !default,
     $list-subheader-font-weight: 500 !default,
     $list-item-icon-margin-start: 12px !default,
@@ -308,17 +315,17 @@ $font-family-custom: "Inter", sans-serif, -apple-system, blinkmacsystemfont, "Se
     $slider-thumb-label-padding: 4px 10px !default,
 
     // 👉 Table
-    $table-row-height: 50px !default,
+    $table-row-height: 48px !default,
     $table-header-font-weight: 500 !default,
     $table-color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !default,
     $table-font-size: 15px !default,
-    $table-column-padding: 0 20px !default,
+    $table-column-padding: 0 16px !default,
 
     // 👉 Radio
     $radio-group-label-selection-group-padding-inline: 0 !default,
 
     // 👉 navigation drawer
-    $navigation-drawer-temporary-elevation: 8 !default,
+    $navigation-drawer-temporary-elevation: 4 !default,
     $navigation-drawer-transition-duration: 0.4s !default,
 
     // 👉 Messages

@@ -14,6 +14,14 @@ html {
     -webkit-font-smoothing: antialiased;
 }
 
+body {
+    font-feature-settings: "ss01";
+}
+
+.tabular-nums {
+    font-feature-settings: "tnum", "ss01";
+}
+
 /** Common class **/
 .disabled {
     opacity: 0.55 !important;
@@ -41,7 +49,7 @@ html {
 
 .dragging-item {
     opacity: 0.5;
-    background: #faf8f4;
+    background: #f6f9fc;
 }
 
 @media (min-width: 600px) {
@@ -53,7 +61,7 @@ html {
 /** Custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 198, 126, 72;
+    --ebk-primary-color: 83, 58, 253;
     --v-expand-panel-title-bg: rgba(var(--v-theme-on-surface), var(--v-hover-opacity));
     --v-card-title-bg: rgba(var(--v-theme-on-surface), var(--v-hover-opacity));
 }
@@ -111,7 +119,7 @@ html {
 
 .v-theme--dark {
     .auth-image-background {
-        background-color: #202122;
+        background-color: #0a0e1a;
     }
 }
 
@@ -152,6 +160,52 @@ html {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+}
+
+// Stripe: Sidebar with clean surface background and hairline right border
+.layout-wrapper.layout-nav-type-vertical .layout-vertical-nav {
+    background-color: rgb(var(--v-theme-surface));
+    border-inline-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+// Stripe: Topbar — clean white, no blur, hairline bottom border
+.layout-navbar.navbar-blur {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: rgb(var(--v-theme-surface)) !important;
+    border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+// Nav section titles — Stripe: ink-mute, micro-cap style
+.nav-section-title .title-wrapper .title-text {
+    font-size: 0.625rem;
+    font-weight: 400;
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+// Nav links — Stripe: clean padding, subtle hover, indigo active pill
+.nav-link a {
+    border-radius: 8px;
+    margin-inline: 8px;
+    padding: 8px 12px;
+    color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity));
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+        background-color: rgba(var(--v-theme-on-surface), 0.04);
+    }
+}
+
+.nav-link a.router-link-exact-active {
+    background-color: rgba(var(--v-theme-primary), 0.08);
+    color: rgb(var(--v-theme-primary));
+
+    .nav-item-icon {
+        color: rgb(var(--v-theme-primary));
     }
 }
 
@@ -196,7 +250,7 @@ html[dir="rtl"] .bidirectional-switch {
 }
 
 .code-container {
-    background-color: #efefef;
+    background-color: #e3e8ee;
 }
 
 .v-theme--dark .code-container {
@@ -247,7 +301,7 @@ html[dir="rtl"] .bidirectional-switch {
     }
 
     tr.even-row {
-        background: #fcfcfc;
+        background: #f8fafc;
     }
 
     tbody.has-bottom-border > tr:last-child > td {
@@ -263,14 +317,14 @@ html[dir="rtl"] .bidirectional-switch {
 
 .v-table.table-striped {
     tr:nth-child(even) {
-        background: #fcfcfc;
+        background: #f8fafc;
     }
 }
 
 .v-theme--dark {
     .v-table {
         tr.even-row {
-            background: #161616;
+            background: #161b3a;
         }
     }
 }
@@ -278,7 +332,7 @@ html[dir="rtl"] .bidirectional-switch {
 .v-theme--dark {
     .v-table.table-striped {
         tr:nth-child(even) {
-            background: #161616;
+            background: #161b3a;
         }
     }
 }
@@ -529,11 +583,11 @@ body .v-btn-group {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #533afd;
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #665efd;
 }
 
 /** Fix @vuepic/vue-datepicker style issue **/

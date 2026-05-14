@@ -185,7 +185,7 @@ const chartOptions = computed<object>(() => {
                 max: heatMapData.value.maxValue,
                 calculable: true,
                 inRange: {
-                    color: isDarkMode.value ? [ '#1a1a1a', '#c67e48' ] : [ '#faf8f4', '#c67e48' ]
+                    color: isDarkMode.value ? [ '#1a1a1a', '#665efd' ] : [ '#f6f9fc', '#533afd' ]
                 },
                 textStyle: {
                     color: isDarkMode.value ? '#888' : '#666'

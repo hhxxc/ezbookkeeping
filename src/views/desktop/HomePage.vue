@@ -21,7 +21,7 @@
                 </template>
 
                 <v-card-text>
-                    <h4 class="text-2xl font-weight-medium text-primary">
+                    <h4 class="text-2xl font-weight-medium text-primary tabular-nums">
                         <span v-if="!loadingOverview || (transactionOverview && transactionOverview.thisMonth && transactionOverview.thisMonth.valid)">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayExpenseAmount(transactionOverview.thisMonth) : '-' }}</span>
                         <v-skeleton-loader class="d-inline-block skeleton-no-margin mt-3 pb-1" width="120px" type="text" :loading="true" v-else-if="loadingOverview && (!transactionOverview || !transactionOverview.thisMonth || !transactionOverview.thisMonth.valid)"></v-skeleton-loader>
                         <v-btn class="ms-1" density="compact" color="default" variant="text"
@@ -66,7 +66,7 @@
 
                                 <div class="d-flex flex-column">
                                     <span class="text-caption">{{ tt('Total assets') }}</span>
-                                    <span class="text-h5" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ totalAssets }}</span>
+                                    <span class="text-h5 tabular-nums" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ totalAssets }}</span>
                                     <v-skeleton-loader class="skeleton-no-margin mt-3 mb-2" width="120px" type="text" :loading="true" v-else-if="loadingOverview && (!allAccounts || !allAccounts.length)"></v-skeleton-loader>
                                 </div>
                             </div>
@@ -82,7 +82,7 @@
 
                                 <div class="d-flex flex-column">
                                     <span class="text-caption">{{ tt('Total liabilities') }}</span>
-                                    <span class="text-h5" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ totalLiabilities }}</span>
+                                    <span class="text-h5 tabular-nums" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ totalLiabilities }}</span>
                                     <v-skeleton-loader class="skeleton-no-margin mt-3 mb-2" width="120px" type="text" :loading="true" v-else-if="loadingOverview && (!allAccounts || !allAccounts.length)"></v-skeleton-loader>
                                 </div>
                             </div>
@@ -98,7 +98,7 @@
 
                                 <div class="d-flex flex-column">
                                     <span class="text-caption">{{ tt('Net assets') }}</span>
-                                    <span class="text-h5" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ netAssets }}</span>
+                                    <span class="text-h5 tabular-nums" v-if="!loadingOverview || (allAccounts && allAccounts.length)">{{ netAssets }}</span>
                                     <v-skeleton-loader class="skeleton-no-margin mt-3 mb-2" width="120px" type="text" :loading="true" v-else-if="loadingOverview && (!allAccounts || !allAccounts.length)"></v-skeleton-loader>
                                 </div>
                             </div>

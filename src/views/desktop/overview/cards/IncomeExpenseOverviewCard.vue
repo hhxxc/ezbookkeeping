@@ -16,9 +16,9 @@
             </v-btn>
         </v-card-text>
         <v-card-text class="mt-1 pb-1">
-            <div class="text-truncate text-h4 text-income me-2 mb-2" v-if="!loading || incomeAmount">{{ incomeAmount }}</div>
+            <div class="text-truncate text-h4 text-income me-2 mb-2 tabular-nums" v-if="!loading || incomeAmount">{{ incomeAmount }}</div>
             <v-skeleton-loader class="skeleton-no-margin mt-4 mb-8" type="text" width="120px" :loading="true" v-else-if="loading && !incomeAmount"></v-skeleton-loader>
-            <div class="text-truncate text-h5 text-expense" v-if="!loading || expenseAmount">{{ expenseAmount }}</div>
+            <div class="text-truncate text-h5 text-expense tabular-nums" v-if="!loading || expenseAmount">{{ expenseAmount }}</div>
             <v-skeleton-loader class="skeleton-no-margin mb-1" style="padding-bottom: 2px" type="text" width="120px" :loading="true" v-else-if="loading && !expenseAmount"></v-skeleton-loader>
             <div class="text-truncate text-h5 mt-2 mb-7" style="padding-bottom: 2px" v-if="!loading && !incomeAmount && !expenseAmount">{{ tt('No data') }}</div>
         </v-card-text>

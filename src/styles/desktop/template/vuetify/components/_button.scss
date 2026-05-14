@@ -1,13 +1,11 @@
-/** Materio Template Vuetify styles **/
-/** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
+/** Stripe-Inspired Button styles **/
 
-/* stylelint-disable no-descending-specificity */
 @use "sass:list";
 @use "sass:map";
 @use "@/styles/desktop/configured-variables/template" as variables;
 
-/* 👉 Button
- Above map but opacity values as key and variant as value */
+// 👉 Button
+// Stripe: flat pills, no hue shift on hover, subtle overlay-based interaction
 
 body {
     .v-btn {
@@ -24,27 +22,24 @@ body {
             }
         }
 
-        // Default (elevated) button
-        /* stylelint-disable-next-line no-duplicate-selectors */
+        // Elevated / flat buttons — Stripe: use overlay for hover, keep same bg color
         &--variant-elevated,
         &--variant-flat {
-            // We want darker background on hover instead of light
-
             &:hover {
                 .v-btn__overlay {
-                    opacity: 0;
+                    opacity: 0.06;
                 }
             }
 
-            &:not(.v-btn--loading, .v-btn--disabled) {
-                @each $color-name in variables.$theme-colors-name {
-                    &.bg-#{$color-name} {
-                        &:hover,
-                        &:active,
-                        &:focus {
-                            background-color: rgb(var(--v-theme-#{$color-name}-darken-1)) !important;
-                        }
-                    }
+            &:active {
+                .v-btn__overlay {
+                    opacity: 0.12;
+                }
+            }
+
+            &:focus {
+                .v-btn__overlay {
+                    opacity: 0.06;
                 }
             }
         }
@@ -59,7 +54,7 @@ body {
         &--variant-outlined,
         &--variant-text {
             .v-btn__overlay {
-                --v-hover-opacity: 0.08;
+                --v-hover-opacity: 0.06;
             }
 
             &:active {
@@ -83,13 +78,13 @@ body {
                 }
 
                 .v-btn__overlay {
-                    --v-hover-opacity: 0.24;
+                    --v-hover-opacity: 0.16;
                 }
             }
 
             &:active {
                 .v-btn__overlay {
-                    --v-hover-opacity: 0.24;
+                    --v-hover-opacity: 0.16;
 
                     opacity: var(--v-hover-opacity);
                 }
@@ -101,7 +96,7 @@ body {
 
             &:focus {
                 .v-btn__overlay {
-                    --v-hover-opacity: 0.24;
+                    --v-hover-opacity: 0.16;
 
                     opacity: var(--v-hover-opacity);
                 }
@@ -153,13 +148,13 @@ body {
             }
         }
 
-        // Button Size
+        // Button Size — all sizes use pill radius
         &--size-x-small {
             --v-btn-height: 28px;
             --v-btn-size: 11px;
 
             &:not(.v-btn--icon) {
-                border-radius: 0.125rem;
+                border-radius: 9999px;
             }
 
             line-height: 14px;
@@ -172,7 +167,7 @@ body {
             --v-btn-size: 13px;
 
             &:not(.v-btn--icon) {
-                border-radius: 0.25rem;
+                border-radius: 9999px;
             }
 
             line-height: 18px;
@@ -189,7 +184,7 @@ body {
             --v-btn-size: 17px;
 
             &:not(.v-btn--icon) {
-                border-radius: 0.5rem;
+                border-radius: 9999px;
             }
 
             line-height: 26px;
@@ -202,7 +197,7 @@ body {
             --v-btn-size: 19px;
 
             &:not(.v-btn--icon) {
-                border-radius: 0.625rem;
+                border-radius: 9999px;
             }
 
             line-height: 30px;

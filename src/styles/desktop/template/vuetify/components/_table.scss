@@ -1,6 +1,6 @@
-/** Materio Template Vuetify styles **/
-/** https://github.com/themeselection/materio-vuetify-vuejs-admin-template-free **/
+/** Stripe-Inspired Table styles **/
 
+// 👉 VDataTable
 .v-data-table {
     table {
         tbody {
@@ -15,7 +15,7 @@
     }
 }
 
-// 👉 Table
+// 👉 Table — Stripe: sentence case headers, tnum for numeric cells, hairline borders
 .v-table {
     .v-table__wrapper {
         border-radius: 0;
@@ -25,13 +25,20 @@
                 tr {
                     th {
                         background: rgb(var(--v-table-header-color)) !important;
-                        border-block-end: none !important;
-                        color: rgba(var(--v-theme-on-surface), var(--v-high-emphasis-opacity)) !important;
+                        border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+                        color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)) !important;
                         font-size: 0.8125rem;
-                        letter-spacing: 0.2px;
+                        font-weight: 500;
+                        letter-spacing: 0;
                         line-height: 24px;
-                        text-transform: uppercase;
+                        text-transform: none;
                     }
+                }
+            }
+
+            tbody {
+                td {
+                    font-feature-settings: "tnum", "ss01";
                 }
             }
         }
