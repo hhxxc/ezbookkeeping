@@ -1529,8 +1529,8 @@ init();
     margin-top: 14px;
 }
 
-.transaction-search-subnavbar .searchbar {
-    margin-top: 8px;
+.transaction-search-subnavbar {
+    padding-top: 8px;
 }
 
 .transaction-list-toolbar .toolbar-inner {
