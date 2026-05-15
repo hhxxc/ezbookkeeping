@@ -40,7 +40,8 @@ export const ALL_APPLICATION_CLOUD_SETTINGS: CategorizedApplicationCloudSettingI
             { settingKey: 'timezoneUsedForStatisticsInHomePage', settingName: 'Timezone Used for Statistics', mobile: true, desktop: true },
             { settingKey: 'overviewAccountFilterInHomePage', settingName: 'Accounts Included in Overview Statistics', mobile: true, desktop: true },
             { settingKey: 'overviewTransactionCategoryFilterInHomePage', settingName: 'Transaction Categories Included in Overview Statistics', mobile: true, desktop: true },
-            { settingKey: 'homeSummaryBackgroundImage', settingName: 'Home Background Image', mobile: true, desktop: false }
+            { settingKey: 'homeSummaryBackgroundImage', settingName: 'Home Background Image', mobile: true, desktop: false },
+            { settingKey: 'homeGalleryBackgroundId', settingName: 'Home Gallery Background', mobile: true, desktop: false }
         ]
     },
     {
