@@ -19,7 +19,7 @@
                 <f7-link icon-f7="plus" :class="{ 'disabled': !canAddTransaction }" @click="add"></f7-link>
             </f7-nav-right>
 
-            <f7-subnavbar :inner="false">
+            <f7-subnavbar :inner="false" class="transaction-search-subnavbar">
                 <div class="searchbar searchbar-init searchbar-enabled">
                     <div class="searchbar-inner">
                         <div class="searchbar-input-wrap">
@@ -1527,6 +1527,10 @@ init();
 <style>
 .transaction-list-toolbar {
     margin-top: 14px;
+}
+
+.transaction-search-subnavbar .searchbar {
+    margin-top: 8px;
 }
 
 .transaction-list-toolbar .toolbar-inner {
