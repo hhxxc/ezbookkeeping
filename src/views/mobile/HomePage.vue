@@ -335,20 +335,8 @@ function init(): void {
     if (isUserLogined() && isUserUnlocked()) {
         loading.value = true;
 
-        const promises = [
-            getShareCacheImageBlob(),
-            accountsStore.loadAllAccounts({ force: false }),
-            transactionCategoriesStore.loadAllCategories({ force: false }),
-            transactionTemplatesStore.loadAllTemplates({ templateType: TemplateType.Normal.type,  force: false }),
-            overviewStore.loadTransactionOverview({ force: false })
-        ];
-
-        Promise.all(promises).then(responses => {
-            if (responses[0] && responses[0] instanceof Blob) {
-                aiImageRecognitionSheet.value?.loadImage(responses[0]);
-                showAIReceiptImageRecognitionSheet.value = true;
-            }
-
+        // Load overview first for fast initial paint, then warm caches in background
+        overviewStore.loadTransactionOverview({ force: false }).then(() => {
             loading.value = false;
         }).catch(error => {
             loading.value = false;
@@ -356,6 +344,21 @@ function init(): void {
             if (!error.processed) {
                 showToast(error.message || error);
             }
+        });
+
+        // Pre-warm caches non-blocking, not needed for home page display
+        Promise.all([
+            getShareCacheImageBlob(),
+            accountsStore.loadAllAccounts({ force: false }),
+            transactionCategoriesStore.loadAllCategories({ force: false }),
+            transactionTemplatesStore.loadAllTemplates({ templateType: TemplateType.Normal.type, force: false })
+        ]).then(responses => {
+            if (responses[0] && responses[0] instanceof Blob) {
+                aiImageRecognitionSheet.value?.loadImage(responses[0]);
+                showAIReceiptImageRecognitionSheet.value = true;
+            }
+        }).catch(() => {
+            // background cache pre-warm failures are non-critical
         });
     }
 }

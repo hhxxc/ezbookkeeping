@@ -17,6 +17,8 @@ import {
 const settingsLocalStorageKey: string = 'ebk_app_settings';
 const currentLanguageSessionStorageKey: string = 'ebk_current_language';
 
+let cachedAppSettings: ApplicationSettings | null = null;
+
 function getStoredApplicationSettings(): BaseApplicationSetting {
     try {
         const storageData = localStorage.getItem(settingsLocalStorageKey) || '{}';
@@ -28,6 +30,10 @@ function getStoredApplicationSettings(): BaseApplicationSetting {
 }
 
 export function getApplicationSettings(): ApplicationSettings {
+    if (cachedAppSettings) {
+        return cachedAppSettings;
+    }
+
     const storedApplicationSettings = getStoredApplicationSettings();
 
     // Migrate old statistics defaults to new defaults (ExpenseByPrimaryCategory→ExpenseBySecondaryCategory, Pie→Bar)
@@ -55,7 +61,9 @@ export function getApplicationSettings(): ApplicationSettings {
         }
     }
 
-    return Object.assign({}, DEFAULT_APPLICATION_SETTINGS, storedApplicationSettings);
+    const settings = Object.assign({}, DEFAULT_APPLICATION_SETTINGS, storedApplicationSettings);
+    cachedAppSettings = settings;
+    return settings;
 }
 
 export function getLocaleDefaultSettings(): LocaleDefaultSettings {
@@ -63,6 +71,7 @@ export function getLocaleDefaultSettings(): LocaleDefaultSettings {
 }
 
 function updateApplicationSettings(settings: ApplicationSettings): void {
+    cachedAppSettings = null;
     const storageData = JSON.stringify(settings);
     return localStorage.setItem(settingsLocalStorageKey, storageData);
 }
@@ -125,6 +134,7 @@ export function isEnableAnimate(): boolean {
 }
 
 export function clearSettings(): void {
+    cachedAppSettings = null;
     localStorage.removeItem(settingsLocalStorageKey);
 }
 
