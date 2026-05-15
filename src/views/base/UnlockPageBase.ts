@@ -61,7 +61,6 @@ export function useUnlockPageBase() {
 
     function doRelogin(): void {
         rootStore.forceLogout();
-        settingsStore.clearAppSettings();
 
         const localeDefaultSettings = initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone);
         settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);

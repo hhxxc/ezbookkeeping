@@ -443,7 +443,7 @@ init();
     box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
     overflow: hidden;
-    margin-top: 4px;
+    margin-top: 14px;
     border: none;
     outline: none;
 }

@@ -340,8 +340,6 @@ function logout(): void {
             logouting.value = false;
             hideLoading();
 
-            settingsStore.clearAppSettings();
-
             const localeDefaultSettings = initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone);
             settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
 
