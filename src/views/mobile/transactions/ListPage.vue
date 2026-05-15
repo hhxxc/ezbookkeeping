@@ -1525,8 +1525,8 @@ init();
 </script>
 
 <style>
-.navbar .subnavbar {
-    padding-bottom: 4px;
+.transaction-list-toolbar {
+    margin-top: 6px;
 }
 
 .transaction-list-toolbar .toolbar-inner {
