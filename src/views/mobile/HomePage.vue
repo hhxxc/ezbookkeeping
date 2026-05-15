@@ -4,7 +4,7 @@
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
 
-        <f7-card class="home-summary-card no-margin-top" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="showBackgroundGallery = true">
+        <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="showBackgroundGallery = true">
             <f7-link class="home-card-gallery-btn" @click="showBackgroundGallery = true">
                 <f7-icon f7="photo_on_rectangle" style="font-size: 18px; color: rgba(255,255,255,0.7);"></f7-icon>
             </f7-link>
