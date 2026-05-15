@@ -1526,7 +1526,7 @@ init();
 
 <style>
 .transaction-list-toolbar {
-    margin-top: 6px;
+    margin-top: 14px;
 }
 
 .transaction-list-toolbar .toolbar-inner {
