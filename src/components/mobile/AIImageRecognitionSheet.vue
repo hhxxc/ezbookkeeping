@@ -39,7 +39,7 @@
             </div>
         </f7-page-content>
 
-        <input ref="imageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="openImage($event)" />
+        <input ref="imageInput" type="file" style="display: none" :key="fileInputKey" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="openImage($event)" />
     </f7-sheet>
 </template>
 
@@ -78,6 +78,7 @@ const transactionsStore = useTransactionsStore();
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
+const fileInputKey = ref<number>(0);
 const loading = ref<boolean>(false);
 const recognizing = ref<boolean>(false);
 const cancelRecognizingUuid = ref<string | undefined>(undefined);
@@ -201,6 +202,7 @@ function close(): void {
 }
 
 function onSheetOpen(): void {
+    fileInputKey.value++;
     loading.value = false;
     recognizing.value = false;
     cancelRecognizingUuid.value = undefined;

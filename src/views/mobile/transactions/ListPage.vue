@@ -1525,6 +1525,10 @@ init();
 </script>
 
 <style>
+.navbar .subnavbar {
+    padding-bottom: 4px;
+}
+
 .transaction-list-toolbar .toolbar-inner {
     padding-inline-end: 8px;
 }
