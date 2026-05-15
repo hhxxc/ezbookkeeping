@@ -434,6 +434,10 @@ oauth2ClientSessionId.value = generateRandomUUID();
     background: #f6f6f8;
 }
 
+.dark .nestkeep-login-page {
+    background: #000;
+}
+
 .login-bg-gradient {
     position: fixed;
     top: 0;
