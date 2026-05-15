@@ -449,6 +449,33 @@ init();
     margin-top: 14px;
     border: none;
     outline: none;
+    animation: ebk-card-enter 0.5s ease;
+}
+
+.overview-transaction-list {
+    animation: ebk-list-enter 0.5s ease 0.15s both;
+}
+
+@keyframes ebk-card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ebk-list-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .home-summary-card::before,
