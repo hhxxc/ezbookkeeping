@@ -369,13 +369,23 @@ i.icon.la, i.icon.las, i.icon.lab {
     font-size: var(--f7-font-size);
 }
 
+:root {
+    --ebk-login-footer-text-color: rgba(0, 0, 0, 0.5);
+    --ebk-login-footer-link-color: var(--ebk-primary-600);
+}
+
+:root.dark {
+    --ebk-login-footer-text-color: rgba(255, 255, 255, 0.7);
+    --ebk-login-footer-link-color: var(--ebk-primary-300);
+}
+
 .login-page-powered-by > span {
-    color: var(--f7-block-footer-text-color);
+    color: var(--ebk-login-footer-text-color);
 }
 
 .login-page-powered-by > a.link {
     display: inline !important;
-    color: var(--f7-theme-color);
+    color: var(--ebk-login-footer-link-color);
     font-size: var(--f7-block-footer-font-size);
     padding: 0 6px;
 }
