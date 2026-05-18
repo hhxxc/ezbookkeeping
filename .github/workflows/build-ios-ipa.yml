@@ -40,7 +40,7 @@ jobs:
           EOF
 
       - name: Install Capacitor iOS
-        run: npm install @capacitor/core @capacitor/cli @capacitor/ios
+        run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
 
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
