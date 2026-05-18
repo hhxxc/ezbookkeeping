@@ -1,0 +1,76 @@
+name: Build iOS IPA (TrollStore)
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: 'Backend API base URL (e.g. https://example.com or https://example.com/nestkeep)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+      # Capacitor loads index.html by default, but the mobile entry is mobile.html
+      - name: Prepare Capacitor entry
+        run: cp dist/mobile.html dist/index.html
+
+      # Inject remote API base URL so the local app knows where the backend is
+      - name: Inject server settings
+        run: |
+          cat > dist/server_settings.js << 'EOF'
+          window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};
+          window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '${{ inputs.api_base_url }}';
+          EOF
+
+      - name: Install Capacitor iOS
+        run: npm install @capacitor/core @capacitor/cli @capacitor/ios
+
+      - name: Add iOS platform
+        run: test -d ios || npx cap add ios
+
+      - name: Sync iOS platform
+        run: npx cap sync ios
+
+      - name: Build iOS (Ad-hoc signed)
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$PWD/App.xcarchive" \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=YES \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R "App.xcarchive/Products/Applications/App.app" Payload/
+          codesign -s - --force --deep "Payload/App.app"
+          zip -r nestkeep.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: nestkeep-ios-ipa
+          path: nestkeep.ipa
