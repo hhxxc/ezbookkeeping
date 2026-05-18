@@ -45,6 +45,27 @@ jobs:
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
 
+      # Remove server config to use Capacitor default file loading (ipas:// scheme may cause white screen in Capacitor 7)
+      - name: Use default Capacitor scheme
+        run: |
+          cat > capacitor.config.ts << 'CFGEOF'
+          import { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+              appId: 'com.nestkeep.app',
+              appName: '巢记',
+              webDir: 'dist'
+          };
+          export default config;
+          CFGEOF
+
+      # Inject eruda debug panel so errors show on screen without needing Safari
+      - name: Inject debug panel
+        run: |
+          cat > dist/eruda.js << 'ERUEOF'
+          (function(){var e=document.createElement('script');e.src='https://cdn.jsdelivr.net/npm/eruda';document.head.appendChild(e);e.onload=function(){eruda.init()}})();
+          ERUEOF
+          sed -i '' 's|<head>|<head><script src="./eruda.js" defer></script>|' dist/index.html
+
       - name: Sync iOS platform
         run: npx cap sync ios
 
