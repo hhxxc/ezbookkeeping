@@ -45,13 +45,13 @@ jobs:
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
 
+      - name: Sync iOS platform
+        run: npx cap sync ios
+
       - name: Install CocoaPods dependencies
         run: |
           cd ios/App
           pod install
-
-      - name: Sync iOS platform
-        run: npx cap sync ios
 
       - name: Build iOS
         run: |
