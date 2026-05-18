@@ -2,7 +2,7 @@ export function getBasePath(): string {
     const apiBaseUrl = window.EZBOOKKEEPING_SERVER_SETTINGS?.apiBaseUrl;
 
     if (apiBaseUrl) {
-        return (apiBaseUrl as string).replace(/\/+$, '');
+        return (apiBaseUrl as string).replace(/\/+$/, '');
     }
 
     const path = window.location.pathname;
