@@ -14,7 +14,7 @@
             </div>
         </f7-toolbar>
         <f7-page-content class="no-margin-vertical no-padding-vertical">
-            <div class="image-picker-area" @click="showOpenImage">
+            <div class="image-picker-area">
                 <div class="image-preview" v-if="imageSrc">
                     <img :src="imageSrc" />
                     <div class="image-preview-overlay">
@@ -33,13 +33,13 @@
                     <f7-preloader size="32"></f7-preloader>
                     <span class="placeholder-title margin-top-half">{{ tt('Loading image...') }}</span>
                 </div>
+                <input ref="imageInput" type="file" class="file-input-overlay" :accept="SUPPORTED_IMAGE_MIME_TYPES" :disabled="loading || recognizing" @change="openImage($event)" />
             </div>
             <div class="privacy-notice">
                 <small>{{ tt('Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.') }}</small>
             </div>
         </f7-page-content>
 
-        <input ref="imageInput" type="file" style="display: none" :key="fileInputKey" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="openImage($event)" />
     </f7-sheet>
 </template>
 
@@ -78,7 +78,6 @@ const transactionsStore = useTransactionsStore();
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
-const fileInputKey = ref<number>(0);
 const loading = ref<boolean>(false);
 const recognizing = ref<boolean>(false);
 const cancelRecognizingUuid = ref<string | undefined>(undefined);
@@ -101,14 +100,6 @@ function loadImage(image: Blob): void {
         logger.error('failed to compress image', error);
         showToast('Unable to load image');
     });
-}
-
-function showOpenImage(): void {
-    if (loading.value || recognizing.value) {
-        return;
-    }
-
-    imageInput.value?.click();
 }
 
 function openImage(event: Event): void {
@@ -202,7 +193,10 @@ function close(): void {
 }
 
 function onSheetOpen(): void {
-    fileInputKey.value++;
+    if (imageInput.value) {
+        imageInput.value.value = '';
+    }
+
     loading.value = false;
     recognizing.value = false;
     cancelRecognizingUuid.value = undefined;
@@ -294,6 +288,16 @@ defineExpose({
     padding: 8px;
     font-size: var(--f7-list-item-footer-font-size);
     border-radius: 0 0 10px 10px;
+}
+
+.file-input-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
 }
 
 .privacy-notice {
