@@ -61,7 +61,7 @@ jobs:
       # Inject inline debug: error alerts + visible "LOADED" marker to confirm rendering
       - name: Inject debug panel
         run: |
-          sed -i '' 's|<head>|<head><script>window.onerror=function(m,s,l,c,e){alert("JS:"+m+"\\n"+s+":"+l)};window.addEventListener("unhandledrejection",function(e){alert("P:"+e.reason)});document.addEventListener("DOMContentLoaded",function(){var d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;z-index:99999;background:red;color:#fff;padding:4px 8px;font-size:12px;font-family:sans-serif";d.textContent="LOADED|path="+location.pathname+"|href="+location.href+"|UA="+navigator.userAgent.substring(0,50);document.body.appendChild(d)})</script>|' dist/index.html
+          sed -i '' 's@<head>@<head><script>window.onerror=function(m,s,l,c,e){alert("JS:"+m+"\\n"+s+":"+l)};window.addEventListener("unhandledrejection",function(e){alert("P:"+e.reason)});document.addEventListener("DOMContentLoaded",function(){var d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;z-index:99999;background:red;color:#fff;padding:4px 8px;font-size:12px;font-family:sans-serif";d.textContent="LOADED|path="+location.pathname+"|href="+location.href+"|UA="+navigator.userAgent.substring(0,50);document.body.appendChild(d)})<\/script>@' dist/index.html
 
       - name: Sync iOS platform
         run: npx cap sync ios
