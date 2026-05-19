@@ -453,7 +453,7 @@ init();
 }
 
 .overview-transaction-list {
-    animation: ebk-list-enter 0.5s ease 0.15s both;
+    animation: ebk-list-enter 0.5s ease 0.15s backwards;
 }
 
 @keyframes ebk-card-enter {
