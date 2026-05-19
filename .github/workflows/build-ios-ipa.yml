@@ -58,13 +58,10 @@ jobs:
           export default config;
           CFGEOF
 
-      # Inject eruda debug panel so errors show on screen without needing Safari
+      # Inject inline error catcher (no CDN dependency) so JS errors show as alerts
       - name: Inject debug panel
         run: |
-          cat > dist/eruda.js << 'ERUEOF'
-          (function(){var e=document.createElement('script');e.src='https://cdn.jsdelivr.net/npm/eruda';document.head.appendChild(e);e.onload=function(){eruda.init()}})();
-          ERUEOF
-          sed -i '' 's|<head>|<head><script src="./eruda.js" defer></script>|' dist/index.html
+          sed -i '' 's|<head>|<head><script>window.onerror=function(m,s,l,c,e){alert(m+"\\n"+s+":"+l)};window.addEventListener("unhandledrejection",function(e){alert("Promise: "+e.reason)})</script>|' dist/index.html
 
       - name: Sync iOS platform
         run: npx cap sync ios
