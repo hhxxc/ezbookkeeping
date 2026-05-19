@@ -24,31 +24,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Use hash-based routing for Capacitor compatibility (pushState conflicts with capacitor:// scheme)
+      - name: Force hash routing
+        run: |
+          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' src/MobileApp.vue
+
       - name: Build web
         run: npm run build
+
+      # Capacitor loads index.html by default; mobile.html is the mobile entry point
+      - name: Prepare Capacitor entry
+        run: cp dist/mobile.html dist/index.html
+
+      - name: Inject server settings
+        run: |
+          cat > dist/server_settings.js << 'EOF'
+          window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};
+          window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '${{ inputs.api_base_url }}';
+          EOF
 
       - name: Install Capacitor iOS
         run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
 
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
-
-      # Load from remote URL to avoid CORS issues (local capacitor:// vs remote https://)
-      - name: Configure remote URL
-        run: |
-          cat > capacitor.config.ts << 'CFGEOF'
-          import { CapacitorConfig } from '@capacitor/cli';
-          const config: CapacitorConfig = {
-              appId: 'com.nestkeep.app',
-              appName: '巢记',
-              webDir: 'dist',
-              server: {
-                  url: '${{ inputs.api_base_url }}',
-                  cleartext: true
-              }
-          };
-          export default config;
-          CFGEOF
 
       - name: Sync iOS platform
         run: npx cap sync ios
