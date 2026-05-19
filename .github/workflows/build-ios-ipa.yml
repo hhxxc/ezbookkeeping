@@ -24,24 +24,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Force hash routing for Capacitor
-        run: |
-          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' src/MobileApp.vue
-
       - name: Build web
         run: npm run build
-
-      # Capacitor loads index.html by default, but the mobile entry is mobile.html
-      - name: Prepare Capacitor entry
-        run: cp dist/mobile.html dist/index.html
-
-      # Inject remote API base URL so the local app knows where the backend is
-      - name: Inject server settings
-        run: |
-          cat > dist/server_settings.js << 'EOF'
-          window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};
-          window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '${{ inputs.api_base_url }}';
-          EOF
 
       - name: Install Capacitor iOS
         run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
@@ -49,7 +33,8 @@ jobs:
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
 
-      - name: Use hash-based routing for Capacitor compatibility
+      # Load from remote URL to avoid CORS issues (local capacitor:// vs remote https://)
+      - name: Configure remote URL
         run: |
           cat > capacitor.config.ts << 'CFGEOF'
           import { CapacitorConfig } from '@capacitor/cli';
@@ -58,16 +43,12 @@ jobs:
               appName: '巢记',
               webDir: 'dist',
               server: {
-                  iosScheme: 'capacitor'
+                  url: '${{ inputs.api_base_url }}',
+                  cleartext: true
               }
           };
           export default config;
           CFGEOF
-
-      # Inject inline debug: error alerts + visible "LOADED" marker to confirm rendering
-      - name: Inject debug panel
-        run: |
-          sed -i '' 's@<head>@<head><script>window.onerror=function(m,s,l,c,e){alert("JS:"+m+"\\n"+s+":"+l)};window.addEventListener("unhandledrejection",function(e){alert("P:"+e.reason)});document.addEventListener("DOMContentLoaded",function(){var d=document.createElement("div");d.style.cssText="position:fixed;top:0;left:0;z-index:99999;background:red;color:#fff;padding:4px 8px;font-size:12px;font-family:sans-serif";d.textContent="LOADED|path="+location.pathname+"|href="+location.href+"|UA="+navigator.userAgent.substring(0,50);document.body.appendChild(d)})<\/script>@' dist/index.html
 
       - name: Sync iOS platform
         run: npx cap sync ios
