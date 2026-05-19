@@ -24,6 +24,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Force hash routing for Capacitor
+        run: |
+          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' src/MobileApp.vue
+
       - name: Build web
         run: npm run build
 
@@ -59,9 +63,6 @@ jobs:
           };
           export default config;
           CFGEOF
-
-          # Force framework7 to use hash routing (browserHistory=false) in Capacitor
-          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' dist/js/common-*.js
 
       # Inject inline debug: error alerts + visible "LOADED" marker to confirm rendering
       - name: Inject debug panel
