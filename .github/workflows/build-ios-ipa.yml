@@ -45,18 +45,23 @@ jobs:
       - name: Add iOS platform
         run: test -d ios || npx cap add ios
 
-      # Remove server config to use Capacitor default file loading (ipas:// scheme may cause white screen in Capacitor 7)
-      - name: Use default Capacitor scheme
+      - name: Use hash-based routing for Capacitor compatibility
         run: |
           cat > capacitor.config.ts << 'CFGEOF'
           import { CapacitorConfig } from '@capacitor/cli';
           const config: CapacitorConfig = {
               appId: 'com.nestkeep.app',
               appName: '巢记',
-              webDir: 'dist'
+              webDir: 'dist',
+              server: {
+                  iosScheme: 'capacitor'
+              }
           };
           export default config;
           CFGEOF
+
+          # Force framework7 to use hash routing (browserHistory=false) in Capacitor
+          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' dist/js/common-*.js
 
       # Inject inline debug: error alerts + visible "LOADED" marker to confirm rendering
       - name: Inject debug panel
