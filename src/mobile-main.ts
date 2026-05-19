@@ -82,6 +82,8 @@ import ScheduleFrequencySheet from '@/components/mobile/ScheduleFrequencySheet.v
 import AccountBalanceTrendsBarChart from '@/components/mobile/AccountBalanceTrendsBarChart.vue';
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
 
+import { loadRemoteServerSettings } from '@/lib/server_settings.ts';
+
 import TextareaAutoSize from '@/directives/mobile/textareaAutoSize.ts';
 
 import '@/styles/mobile/global.scss';
@@ -179,4 +181,6 @@ app.component('AIImageRecognitionSheet', AIImageRecognitionSheet);
 
 app.directive('TextareaAutoSize', TextareaAutoSize);
 
-app.mount('#app');
+loadRemoteServerSettings().finally(() => {
+    app.mount('#app');
+});

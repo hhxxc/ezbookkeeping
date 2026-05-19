@@ -3,6 +3,23 @@ function getServerSetting(key: string): string | number | boolean | Record<strin
     return settings[key];
 }
 
+export async function loadRemoteServerSettings(): Promise<void> {
+    const apiBaseUrl = window.EZBOOKKEEPING_SERVER_SETTINGS?.apiBaseUrl;
+    if (!apiBaseUrl) return;
+
+    try {
+        const baseUrl = (apiBaseUrl as string).replace(/\/+$/, '');
+        const response = await fetch(baseUrl + '/mobile/server_settings.js', { cache: 'no-cache' });
+
+        if (response.ok) {
+            const script = await response.text();
+            new Function(script)();
+        }
+    } catch {
+        // use defaults if remote settings unavailable
+    }
+}
+
 export function isInternalAuthEnabled(): boolean {
     return getServerSetting('a') !== 0;
 }
