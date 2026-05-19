@@ -106,8 +106,9 @@ func startWebServer(c *core.CliContext) error {
 
 	router := gin.New()
 	router.Use(bindMiddleware(middlewares.Recovery))
+		router.Use(corsMiddleware())
 
-	if config.EnableGZip {
+		if config.EnableGZip {
 		router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 
@@ -703,5 +704,23 @@ func bindProxy(fn core.ProxyHandlerFunc) gin.HandlerFunc {
 		} else {
 			proxy.ServeHTTP(c.Writer, c.Request)
 		}
+	}
+}
+
+// corsMiddleware adds CORS headers for cross-origin requests (e.g. from Capacitor ipa)
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Request-Id")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
 	}
 }
