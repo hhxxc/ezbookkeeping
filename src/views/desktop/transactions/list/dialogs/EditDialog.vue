@@ -20,7 +20,12 @@
                         <v-icon :icon="mdiDotsVertical" />
                         <v-menu activator="parent">
                             <v-list v-if="activeTab === 'basicInfo'">
-                                <!-- Delete option (only in View mode) -->
+                                <!-- View mode options -->
+                                <v-list-item :prepend-icon="mdiClockTimeNineOutline"
+                                             :title="tt('Add Scheduled Transaction')"
+                                             v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance"
+                                             @click="addToScheduled"></v-list-item>
+                                <v-divider v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance" />
                                 <v-list-item :prepend-icon="mdiTrashCanOutline"
                                              :title="tt('Delete')"
                                              color="red"
@@ -562,7 +567,8 @@ import {
     mdiMenuDown,
     mdiImagePlusOutline,
     mdiTrashCanOutline,
-    mdiFullscreen
+    mdiFullscreen,
+    mdiClockTimeNineOutline
 } from '@mdi/js';
 
 export interface TransactionEditOptions extends SetTransactionOptions {
@@ -577,6 +583,7 @@ export interface TransactionEditOptions extends SetTransactionOptions {
 
 interface TransactionEditResponse {
     message: string;
+    addToScheduled?: boolean;
 }
 
 type MapViewType = InstanceType<typeof MapView>;
@@ -970,6 +977,21 @@ function duplicate(withTime?: boolean, withGeoLocation?: boolean): void {
 
     transaction.value.clearPictures();
     mode.value = TransactionEditPageMode.Add;
+}
+
+function addToScheduled(): void {
+    if (props.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.View) {
+        return;
+    }
+
+    if (resolveFunc) {
+        resolveFunc({
+            message: '',
+            addToScheduled: true
+        });
+    }
+
+    showState.value = false;
 }
 
 function edit(): void {

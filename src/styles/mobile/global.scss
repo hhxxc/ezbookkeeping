@@ -1090,6 +1090,16 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
     animation: ebk-fade-in var(--ebk-transition-normal) both;
 }
 
+/* Hide scrollbars for native app feel on mobile */
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
+}
+
 /* ---- 120fps GPU compositing optimizations ---- */
 
 /* Containment: isolate list item rendering */
