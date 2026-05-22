@@ -288,6 +288,10 @@
                                                     :text="tt('Duplicate')"
                                                     v-if="transaction.type !== TransactionType.ModifyBalance"
                                                     @click="duplicate(transaction)"></f7-swipeout-button>
+                                <f7-swipeout-button color="green" close
+                                                    :text="tt('Add Scheduled Transaction')"
+                                                    v-if="transaction.type !== TransactionType.ModifyBalance"
+                                                    @click="addToScheduled(transaction)"></f7-swipeout-button>
                                 <f7-swipeout-button color="orange" close
                                                     :text="tt('Edit')"
                                                     v-if="transaction.editable"
@@ -632,6 +636,7 @@ import {
 } from '@/core/datetime.ts';
 
 import { TransactionType } from '@/core/transaction.ts';
+import { TemplateType } from '@/core/template.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
 
@@ -1384,6 +1389,35 @@ function add(): void {
 
 function duplicate(transaction: Transaction): void {
     props.f7router.navigate(`/transaction/add?id=${transaction.id}&type=${transaction.type}`);
+}
+
+function addToScheduled(transaction: Transaction): void {
+    const params: string[] = [
+        `templateType=${TemplateType.Schedule.type}`,
+        `type=${transaction.type}`,
+        `categoryId=${transaction.getCategoryId()}`,
+        `accountId=${transaction.sourceAccountId}`
+    ];
+
+    if (transaction.type === TransactionType.Transfer) {
+        params.push(`destinationAccountId=${transaction.destinationAccountId}`);
+    }
+
+    params.push(`amount=${transaction.sourceAmount}`);
+
+    if (transaction.type === TransactionType.Transfer) {
+        params.push(`destinationAmount=${transaction.destinationAmount}`);
+    }
+
+    if (transaction.tagIds && transaction.tagIds.length) {
+        params.push(`tagIds=${transaction.tagIds.join(',')}`);
+    }
+
+    if (transaction.comment) {
+        params.push(`comment=${encodeURIComponent(transaction.comment)}`);
+    }
+
+    props.f7router.navigate(`/template/add?${params.join('&')}`);
 }
 
 function edit(transaction: Transaction): void {

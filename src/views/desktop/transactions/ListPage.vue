@@ -587,6 +587,7 @@
                             @error="onShowDateRangeError" />
 
     <edit-dialog ref="editDialog" :type="TransactionEditPageType.Transaction" />
+    <edit-dialog ref="templateEditDialog" :type="TransactionEditPageType.Template" />
     <export-dialog ref="exportDialog" />
     <a-i-image-recognition-dialog ref="aiImageRecognitionDialog" />
     <import-dialog ref="importDialog" :persistent="true" />
@@ -820,6 +821,7 @@ const pageCountCombobox = useTemplateRef<any>('pageCountCombobox');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const snackbar = useTemplateRef<SnackBarType>('snackbar');
 const editDialog = useTemplateRef<EditDialogType>('editDialog');
+const templateEditDialog = useTemplateRef<EditDialogType>('templateEditDialog');
 const exportDialog = useTemplateRef<ExportDialogType>('exportDialog');
 const aiImageRecognitionDialog = useTemplateRef<AIImageRecognitionDialogType>('aiImageRecognitionDialog');
 const importDialog = useTemplateRef<ImportDialogType>('importDialog');
@@ -1617,7 +1619,34 @@ function show(transaction: Transaction): void {
             snackbar.value?.showMessage(result.message);
         }
 
+        if (result && result.addToScheduled) {
+            openAddToScheduledDialog(transaction);
+            return;
+        }
+
         reload(false, false);
+    }).catch(error => {
+        if (error) {
+            snackbar.value?.showError(error);
+        }
+    });
+}
+
+function openAddToScheduledDialog(transaction: Transaction): void {
+    templateEditDialog.value?.open({
+        templateType: TemplateType.Schedule.type,
+        type: transaction.type,
+        categoryId: transaction.getCategoryId(),
+        accountId: transaction.sourceAccountId,
+        destinationAccountId: transaction.type === TransactionType.Transfer ? transaction.destinationAccountId : undefined,
+        amount: transaction.sourceAmount,
+        destinationAmount: transaction.type === TransactionType.Transfer ? transaction.destinationAmount : undefined,
+        tagIds: transaction.tagIds ? transaction.tagIds.join(',') : undefined,
+        comment: transaction.comment
+    }).then(result => {
+        if (result && result.message) {
+            snackbar.value?.showMessage(result.message);
+        }
     }).catch(error => {
         if (error) {
             snackbar.value?.showError(error);
