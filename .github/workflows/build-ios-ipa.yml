@@ -1,16 +1,23 @@
 name: Build iOS IPA (TrollStore)
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: 'Backend API base URL (e.g. https://example.com or https://example.com/nestkeep)'
-        required: true
+        description: 'Backend API base URL (overrides IOS_API_BASE_URL variable)'
+        required: false
         type: string
+        default: ''
 
 jobs:
   build:
     runs-on: macos-latest
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,11 +44,10 @@ jobs:
         run: cp dist/mobile.html dist/index.html
 
       - name: Inject server settings
+        env:
+          API_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
         run: |
-          cat > dist/server_settings.js << 'EOF'
-          window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};
-          window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '${{ inputs.api_base_url }}';
-          EOF
+          printf "window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};\nwindow.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '%s';\n" "${API_URL}" > dist/server_settings.js
 
       - name: Install Capacitor iOS
         run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
@@ -115,6 +121,22 @@ jobs:
           cp -R "App.xcarchive/Products/Applications/App.app" Payload/
           codesign -s - --force --deep "Payload/App.app"
           zip -r nestkeep.ipa Payload
+
+      - name: Cleanup old IPA artifacts (keep latest 20)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARTIFACTS=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=nestkeep-ios-ipa&per_page=100" --jq '.artifacts | sort_by(.created_at) | reverse | .[].id')
+          KEEP=19
+          COUNT=0
+          echo "$ARTIFACTS" | while read -r ID; do
+            [ -z "$ID" ] && continue
+            COUNT=$((COUNT + 1))
+            if [ $COUNT -gt $KEEP ]; then
+              echo "Deleting old IPA artifact #$ID"
+              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ID" -X DELETE --silent || true
+            fi
+          done
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
