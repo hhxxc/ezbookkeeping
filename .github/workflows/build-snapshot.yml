@@ -186,3 +186,86 @@ jobs:
           package-file-name-prefix: ${{ needs.setup.outputs.ezbookkeeping-package-file-name-prefix }}
           package-artifact-name-prefix: ${{ needs.setup.outputs.ezbookkeeping-package-artifact-name-prefix }}
           backend-artifact-name-prefix: ${{ needs.setup.outputs.ezbookkeeping-backend-artifact-name-prefix }}
+
+  cleanup:
+    needs:
+      - setup
+      - push-linux-docker
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Cleanup old GitHub Artifacts (keep latest 20 runs)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const KEEP_COUNT = 20;
+            const PREFIX = 'ezbookkeeping-build-dev-';
+
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, per_page: 100 }
+            );
+
+            const byRun = {};
+            for (const a of artifacts) {
+              if (!a.name.startsWith(PREFIX)) continue;
+              const rid = a.workflow_run?.id;
+              if (!rid) continue;
+              if (!byRun[rid]) byRun[rid] = [];
+              byRun[rid].push(a);
+            }
+
+            const runs = Object.entries(byRun)
+              .sort(([, a], [, b]) => new Date(b[0].created_at).getTime() - new Date(a[0].created_at).getTime());
+
+            let deleted = 0;
+            for (const [, arts] of runs.slice(KEEP_COUNT)) {
+              for (const a of arts) {
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    artifact_id: a.id
+                  });
+                  deleted++;
+                } catch { /* skip if already deleted */ }
+              }
+            }
+            if (deleted > 0) {
+              console.log(`Deleted ${deleted} old artifacts, kept latest ${Math.min(KEEP_COUNT, runs.length)} runs`);
+            }
+
+      - name: Cleanup old DockerHub SNAPSHOT tags (keep latest 20)
+        env:
+          DOCKER_IMAGE: ${{ vars.DOCKER_IMAGE_NAME }}
+          DOCKER_USER: ${{ vars.DOCKER_USERNAME }}
+          DOCKER_PASS: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          KEEP_COUNT=20
+          TOKEN=$(curl -sS -X POST -H "Content-Type: application/json" \
+            -d "{\"username\": \"${DOCKER_USER}\", \"password\": \"${DOCKER_PASS}\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r '.token')
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to authenticate with DockerHub"
+            exit 0
+          fi
+
+          TAGS=$(curl -sS -H "Authorization: Bearer $TOKEN" \
+            "https://hub.docker.com/v2/repositories/${DOCKER_IMAGE}/tags/?page_size=100" \
+            | jq -r '.results[] | select(.name | test("^SNAPSHOT-\\d{8}-\\d+$")) | .name')
+
+          COUNT=0
+          echo "$TAGS" | while read -r TAG; do
+            [ -z "$TAG" ] && continue
+            COUNT=$((COUNT + 1))
+            if [ $COUNT -gt $KEEP_COUNT ]; then
+              echo "Deleting old tag: $TAG"
+              HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+                -H "Authorization: Bearer $TOKEN" \
+                "https://hub.docker.com/v2/repositories/${DOCKER_IMAGE}/tags/${TAG}/")
+              echo "  → HTTP $HTTP_CODE"
+            fi
+          done
