@@ -7,17 +7,22 @@ export async function loadRemoteServerSettings(): Promise<void> {
     const apiBaseUrl = window.EZBOOKKEEPING_SERVER_SETTINGS?.apiBaseUrl;
     if (!apiBaseUrl) return;
 
-    try {
-        const baseUrl = (apiBaseUrl as string).replace(/\/+$/, '');
-        const response = await fetch(baseUrl + '/mobile/server_settings.js', { cache: 'no-cache' });
+    const baseUrl = (apiBaseUrl as string).replace(/\/+$/, '');
+    const url = baseUrl + '/mobile/server_settings.js';
 
-        if (response.ok) {
-            const script = await response.text();
-            new Function(script)();
-        }
-    } catch {
-        // use defaults if remote settings unavailable
-    }
+    return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => {
+            document.head.removeChild(script);
+            resolve();
+        };
+        script.onerror = () => {
+            document.head.removeChild(script);
+            resolve();
+        };
+        document.head.appendChild(script);
+    });
 }
 
 export function isInternalAuthEnabled(): boolean {
