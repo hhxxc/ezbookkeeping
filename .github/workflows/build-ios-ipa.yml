@@ -55,7 +55,13 @@ jobs:
       - name: Generate iOS App Icons
         run: |
           npm install --no-save sharp
-          node -e "require('sharp')('public/nestkeep-logo.svg').resize(1024,1024).png().toFile('/tmp/icon.png')"
+          node -e "
+            const fs = require('fs');
+            const sharp = require('sharp');
+            let svg = fs.readFileSync('public/nestkeep-logo.svg', 'utf8');
+            svg = svg.replace(/x=\"16\" y=\"16\" width=\"480\" height=\"480\" rx=\"112\"/g, 'x=\"0\" y=\"0\" width=\"512\" height=\"512\" rx=\"0\"');
+            sharp(Buffer.from(svg)).resize(1024,1024).png().toFile('/tmp/icon.png');
+          "
           DST="ios/App/App/Assets.xcassets/AppIcon.appiconset"
           mkdir -p "$DST"
           for s in 20 29 40 58 60 76 80 87 120 152 167 180 1024; do
