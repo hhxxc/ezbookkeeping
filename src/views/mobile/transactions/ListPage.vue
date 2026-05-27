@@ -870,7 +870,7 @@ function setTransactionMonthListHeights(reset: boolean): Promise<unknown> {
                 const domId = getTransactionMonthListDomId(yearDashMonth);
                 const height = heights[domId];
 
-                if (!transactionYearMonthListHeights.value[yearDashMonth] && isNumber(height)) {
+                if (isNumber(height)) {
                     transactionYearMonthListHeights.value[yearDashMonth] = height;
                 }
             }
