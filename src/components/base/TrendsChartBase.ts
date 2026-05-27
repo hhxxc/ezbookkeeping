@@ -114,13 +114,15 @@ export function useTrendsChartBase<T extends TrendsChartDateType>(props: CommonT
     const { tt } = useI18n();
 
     const allDateRanges = computed<YearUnixTime[] | FiscalYearUnixTime[] | YearQuarterUnixTime[] | YearMonthUnixTime[] | YearMonthDayUnixTime[]>(() => {
+        let ranges: YearUnixTime[] | FiscalYearUnixTime[] | YearQuarterUnixTime[] | YearMonthUnixTime[] | YearMonthDayUnixTime[];
         if (props.chartMode === 'daily') {
-            return buildDailyAllDateRanges(props as CommonTrendsChartProps<'daily'>);
+            ranges = buildDailyAllDateRanges(props as CommonTrendsChartProps<'daily'>);
         } else if (props.chartMode === 'monthly') {
-            return buildMonthlyAllDateRanges(props as CommonTrendsChartProps<'monthly'>);
+            ranges = buildMonthlyAllDateRanges(props as CommonTrendsChartProps<'monthly'>);
         } else {
             return [];
         }
+        return [...ranges].reverse();
     });
 
     function getItemName(name: string): string {
