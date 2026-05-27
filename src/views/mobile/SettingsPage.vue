@@ -73,7 +73,7 @@
                     {{ tt('Auto-update Exchange Rates Data') }}
                 </template>
                 <template #after>
-                    <f7-toggle :checked="isAutoUpdateExchangeRatesData" @toggle:change="isAutoUpdateExchangeRatesData = $event"></f7-toggle>
+                    <f7-toggle v-model:checked="isAutoUpdateExchangeRatesData"></f7-toggle>
                 </template>
             </f7-list-item>
 
@@ -82,7 +82,7 @@
                     {{ tt('Show Account Balance') }}
                 </template>
                 <template #after>
-                    <f7-toggle :checked="showAccountBalance" @toggle:change="showAccountBalance = $event"></f7-toggle>
+                    <f7-toggle v-model:checked="showAccountBalance"></f7-toggle>
                 </template>
             </f7-list-item>
 
@@ -95,7 +95,7 @@
                     {{ tt('Enable Swipe Back') }}
                 </template>
                 <template #after>
-                    <f7-toggle :checked="isEnableSwipeBack" @toggle:change="isEnableSwipeBack = $event"></f7-toggle>
+                    <f7-toggle v-model:checked="isEnableSwipeBack"></f7-toggle>
                 </template>
             </f7-list-item>
 
@@ -104,7 +104,7 @@
                     {{ tt('Enable Animation') }}
                 </template>
                 <template #after>
-                    <f7-toggle :checked="isEnableAnimate" @toggle:change="isEnableAnimate = $event"></f7-toggle>
+                    <f7-toggle v-model:checked="isEnableAnimate"></f7-toggle>
                 </template>
             </f7-list-item>
 
@@ -231,7 +231,7 @@ const isEnableSwipeBack = computed<boolean>({
     set: value => {
         if (value !== settingsStore.appSettings.swipeBack) {
             settingsStore.setEnableSwipeBack(value);
-            location.reload();
+            setTimeout(() => location.reload(), 300);
         }
     }
 });
@@ -241,7 +241,7 @@ const isEnableAnimate = computed<boolean>({
     set: value => {
         if (value !== settingsStore.appSettings.animate) {
             settingsStore.setEnableAnimate(value);
-            location.reload();
+            setTimeout(() => location.reload(), 300);
         }
     }
 });

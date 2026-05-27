@@ -1521,12 +1521,12 @@ export const useTransactionsStore = defineStore('transactions', () => {
         });
     }
 
-    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null, disableBrowserCache?: boolean | string): string | undefined {
+    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null, disableBrowserCache?: boolean | string, thumb?: boolean): string | undefined {
         if (!pictureInfo || !pictureInfo.originalUrl) {
             return undefined;
         }
 
-        return services.getTransactionPictureUrlWithToken(pictureInfo.originalUrl, disableBrowserCache);
+        return services.getTransactionPictureUrlWithToken(pictureInfo.originalUrl, disableBrowserCache, thumb);
     }
 
     function collapseMonthInTransactionList({ monthList, collapse }: { monthList: TransactionMonthList, collapse: boolean }): void {

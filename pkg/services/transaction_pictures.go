@@ -1,16 +1,20 @@
 package services
 
 import (
+	"bytes"
+	"image"
 	"io"
 	"mime/multipart"
 	"os"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"xorm.io/xorm"
 
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/datastore"
 	"github.com/mayswind/ezbookkeeping/pkg/errs"
+	"github.com/mayswind/ezbookkeeping/pkg/log"
 	"github.com/mayswind/ezbookkeeping/pkg/models"
 	"github.com/mayswind/ezbookkeeping/pkg/storage"
 	"github.com/mayswind/ezbookkeeping/pkg/uuid"
@@ -197,6 +201,54 @@ func (s *TransactionPictureService) GetPictureByPictureId(c core.Context, uid in
 	return pictureData, nil
 }
 
+// GetPictureThumbByPictureId returns the transaction picture thumbnail data according to transaction picture id
+func (s *TransactionPictureService) GetPictureThumbByPictureId(c core.Context, uid int64, pictureId int64, fileExtension string) ([]byte, error) {
+	if uid <= 0 {
+		return nil, errs.ErrUserIdInvalid
+	}
+
+	if pictureId <= 0 {
+		return nil, errs.ErrTransactionPictureIdInvalid
+	}
+
+	pictureInfo := &models.TransactionPictureInfo{}
+	has, err := s.UserDataDB(uid).NewSession(c).ID(pictureId).Where("uid=? AND deleted=?", uid, false).Get(pictureInfo)
+
+	if err != nil {
+		return nil, err
+	} else if !has {
+		return nil, errs.ErrTransactionPictureNotFound
+	}
+
+	if pictureInfo.PictureExtension == "" {
+		return nil, errs.ErrTransactionPictureNotFound
+	}
+
+	if pictureInfo.PictureExtension != fileExtension {
+		return nil, errs.ErrTransactionPictureExtensionInvalid
+	}
+
+	pictureFile, err := s.ReadTransactionPictureThumb(c, pictureInfo.Uid, pictureInfo.PictureId)
+
+	if os.IsNotExist(err) {
+		return s.GetPictureByPictureId(c, uid, pictureId, fileExtension)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer pictureFile.Close()
+
+	pictureData, err := io.ReadAll(pictureFile)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return pictureData, nil
+}
+
 // UploadPicture uploads the transaction picture for specified user
 func (s *TransactionPictureService) UploadPicture(c core.Context, pictureInfo *models.TransactionPictureInfo, pictureFile multipart.File) error {
 	if pictureInfo.Uid <= 0 {
@@ -222,10 +274,48 @@ func (s *TransactionPictureService) UploadPicture(c core.Context, pictureInfo *m
 		return err
 	}
 
+	_, err = pictureFile.Seek(0, io.SeekStart)
+
+	if err != nil {
+		return err
+	}
+
+	err = s.generateAndSaveThumbnail(c, pictureInfo.Uid, pictureInfo.PictureId, pictureFile)
+
+	if err != nil {
+		log.Warnf(c, "[transaction_pictures.UploadPicture] failed to generate thumbnail for picture \"id:%d\", because %s", pictureInfo.PictureId, err.Error())
+	}
+
 	return s.UserDataDB(pictureInfo.Uid).DoTransaction(c, func(sess *xorm.Session) error {
 		_, err := sess.Insert(pictureInfo)
 		return err
 	})
+}
+
+type byteSliceReadCloser struct {
+	*bytes.Reader
+}
+
+func (b *byteSliceReadCloser) Close() error {
+	return nil
+}
+
+func (s *TransactionPictureService) generateAndSaveThumbnail(c core.Context, uid int64, pictureId int64, pictureFile multipart.File) error {
+	img, _, err := image.Decode(pictureFile)
+
+	if err != nil {
+		return err
+	}
+
+	thumb := imaging.Fit(img, 400, 400, imaging.Lanczos)
+	var buf bytes.Buffer
+	err = imaging.Encode(&buf, thumb, imaging.JPEG, imaging.JPEGQuality(80))
+
+	if err != nil {
+		return err
+	}
+
+	return s.SaveTransactionPictureThumb(c, uid, pictureId, &byteSliceReadCloser{Reader: bytes.NewReader(buf.Bytes())})
 }
 
 // RemoveUnusedTransactionPicture removes the unused transaction picture of specified user

@@ -676,6 +676,7 @@ func bindImage(fn core.ImageHandlerFunc) gin.HandlerFunc {
 		if err != nil {
 			utils.PrintDataErrorResult(c, "text/text", err)
 		} else {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 			utils.PrintDataSuccessResult(c, contentType, "", result)
 		}
 	}

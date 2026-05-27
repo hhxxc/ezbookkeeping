@@ -919,13 +919,17 @@ export default {
             return avatarUrl + '?' + params.join('&');
         }
     },
-    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string): string {
+    getTransactionPictureUrlWithToken(pictureUrl: string, disableBrowserCache?: boolean | string, thumb?: boolean): string {
         if (!pictureUrl) {
             return pictureUrl;
         }
 
         const params: string[] = [];
         params.push('token=' + getCurrentToken());
+
+        if (thumb) {
+            params.push('thumb=1');
+        }
 
         if (disableBrowserCache) {
             if (isBoolean(disableBrowserCache)) {

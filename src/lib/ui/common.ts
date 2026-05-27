@@ -245,3 +245,12 @@ export function compressJpgImage(blob: Blob, maxWidth: number, maxHeight: number
         reader.readAsDataURL(blob);
     });
 }
+
+export async function compressTransactionPicture(pictureFile: File): Promise<File> {
+    try {
+        const compressedBlob = await compressJpgImage(pictureFile, 1920, 1920, 0.85);
+        return KnownFileType.JPG.createFileFromBlob(compressedBlob, 'compressed');
+    } catch {
+        return pictureFile;
+    }
+}
