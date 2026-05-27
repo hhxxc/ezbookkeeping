@@ -209,7 +209,16 @@ export const useTransactionsStore = defineStore('transactions', () => {
                 }
 
                 if (currentMonthList && currentMonthList.year === transactionYear && currentMonthList.month === transactionMonth) {
-                    currentMonthList.items.push(Object.freeze(item));
+                    let alreadyExists = false;
+                    for (const existingItem of currentMonthList.items) {
+                        if (existingItem.id === item.id) {
+                            alreadyExists = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyExists) {
+                        currentMonthList.items.push(Object.freeze(item));
+                    }
 
                     if (index === transactionPageWrapper.items.length - 1) {
                         // calculate the total amount of current month when processing the last transaction item of this request
@@ -251,7 +260,16 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     currentMonthList = transactions.value[transactions.value.length - 1] as TransactionMonthList;
                 }
 
-                currentMonthList.items.push(Object.freeze(item));
+                let alreadyExists = false;
+                for (const existingItem of currentMonthList.items) {
+                    if (existingItem.id === item.id) {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                if (!alreadyExists) {
+                    currentMonthList.items.push(Object.freeze(item));
+                }
                 // init the total amount struct of current month when processing the first transaction item of current month
                 calculateMonthTotalAmount(currentMonthList, defaultCurrency, transactionsFilter.value.accountIds, true);
             }
