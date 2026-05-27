@@ -467,8 +467,8 @@ export function useTransactionEditPageBase(type: TransactionEditPageType, initMo
         return formatAmountToLocalizedNumeralsWithCurrency(amount, currencyCode);
     }
 
-    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null): string | undefined {
-        return transactionsStore.getTransactionPictureUrl(pictureInfo);
+    function getTransactionPictureUrl(pictureInfo?: TransactionPictureInfoBasicResponse | null, thumb?: boolean): string | undefined {
+        return transactionsStore.getTransactionPictureUrl(pictureInfo, undefined, thumb);
     }
 
     watch(() => transaction.value.sourceAmount, (newValue, oldValue) => {

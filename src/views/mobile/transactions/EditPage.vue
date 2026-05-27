@@ -419,7 +419,7 @@
                                         <f7-icon class="picture-control-icon picture-remove-icon" f7="trash" v-if="pictureInfo.pictureId !== removingPictureId"></f7-icon>
                                         <f7-preloader color="white" :size="28" v-if="pictureInfo.pictureId === removingPictureId" />
                                     </div>
-                                    <img alt="picture" :src="getTransactionPictureUrl(pictureInfo)"/>
+                                    <img alt="picture" :src="getTransactionPictureUrl(pictureInfo, true)"/>
                                 </div>
                             </swiper-slide>
                             <swiper-slide @click="showOpenPictureDialog" v-if="canAddTransactionPicture">
@@ -562,6 +562,7 @@ import {
 } from '@/lib/datetime.ts';
 import { formatCoordinate } from '@/lib/coordinate.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
+import { compressTransactionPicture } from '@/lib/ui/common.ts';
 import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import { getMapProvider, isTransactionPicturesEnabled } from '@/lib/server_settings.ts';
@@ -774,7 +775,7 @@ const transactionThumbs = computed<(string | undefined)[]>(() => {
     }
 
     for (const picture of transaction.value.pictures) {
-        thumbs.push(getTransactionPictureUrl(picture));
+        thumbs.push(getTransactionPictureUrl(picture, true));
     }
 
     return thumbs;
@@ -1412,7 +1413,7 @@ function showOpenPictureDialog(): void {
     pictureInput.value?.click();
 }
 
-function uploadPicture(event: Event): void {
+async function uploadPicture(event: Event): Promise<void> {
     if (!event || !event.target) {
         return;
     }
@@ -1430,7 +1431,9 @@ function uploadPicture(event: Event): void {
     uploadingPicture.value = true;
     submitting.value = true;
 
-    transactionsStore.uploadTransactionPicture({ pictureFile }).then(response => {
+    const finalFile = await compressTransactionPicture(pictureFile);
+
+    transactionsStore.uploadTransactionPicture({ pictureFile: finalFile }).then(response => {
         transaction.value.addPicture(response);
         uploadingPicture.value = false;
         submitting.value = false;

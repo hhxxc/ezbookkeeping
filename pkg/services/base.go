@@ -140,3 +140,27 @@ func (s *ServiceUsingStorage) getUserAvatarPath(uid int64, fileExtension string)
 func (s *ServiceUsingStorage) getTransactionPicturePath(uid int64, pictureId int64, fileExtension string) string {
 	return filepath.Join(utils.Int64ToString(uid), fmt.Sprintf("%d.%s", pictureId, fileExtension))
 }
+
+func (s *ServiceUsingStorage) getTransactionPictureThumbPath(uid int64, pictureId int64) string {
+	return filepath.Join(utils.Int64ToString(uid), fmt.Sprintf("%d_thumb.jpg", pictureId))
+}
+
+// ExistsTransactionPictureThumb returns whether the transaction picture thumbnail exists
+func (s *ServiceUsingStorage) ExistsTransactionPictureThumb(ctx core.Context, uid int64, pictureId int64) (bool, error) {
+	return s.container.ExistsTransactionPicture(ctx, s.getTransactionPictureThumbPath(uid, pictureId))
+}
+
+// ReadTransactionPictureThumb returns the transaction picture thumbnail
+func (s *ServiceUsingStorage) ReadTransactionPictureThumb(ctx core.Context, uid int64, pictureId int64) (storage.ObjectInStorage, error) {
+	return s.container.ReadTransactionPicture(ctx, s.getTransactionPictureThumbPath(uid, pictureId))
+}
+
+// SaveTransactionPictureThumb saves the transaction picture thumbnail
+func (s *ServiceUsingStorage) SaveTransactionPictureThumb(ctx core.Context, uid int64, pictureId int64, object storage.ObjectInStorage) error {
+	return s.container.SaveTransactionPicture(ctx, s.getTransactionPictureThumbPath(uid, pictureId), object)
+}
+
+// DeleteTransactionPictureThumb deletes the transaction picture thumbnail
+func (s *ServiceUsingStorage) DeleteTransactionPictureThumb(ctx core.Context, uid int64, pictureId int64) error {
+	return s.container.DeleteTransactionPicture(ctx, s.getTransactionPictureThumbPath(uid, pictureId))
+}

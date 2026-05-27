@@ -139,7 +139,14 @@ func (a *TransactionPicturesApi) TransactionPictureGetHandler(c *core.WebContext
 	}
 
 	uid := c.GetCurrentUid()
-	pictureData, err := a.pictures.GetPictureByPictureId(c, uid, pictureId, fileExtension)
+	var pictureData []byte
+
+	if c.Query("thumb") == "1" {
+		pictureData, err = a.pictures.GetPictureThumbByPictureId(c, uid, pictureId, fileExtension)
+		contentType = "image/jpeg"
+	} else {
+		pictureData, err = a.pictures.GetPictureByPictureId(c, uid, pictureId, fileExtension)
+	}
 
 	if err != nil {
 		if !errs.IsCustomError(err) {
