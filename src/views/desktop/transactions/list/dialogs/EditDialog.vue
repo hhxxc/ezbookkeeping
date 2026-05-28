@@ -1004,7 +1004,7 @@ function edit(): void {
 }
 
 function remove(): void {
-    if (props.type !== TransactionEditPageType.Transaction || mode.value !== TransactionEditPageMode.View) {
+    if (props.type !== TransactionEditPageType.Transaction || (mode.value !== TransactionEditPageMode.View && mode.value !== TransactionEditPageMode.Edit)) {
         return;
     }
 
