@@ -17,6 +17,9 @@
             <f7-list-item :title="tt('Official Website')" link="#" @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping')"></f7-list-item>
             <f7-list-item :title="tt('Report Issue')" link="#" @click="openExternalUrl('https://github.com/mayswind/ezbookkeeping/issues')"></f7-list-item>
             <f7-list-item :title="tt('Getting help')" link="#" popup-open=".document-popup"></f7-list-item>
+            <f7-list-item :title="tt('Check for Updates')" link="#" v-if="hasUpdate" @click="showUpdateSheet = true"
+                          :after="clientUpdateInfo?.latestVersion ? 'v' + clientUpdateInfo.latestVersion : ''">
+            </f7-list-item>
             <f7-list-item :title="tt('License')" link="#" popup-open=".license-popup"></f7-list-item>
         </f7-list>
 
@@ -143,6 +146,15 @@
                 <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
             </f7-actions-group>
         </f7-actions>
+
+        <f7-actions close-by-outside-click close-on-escape :opened="showUpdateSheet" @actions:closed="showUpdateSheet = false">
+            <f7-actions-group>
+                <f7-actions-button @click="installUpdate">{{ tt('Update Now') }}</f7-actions-button>
+            </f7-actions-group>
+            <f7-actions-group>
+                <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
+            </f7-actions-group>
+        </f7-actions>
     </f7-page>
 </template>
 
@@ -168,6 +180,8 @@ const {
     contributors,
     licenseLines,
     thirdPartyLicenses,
+    clientUpdateInfo,
+    hasUpdate,
     refreshBrowserCache,
     init
 } = useAboutPageBase();
@@ -175,6 +189,7 @@ const {
 const documentIframe = useTemplateRef<HTMLIFrameElement>('documentIframe');
 
 const showRefreshBrowserCacheSheet = ref<boolean>(false);
+const showUpdateSheet = ref<boolean>(false);
 const versionClickCount = ref<number>(0);
 const documentLoading = ref<boolean>(true);
 
@@ -196,6 +211,10 @@ function showVersion(): void {
         versionMessage += `<br/>${tt('Backend Version')}: ${serverDisplayVersion.value}`;
     }
 
+    if (hasUpdate.value && clientUpdateInfo.value) {
+        versionMessage += `<br/><br/>${tt('New version available')}: v${clientUpdateInfo.value.latestVersion}`;
+    }
+
     versionClickCount.value++;
 
     if (serverDisplayVersion.value && serverDisplayVersion.value !== 'unknown' && serverDisplayVersion.value !== clientVersion) {
@@ -208,6 +227,16 @@ function onDocumentPopupOpen(): void {
 
     if (documentIframe.value) {
         documentIframe.value.src = documentUrl.value;
+    }
+}
+
+function installUpdate(): void {
+    showUpdateSheet.value = false;
+
+    if (clientUpdateInfo.value?.ipaDownloadUrl) {
+        openExternalUrl(`trollstore://install?url=${encodeURIComponent(clientUpdateInfo.value.ipaDownloadUrl)}`);
+    } else if (clientUpdateInfo.value) {
+        openExternalUrl('https://github.com/hhxxc/ezbookkeeping/releases');
     }
 }
 

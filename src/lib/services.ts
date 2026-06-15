@@ -9,6 +9,9 @@ import type {
     VersionInfo
 } from '@/core/version.ts';
 import type {
+    ClientUpdateInfo
+} from '@/core/version.ts';
+import type {
     ImportFileTypeSupportedAdditionalOptions
 } from '@/core/file.ts';
 import {
@@ -840,6 +843,9 @@ export default {
     },
     getServerVersion: (): ApiResponsePromise<VersionInfo> => {
         return axios.get<ApiResponse<VersionInfo>>('v1/systems/version.json');
+    },
+    getClientUpdate: (): ApiResponsePromise<ClientUpdateInfo> => {
+        return axios.get<ApiResponse<ClientUpdateInfo>>('client/update.json');
     },
     cancelRequest: (cancelableUuid: string) => {
         cancelableRequests[cancelableUuid] = true;
