@@ -231,8 +231,8 @@ const {
 const allLanguages = computed<LanguageOption[]>(() => getAllLanguageOptions(false));
 
 function openUpdateUrl(): void {
-    if (clientUpdateInfo.value?.ipaDownloadUrl) {
-        window.open(`trollstore://install?url=${encodeURIComponent(clientUpdateInfo.value.ipaDownloadUrl)}`, '_blank');
+    if (clientUpdateInfo.value) {
+        window.open(`https://github.com/hhxxc/ezbookkeeping/releases/tag/v${clientUpdateInfo.value.latestVersion}`, '_blank');
     }
 }
 

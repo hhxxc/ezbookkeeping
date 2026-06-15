@@ -6,5 +6,4 @@ export interface VersionInfo {
 
 export interface ClientUpdateInfo {
     readonly latestVersion: string;
-    readonly ipaDownloadUrl?: string;
 }

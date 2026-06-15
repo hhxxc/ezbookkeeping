@@ -106,8 +106,6 @@ export function useAboutPageBase() {
 
             clientUpdateInfo.value = {
                 latestVersion: latestVersion,
-                ipaDownloadUrl: `https://github.com/hhxxc/ezbookkeeping/releases/download/${release.tag_name}/nestkeep.ipa`,
-                releaseNotes: release.html_url
             };
         }).catch(() => {
             // ignore errors - update check is best-effort
