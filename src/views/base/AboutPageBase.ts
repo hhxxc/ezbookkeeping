@@ -16,7 +16,14 @@ import { getContributors } from '@/lib/contributors.ts';
 import { getLicense, getThirdPartyLicenses } from '@/lib/licenses.ts';
 import { formatDisplayVersion, getClientDisplayVersion, getClientBuildTime, getClientVersionInfo } from '@/lib/version.ts';
 import { clearAllBrowserCaches } from '@/lib/cache.ts';
-import services from '@/lib/services.ts';
+
+const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/hhxxc/ezbookkeeping/releases/latest';
+
+interface GitHubRelease {
+    readonly tag_name: string;
+    readonly html_url: string;
+    readonly body?: string;
+}
 
 export function useAboutPageBase() {
     const { tt, formatDateTimeToLongDateTime } = useI18n();
@@ -82,12 +89,26 @@ export function useAboutPageBase() {
             clientVersionMatchServerVersion.value = match;
         });
 
-        services.getClientUpdate().then(response => {
-            const data = response.data;
-
-            if (data && data.success && data.result) {
-                clientUpdateInfo.value = data.result;
+        fetch(GITHUB_RELEASES_API_URL, {
+            headers: { 'Accept': 'application/json' }
+        }).then(response => {
+            if (!response.ok) {
+                return;
             }
+
+            return response.json() as Promise<GitHubRelease>;
+        }).then(release => {
+            if (!release) {
+                return;
+            }
+
+            const latestVersion = release.tag_name.replace(/^v/, '');
+
+            clientUpdateInfo.value = {
+                latestVersion: latestVersion,
+                ipaDownloadUrl: `https://github.com/hhxxc/ezbookkeeping/releases/download/${release.tag_name}/nestkeep.ipa`,
+                releaseNotes: release.html_url
+            };
         }).catch(() => {
             // ignore errors - update check is best-effort
         });
