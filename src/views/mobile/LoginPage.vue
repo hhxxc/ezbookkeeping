@@ -493,9 +493,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 .login-card {
     width: 100%;
     max-width: 400px;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: #fff;
     border-radius: 20px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
     padding: 8px 0;
@@ -503,7 +501,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 }
 
 .dark .login-card {
-    background: rgba(20, 20, 20, 0.9);
+    background: #1c1c1e;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 }
 
