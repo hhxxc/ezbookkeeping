@@ -92,6 +92,10 @@ input[type=number] {
     min-height: 48px;
 }
 
+.skeleton-text * {
+    opacity: 0 !important;
+}
+
 .skeleton-text::after {
     content: '';
     position: absolute;
@@ -105,18 +109,6 @@ input[type=number] {
     border-radius: 50%;
     animation: ebk-spin-inline .7s linear infinite;
     z-index: 1;
-}
-
-.skeleton-text .skeleton-block,
-.skeleton-text .item-title,
-.skeleton-text .item-after,
-.skeleton-text .item-footer,
-.skeleton-text .item-header,
-.skeleton-text .card-header-content,
-.skeleton-text .month-expense,
-.skeleton-text .home-summary-month,
-.skeleton-text .home-summary-misc {
-    opacity: 0;
 }
 
 @keyframes ebk-spin-inline {
