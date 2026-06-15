@@ -155,6 +155,21 @@
                 <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
             </f7-actions-group>
         </f7-actions>
+
+        <f7-popup :opened="showUpdateProgress" @popup:closed="showUpdateProgress = false" class="update-progress-popup">
+            <f7-page>
+                <f7-navbar>
+                    <f7-nav-title>{{ tt('Updating') }}</f7-nav-title>
+                </f7-navbar>
+                <f7-block class="update-progress-content">
+                    <p class="update-progress-status">{{ updateStatusText }}</p>
+                    <div class="update-progress-bar-container">
+                        <div class="update-progress-bar" :style="{ width: updateProgress + '%' }"></div>
+                    </div>
+                    <p class="update-progress-percent">{{ Math.round(updateProgress) }}%</p>
+                </f7-block>
+            </f7-page>
+        </f7-popup>
     </f7-page>
 </template>
 
@@ -190,6 +205,9 @@ const documentIframe = useTemplateRef<HTMLIFrameElement>('documentIframe');
 
 const showRefreshBrowserCacheSheet = ref<boolean>(false);
 const showUpdateSheet = ref<boolean>(false);
+const showUpdateProgress = ref<boolean>(false);
+const updateProgress = ref<number>(0);
+const updateStatusText = ref<string>('');
 const versionClickCount = ref<number>(0);
 const documentLoading = ref<boolean>(true);
 
@@ -233,11 +251,49 @@ function onDocumentPopupOpen(): void {
 function installUpdate(): void {
     showUpdateSheet.value = false;
 
-    if (clientUpdateInfo.value) {
-        openExternalUrl(`https://github.com/hhxxc/ezbookkeeping/releases/tag/v${clientUpdateInfo.value.latestVersion}`);
-    } else {
-        openExternalUrl('https://github.com/hhxxc/ezbookkeeping/releases');
+    if (!clientUpdateInfo.value) {
+        return;
     }
+
+    const version = clientUpdateInfo.value.latestVersion;
+    const ipaUrl = `https://github.com/hhxxc/ezbookkeeping/releases/download/v${version}/nestkeep.ipa`;
+
+    showUpdateProgress.value = true;
+    updateStatusText.value = tt('Downloading');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', ipaUrl, true);
+    xhr.responseType = 'blob';
+
+    xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+            updateProgress.value = (event.loaded / event.total) * 100;
+        }
+    };
+
+    xhr.onload = () => {
+        updateProgress.value = 100;
+        updateStatusText.value = tt('Opening');
+
+        // Hand off to Safari to trigger TrollStore install
+        setTimeout(() => {
+            showUpdateProgress.value = false;
+            updateProgress.value = 0;
+            openExternalUrl(ipaUrl);
+        }, 500);
+    };
+
+    xhr.onerror = () => {
+        updateStatusText.value = tt('Download failed');
+        // Fallback: open release page
+        setTimeout(() => {
+            showUpdateProgress.value = false;
+            updateProgress.value = 0;
+            openExternalUrl(`https://github.com/hhxxc/ezbookkeeping/releases/tag/v${version}`);
+        }, 1500);
+    };
+
+    xhr.send();
 }
 
 onMounted(() => {
@@ -293,6 +349,40 @@ init();
         padding: 4px 8px;
         border: 1px solid var(--f7-list-item-border-color);
         text-align: start;
+    }
+}
+
+.update-progress-popup {
+    .update-progress-content {
+        text-align: center;
+        padding: 40px 24px;
+    }
+
+    .update-progress-status {
+        font-size: 16px;
+        margin-bottom: 20px;
+        color: var(--f7-text-color);
+    }
+
+    .update-progress-bar-container {
+        height: 6px;
+        background: rgba(128, 128, 128, 0.15);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .update-progress-bar {
+        height: 100%;
+        background: var(--f7-theme-color, #533afd);
+        border-radius: 3px;
+        transition: width .3s ease;
+    }
+
+    .update-progress-percent {
+        font-size: 14px;
+        margin-top: 10px;
+        color: var(--f7-text-color);
+        opacity: .6;
     }
 }
 </style>
