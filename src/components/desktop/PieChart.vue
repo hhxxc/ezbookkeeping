@@ -289,18 +289,7 @@ function onLegendSelectChanged(e: { selected: Record<string, boolean> }): void {
 }
 
 .pie-chart-container.transition-in {
-    animation: pie-chart-skeleton-fade-in 2s 1;
+    opacity: 1;
 }
 
-@keyframes pie-chart-skeleton-fade-in {
-    0% {
-        opacity: 0;
-    }
-    20% {
-        opacity: 0;
-    }
-    100% {
-        opacity: 1;
-    }
-}
 </style>

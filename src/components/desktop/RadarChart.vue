@@ -219,18 +219,7 @@ function getDisplayValue(value: number): string {
 }
 
 .radar-chart-container.transition-in {
-    animation: radar-chart-skeleton-fade-in 2s 1;
+    opacity: 1;
 }
 
-@keyframes radar-chart-skeleton-fade-in {
-    0% {
-        opacity: 0;
-    }
-    20% {
-        opacity: 0;
-    }
-    100% {
-        opacity: 1;
-    }
-}
 </style>
