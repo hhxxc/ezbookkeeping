@@ -233,9 +233,9 @@ function onDocumentPopupOpen(): void {
 function installUpdate(): void {
     showUpdateSheet.value = false;
 
-    if (clientUpdateInfo.value?.ipaDownloadUrl) {
-        openExternalUrl(`trollstore://install?url=${encodeURIComponent(clientUpdateInfo.value.ipaDownloadUrl)}`);
-    } else if (clientUpdateInfo.value) {
+    if (clientUpdateInfo.value) {
+        openExternalUrl(`https://github.com/hhxxc/ezbookkeeping/releases/tag/v${clientUpdateInfo.value.latestVersion}`);
+    } else {
         openExternalUrl('https://github.com/hhxxc/ezbookkeeping/releases');
     }
 }
