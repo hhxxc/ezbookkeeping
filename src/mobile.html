@@ -75,29 +75,27 @@
     <noscript>
         <strong>巢记需要 JavaScript 才能正常运行，请启用 JavaScript 后重试。</strong>
     </noscript>
-    <div id="app"><div class="ebk-inline-skeleton"><div class="ebk-skeleton-card"></div><div class="ebk-skeleton-lines"><div class="ebk-skeleton-line"></div><div class="ebk-skeleton-line ebk-skeleton-line-short"></div><div class="ebk-skeleton-line"></div><div class="ebk-skeleton-line ebk-skeleton-line-short"></div></div></div></div>
+    <div id="app"><div class="ebk-splash"><div class="ebk-splash-spinner"></div></div></div>
 
     <style>
         body { margin: 0; background: #f6f6f8; }
         @media (prefers-color-scheme: dark) { body { background: #000; } }
-        .ebk-inline-skeleton { padding: 14px 16px; }
-        .ebk-skeleton-card {
-            height: 180px; border-radius: 16px;
-            background: linear-gradient(135deg, #c67e48 0%, #e8a87c 100%);
-            animation: ebk-skeleton-pulse 1.8s ease-in-out infinite;
+        .ebk-splash {
+            display: flex; align-items: center; justify-content: center;
+            height: 100vh;
         }
-        .ebk-skeleton-lines { margin-top: 20px; }
-        .ebk-skeleton-line {
-            height: 56px; border-radius: 14px; margin-bottom: 10px;
-            background: rgba(0,0,0,0.06);
+        .ebk-splash-spinner {
+            width: 36px; height: 36px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-top-color: #c67e48;
+            border-radius: 50%;
+            animation: ebk-spin .8s linear infinite;
         }
-        .ebk-skeleton-line-short { width: 60%; }
         @media (prefers-color-scheme: dark) {
-            .ebk-skeleton-line { background: rgba(255,255,255,0.06); }
+            .ebk-splash-spinner { border-color: rgba(255,255,255,0.1); border-top-color: #c67e48; }
         }
-        @keyframes ebk-skeleton-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
+        @keyframes ebk-spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 

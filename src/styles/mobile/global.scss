@@ -100,15 +100,8 @@ input[type=number] {
 .skeleton-text .home-summary-month,
 .skeleton-text .home-summary-misc {
     color: transparent !important;
-    background: linear-gradient(90deg, var(--f7-list-bg-color) 25%, rgba(180,180,180,0.15) 50%, var(--f7-list-bg-color) 75%);
-    background-size: 200% 100%;
-    animation: ebk-shimmer 1.5s ease-in-out infinite;
+    background: var(--f7-list-bg-color);
     border-radius: 4px;
-}
-
-@keyframes ebk-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
 }
 
 .segmented.readonly .button:not(.button-active) > span,
