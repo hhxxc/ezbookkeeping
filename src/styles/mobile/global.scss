@@ -1092,16 +1092,6 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
     border-bottom-right-radius: var(--f7-progressbar-border-radius);
 }
 
-/* Page fade-in transition */
-@keyframes ebk-fade-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.page-content {
-    animation: ebk-fade-in var(--ebk-transition-normal) both;
-}
-
 /* Hide scrollbars for native app feel on mobile */
 * {
     scrollbar-width: none;

@@ -421,6 +421,33 @@ html[dir="rtl"] .bidirectional-switch {
     margin: 0;
 }
 
+/* Hide Vuetify skeleton loader bone animations, show spinner instead */
+.v-skeleton-loader {
+    position: relative;
+}
+
+.v-skeleton-loader .v-skeleton-loader__bone {
+    opacity: 0 !important;
+}
+
+.v-skeleton-loader::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    margin: -12px 0 0 -12px;
+    border: 2.5px solid rgba(128, 128, 128, 0.15);
+    border-top-color: rgb(var(--v-theme-primary));
+    border-radius: 50%;
+    animation: ebk-spin-desktop .7s linear infinite;
+}
+
+@keyframes ebk-spin-desktop {
+    to { transform: rotate(360deg); }
+}
+
 html[dir="rtl"] .v-btn.button-icon-with-direction > .v-btn__content > .v-icon > .v-icon__svg,
 html[dir="rtl"] .v-btn.button-icon-with-direction > .v-btn__prepend > .v-icon > .v-icon__svg,
 html[dir="rtl"] .v-btn.button-icon-with-direction > .v-btn__append > .v-icon > .v-icon__svg {
