@@ -446,9 +446,6 @@ type Config struct {
 	ExchangeRatesRequestTimeoutExceedDefaultValue bool
 	ExchangeRatesProxy                            string
 	ExchangeRatesSkipTLSVerify                    bool
-
-	// Update
-	IpaDownloadUrl string
 }
 
 // LoadConfiguration loads setting config from given config file path
@@ -585,12 +582,6 @@ func LoadConfiguration(configFilePath string) (*Config, error) {
 	}
 
 	err = loadExchangeRatesConfiguration(config, cfgFile, "exchange_rates")
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = loadUpdateConfiguration(config, cfgFile, "update")
 
 	if err != nil {
 		return nil, err
@@ -1244,12 +1235,6 @@ func loadExchangeRatesConfiguration(config *Config, configFile *ini.File, sectio
 	}
 
 	config.ExchangeRatesSkipTLSVerify = getConfigItemBoolValue(configFile, sectionName, "skip_tls_verify", false)
-
-	return nil
-}
-
-func loadUpdateConfiguration(config *Config, configFile *ini.File, sectionName string) error {
-	config.IpaDownloadUrl = getConfigItemStringValue(configFile, sectionName, "ipa_download_url")
 
 	return nil
 }

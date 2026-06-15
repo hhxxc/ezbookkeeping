@@ -1,38 +1,37 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/mayswind/ezbookkeeping/pkg/core"
 	"github.com/mayswind/ezbookkeeping/pkg/errs"
-	"github.com/mayswind/ezbookkeeping/pkg/settings"
 )
 
+const ezbookkeepingIpaDownloadRepoUrl = "https://github.com/hhxxc/ezbookkeeping"
+
 // ClientUpdatesApi represents client update api
-type ClientUpdatesApi struct {
-	ApiUsingConfig
-}
+type ClientUpdatesApi struct{}
 
 // Initialize a client updates api singleton instance
 var (
-	ClientUpdates = &ClientUpdatesApi{
-		ApiUsingConfig: ApiUsingConfig{
-			container: settings.Container,
-		},
-	}
+	ClientUpdates = &ClientUpdatesApi{}
 )
 
 // ClientUpdateInfo represents the client update information
 type ClientUpdateInfo struct {
 	LatestVersion  string `json:"latestVersion"`
 	IpaDownloadUrl string `json:"ipaDownloadUrl,omitempty"`
+	ReleaseNotes  string `json:"releaseNotes,omitempty"`
 }
 
 // UpdateHandler returns the latest client update information
 func (a *ClientUpdatesApi) UpdateHandler(c *core.WebContext) (any, *errs.Error) {
-	config := a.CurrentConfig()
+	version := core.Version
 
 	result := &ClientUpdateInfo{
-		LatestVersion:  core.Version,
-		IpaDownloadUrl: config.IpaDownloadUrl,
+		LatestVersion:  version,
+		IpaDownloadUrl: fmt.Sprintf("%s/releases/download/v%s/nestkeep.ipa", ezbookkeepingIpaDownloadRepoUrl, version),
+		ReleaseNotes:  fmt.Sprintf("%s/releases/tag/v%s", ezbookkeepingIpaDownloadRepoUrl, version),
 	}
 
 	return result, nil
