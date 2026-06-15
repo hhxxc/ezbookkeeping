@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       api_base_url:
@@ -14,15 +12,26 @@ on:
         type: string
         default: ''
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   build:
     runs-on: macos-latest
-    permissions:
-      actions: write
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Generate version
+        id: version
+        run: |
+          MAJOR=1
+          MINOR=6
+          PATCH=$(printf "%02d" $((${{ github.run_number }} / 100)))
+          BUILD=$(printf "%02d" $((${{ github.run_number }} % 100)))
+          echo "version=${MAJOR}.${MINOR}.${PATCH}.${BUILD}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${MAJOR}.${MINOR}.${PATCH}.${BUILD}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -33,7 +42,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Use hash-based routing for Capacitor compatibility (pushState conflicts with capacitor:// scheme)
+      - name: Update package.json version
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = '${{ steps.version.outputs.version }}';
+            require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
       - name: Force hash routing
         run: |
           sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' src/MobileApp.vue
@@ -41,7 +57,6 @@ jobs:
       - name: Build web
         run: npm run build
 
-      # Capacitor loads index.html by default; mobile.html is the mobile entry point
       - name: Prepare Capacitor entry
         run: cp dist/mobile.html dist/index.html
 
@@ -124,32 +139,6 @@ jobs:
           codesign -s - --force --deep "Payload/App.app"
           zip -r nestkeep.ipa Payload
 
-      - name: Generate version.json
-        id: version
-        run: |
-          VERSION=$(node -e "console.log(require('./package.json').version)")
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          BUILD_TIME=$(date +%s)
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
-          echo "build_time=${BUILD_TIME}" >> "$GITHUB_OUTPUT"
-
-      - name: Cleanup old IPA artifacts (keep latest 20)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ARTIFACTS=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=nestkeep-ios-ipa&per_page=100" --jq '.artifacts | sort_by(.created_at) | reverse | .[].id')
-          KEEP=19
-          COUNT=0
-          echo "$ARTIFACTS" | while read -r ID; do
-            [ -z "$ID" ] && continue
-            COUNT=$((COUNT + 1))
-            if [ $COUNT -gt $KEEP ]; then
-              echo "Deleting old IPA artifact #$ID"
-              gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ID" -X DELETE --silent || true
-            fi
-          done
-
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
@@ -157,28 +146,30 @@ jobs:
           path: nestkeep.ipa
 
       - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ steps.version.outputs.tag }}"
 
-          # Create release
           gh release create "${TAG}" \
             --title "巢记 v${VERSION}" \
-            --notes "巢记 v${VERSION} 发布，请通过 TrollStore 安装。" \
+            --notes "巢记 v${VERSION} 自动构建" \
+            --target "${{ github.sha }}" \
             nestkeep.ipa
 
-          # Upload version.json for auto-update
-          IPA_DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/nestkeep.ipa"
-          cat > version.json << EOF
-          {
-            "latestVersion": "${VERSION}",
-            "commitHash": "${{ steps.version.outputs.commit_hash }}",
-            "buildTime": "${{ steps.version.outputs.build_time }}",
-            "ipaDownloadUrl": "${IPA_DOWNLOAD_URL}",
-            "releaseNotes": "巢记 v${VERSION}"
-          }
-          EOF
-          gh release upload "${TAG}" version.json --clobber
+      - name: Cleanup old releases (keep latest 20)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASES=$(gh release list --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName')
+          KEEP=20
+          COUNT=0
+          echo "$RELEASES" | while read -r TAG; do
+            [ -z "$TAG" ] && continue
+            COUNT=$((COUNT + 1))
+            if [ $COUNT -gt $KEEP ]; then
+              echo "Deleting old release $TAG"
+              gh release delete "$TAG" --yes || true
+            fi
+          done

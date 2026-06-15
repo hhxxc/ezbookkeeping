@@ -348,9 +348,6 @@ func startWebServer(c *core.CliContext) error {
 
 		apiRoute.GET("/logout.json", bindApiWithTokenUpdate(api.Tokens.TokenRevokeCurrentHandler, config))
 
-		// Client Updates (no auth required)
-		apiRoute.GET("/client/update.json", bindApi(api.ClientUpdates.UpdateHandler))
-
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorization(config)))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config)))
