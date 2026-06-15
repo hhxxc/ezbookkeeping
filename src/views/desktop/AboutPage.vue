@@ -51,6 +51,18 @@
                             </a>
                         </v-col>
                     </v-row>
+                    <v-row no-gutters v-if="hasUpdate && clientUpdateInfo">
+                        <v-col cols="12" md="2">
+                            <span class="text-body-1">{{ tt('Check for Updates') }}</span>
+                        </v-col>
+                        <v-col cols="12" md="10">
+                            <v-btn color="primary" variant="tonal" size="small"
+                                   @click="openUpdateUrl" v-if="clientUpdateInfo.ipaDownloadUrl">
+                                {{ tt('Update Now') }} (v{{ clientUpdateInfo.latestVersion }})
+                            </v-btn>
+                            <span class="text-body-1" v-else>{{ tt('New version available') }}: v{{ clientUpdateInfo.latestVersion }}</span>
+                        </v-col>
+                    </v-row>
                     <v-row no-gutters>
                         <v-col cols="12" md="2">
                             <span class="text-body-1">{{ tt('Getting help') }}</span>
@@ -210,12 +222,19 @@ const {
     contributors,
     licenseLines,
     thirdPartyLicenses,
+    clientUpdateInfo,
+    hasUpdate,
     refreshBrowserCache,
     init
 } = useAboutPageBase();
 
-
 const allLanguages = computed<LanguageOption[]>(() => getAllLanguageOptions(false));
+
+function openUpdateUrl(): void {
+    if (clientUpdateInfo.value?.ipaDownloadUrl) {
+        window.open(`trollstore://install?url=${encodeURIComponent(clientUpdateInfo.value.ipaDownloadUrl)}`, '_blank');
+    }
+}
 
 init();
 </script>

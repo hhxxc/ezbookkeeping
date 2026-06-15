@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       api_base_url:
@@ -17,7 +19,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       actions: write
-      contents: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -122,6 +124,16 @@ jobs:
           codesign -s - --force --deep "Payload/App.app"
           zip -r nestkeep.ipa Payload
 
+      - name: Generate version.json
+        id: version
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          BUILD_TIME=$(date +%s)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+          echo "build_time=${BUILD_TIME}" >> "$GITHUB_OUTPUT"
+
       - name: Cleanup old IPA artifacts (keep latest 20)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -143,3 +155,30 @@ jobs:
         with:
           name: nestkeep-ios-ipa
           path: nestkeep.ipa
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${GITHUB_REF_NAME}"
+
+          # Create release
+          gh release create "${TAG}" \
+            --title "巢记 v${VERSION}" \
+            --notes "巢记 v${VERSION} 发布，请通过 TrollStore 安装。" \
+            nestkeep.ipa
+
+          # Upload version.json for auto-update
+          IPA_DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/nestkeep.ipa"
+          cat > version.json << EOF
+          {
+            "latestVersion": "${VERSION}",
+            "commitHash": "${{ steps.version.outputs.commit_hash }}",
+            "buildTime": "${{ steps.version.outputs.build_time }}",
+            "ipaDownloadUrl": "${IPA_DOWNLOAD_URL}",
+            "releaseNotes": "巢记 v${VERSION}"
+          }
+          EOF
+          gh release upload "${TAG}" version.json --clobber

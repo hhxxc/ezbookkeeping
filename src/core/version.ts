@@ -3,3 +3,8 @@ export interface VersionInfo {
     readonly commitHash: string;
     readonly buildTime?: string;
 }
+
+export interface ClientUpdateInfo {
+    readonly latestVersion: string;
+    readonly ipaDownloadUrl?: string;
+}

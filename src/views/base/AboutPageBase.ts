@@ -5,7 +5,7 @@ import { useI18n } from '@/locales/helpers.ts';
 import { useSystemsStore } from '@/stores/system.ts';
 import { useExchangeRatesStore } from '@/stores/exchangeRates.ts';
 
-import type { VersionInfo } from '@/core/version.ts';
+import type { VersionInfo, ClientUpdateInfo } from '@/core/version.ts';
 
 import type { LatestExchangeRateResponse } from '@/models/exchange_rate.ts';
 
@@ -14,8 +14,9 @@ import { getMapProvider } from '@/lib/server_settings.ts';
 import { getMapWebsite } from '@/lib/map/index.ts';
 import { getContributors } from '@/lib/contributors.ts';
 import { getLicense, getThirdPartyLicenses } from '@/lib/licenses.ts';
-import { formatDisplayVersion, getClientDisplayVersion, getClientBuildTime } from '@/lib/version.ts';
+import { formatDisplayVersion, getClientDisplayVersion, getClientBuildTime, getClientVersionInfo } from '@/lib/version.ts';
 import { clearAllBrowserCaches } from '@/lib/cache.ts';
+import services from '@/lib/services.ts';
 
 export function useAboutPageBase() {
     const { tt, formatDateTimeToLongDateTime } = useI18n();
@@ -60,6 +61,15 @@ export function useAboutPageBase() {
     const licenseLines = computed<string[]>(() => getLicense().replace(/\r/g, '').split('\n'));
     const thirdPartyLicenses = computed<LicenseInfo[]>(() => getThirdPartyLicenses());
 
+    const clientUpdateInfo = ref<ClientUpdateInfo | null>(null);
+    const hasUpdate = computed<boolean>(() => {
+        if (!clientUpdateInfo.value || !clientUpdateInfo.value.latestVersion) {
+            return false;
+        }
+
+        return getClientVersionInfo().version !== clientUpdateInfo.value.latestVersion;
+    });
+
     function refreshBrowserCache(): void {
         clearAllBrowserCaches().then(() => {
             location.reload();
@@ -70,6 +80,16 @@ export function useAboutPageBase() {
         systemsStore.checkIfClientVersionMatchServerVersion().then(({ match, version }) => {
             serverVersion.value = version;
             clientVersionMatchServerVersion.value = match;
+        });
+
+        services.getClientUpdate().then(response => {
+            const data = response.data;
+
+            if (data && data.success && data.result) {
+                clientUpdateInfo.value = data.result;
+            }
+        }).catch(() => {
+            // ignore errors - update check is best-effort
         });
     }
 
@@ -88,6 +108,8 @@ export function useAboutPageBase() {
         contributors,
         licenseLines,
         thirdPartyLicenses,
+        clientUpdateInfo,
+        hasUpdate,
         // functions
         refreshBrowserCache,
         init
