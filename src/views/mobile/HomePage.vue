@@ -473,13 +473,12 @@ init();
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(4px);
+    background: rgba(255, 255, 255, 0.2);
     transition: background 0.15s ease;
 }
 
 .home-card-gallery-btn:active {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.4);
 }
 
 .home-summary-card::before {

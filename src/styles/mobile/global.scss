@@ -247,7 +247,7 @@ i.icon.la, i.icon.las, i.icon.lab {
     --ebk-primary-gradient-dark: linear-gradient(135deg, #a66335 0%, #c67e48 100%);
 
     /* Card shadows */
-    --ebk-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    --ebk-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     --ebk-card-shadow-dark: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -453,12 +453,15 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /* Enhanced navbar */
 .ios .navbar {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: #f6f6f8;
+}
+
+.dark .ios .navbar {
+    background: #000;
 }
 
 .ios .navbar .navbar-inner {
-    background: rgba(255, 255, 255, 0.85);
+    background: transparent;
 }
 
 .ios.dark .navbar .navbar-inner,
@@ -533,15 +536,21 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 /* Tab bar glass effect (light mode) */
+.toolbar.tabbar {
+    background: #f6f6f8;
+}
+
+.dark .toolbar.tabbar {
+    background: #000;
+}
+
 .ios .toolbar.tabbar::before {
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    display: none;
 }
 
 /* Center add button glow */
 .ebk-tarbar-big-icon {
-    filter: drop-shadow(0 2px 6px rgba(198, 126, 72, 0.3));
-    transition: transform var(--ebk-transition-fast), filter var(--ebk-transition-fast);
+    transition: transform var(--ebk-transition-fast);
 }
 
 .tabbar-primary-link .ebk-tarbar-big-icon {
