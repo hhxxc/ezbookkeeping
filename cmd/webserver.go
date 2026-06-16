@@ -348,6 +348,9 @@ func startWebServer(c *core.CliContext) error {
 
 		apiRoute.GET("/logout.json", bindApiWithTokenUpdate(api.Tokens.TokenRevokeCurrentHandler, config))
 
+		// GitHub download proxy (no auth required)
+		apiRoute.GET("/proxy/github/download", bindEventStreamApi(api.GitHubProxy.GitHubDownloadProxyHandler))
+
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorization(config)))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config)))
