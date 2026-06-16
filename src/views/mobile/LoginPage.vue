@@ -499,7 +499,6 @@ oauth2ClientSessionId.value = generateRandomUUID();
 
 .dark .login-card {
     background: #1c1c1e;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .login-card .list {
