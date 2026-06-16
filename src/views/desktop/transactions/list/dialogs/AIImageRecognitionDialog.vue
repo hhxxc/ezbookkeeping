@@ -291,11 +291,7 @@ defineExpose({
 }
 
 .dropzone-blurry-bg {
-    isolation: isolate;
-    contain: paint;
-    /* stylelint-disable property-no-vendor-prefix */
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
+    background: rgba(var(--v-theme-surface));
 }
 
 .dropzone-dragover {
