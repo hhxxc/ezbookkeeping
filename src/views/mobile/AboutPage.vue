@@ -257,39 +257,54 @@ function installUpdate(): void {
 
     const version = clientUpdateInfo.value.latestVersion;
     const ipaUrl = `https://github.com/hhxxc/ezbookkeeping/releases/download/v${version}/nestkeep.ipa`;
+    const proxyUrl = `${window.location.origin}/api/proxy/github/download?url=${encodeURIComponent(ipaUrl)}`;
 
     showUpdateProgress.value = true;
     updateStatusText.value = tt('Downloading');
 
     const xhr = new XMLHttpRequest();
-    xhr.open('GET', ipaUrl, true);
+    xhr.open('GET', proxyUrl, true);
     xhr.responseType = 'blob';
 
     xhr.onprogress = (event) => {
         if (event.lengthComputable) {
             updateProgress.value = (event.loaded / event.total) * 100;
+        } else {
+            // Show indeterminate progress when length is unknown
+            updateProgress.value = updateProgress.value >= 90 ? 90 : updateProgress.value + 5;
         }
     };
 
     xhr.onload = () => {
+        if (xhr.status !== 200) {
+            updateStatusText.value = tt('Download failed');
+            setTimeout(() => {
+                showUpdateProgress.value = false;
+                updateProgress.value = 0;
+            }, 1500);
+            return;
+        }
+
         updateProgress.value = 100;
         updateStatusText.value = tt('Opening');
 
-        // Hand off to Safari to trigger TrollStore install
+        // Create a blob URL and open it in Safari to trigger TrollStore
+        const blob = xhr.response;
+        const blobUrl = URL.createObjectURL(blob);
         setTimeout(() => {
             showUpdateProgress.value = false;
             updateProgress.value = 0;
-            openExternalUrl(ipaUrl);
+            openExternalUrl(blobUrl);
+            // Revoke blob URL after a delay
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         }, 500);
     };
 
     xhr.onerror = () => {
         updateStatusText.value = tt('Download failed');
-        // Fallback: open release page
         setTimeout(() => {
             showUpdateProgress.value = false;
             updateProgress.value = 0;
-            openExternalUrl(`https://github.com/hhxxc/ezbookkeeping/releases/tag/v${version}`);
         }, 1500);
     };
 
