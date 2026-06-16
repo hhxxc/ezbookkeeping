@@ -91,8 +91,8 @@ function select(id: string): void {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: transform 0.15s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     overflow: hidden;
 }
 
@@ -101,14 +101,13 @@ function select(id: string): void {
 }
 
 .gallery-item-selected {
-    box-shadow: 0 0 0 3px var(--f7-theme-color), 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 0 3px var(--f7-theme-color);
     transform: scale(1.02);
 }
 
 .gallery-item-name {
     font-size: 12px;
     color: #fff;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     font-weight: 600;
     pointer-events: none;
 }

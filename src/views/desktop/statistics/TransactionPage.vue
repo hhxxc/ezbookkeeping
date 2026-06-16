@@ -1408,11 +1408,9 @@ init(props);
 
 .statistics-list-item .statistics-percent {
     font-size: 0.75rem;
-    opacity: 0.7;
     margin-inline-start: 6px;
 }
 
 .statistics-list-item .statistics-amount {
-    opacity: 0.8;
 }
 </style>

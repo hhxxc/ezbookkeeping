@@ -443,7 +443,6 @@ init();
 .home-summary-card {
     background: var(--ebk-primary-gradient);
     border-radius: var(--ebk-card-border-radius);
-    box-shadow: 0 8px 32px rgba(198, 126, 72, 0.25);
     color: #fff;
     overflow: hidden;
     margin-top: 14px;
@@ -494,7 +493,6 @@ init();
 }
 
 .home-summary-card .card-header-content {
-    opacity: 0.85;
 }
 
 .home-summary-card .home-summary-month {
@@ -509,16 +507,15 @@ init();
 }
 
 .home-summary-card .home-summary-misc {
-    opacity: 0.75;
     font-size: 0.95em;
 }
 
 .home-summary-card a {
-    color: rgba(255, 255, 255, 0.85);
+    color: #fff;
 }
 
 .home-summary-card .ebk-hide-icon {
-    color: rgba(255, 255, 255, 0.7);
+    color: #fff;
 }
 
 .home-summary-misc > span {
@@ -531,7 +528,6 @@ init();
 
 .dark .home-summary-card {
     background: var(--ebk-primary-gradient-dark);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .overview-transaction-list .item-title > div {

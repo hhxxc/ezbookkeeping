@@ -444,13 +444,13 @@ oauth2ClientSessionId.value = generateRandomUUID();
     left: 0;
     right: 0;
     height: 60%;
-    background: linear-gradient(160deg, #533afd 0%, #665efd 40%, #8e8afc 70%, #f6f9fc 100%);
+    background: rgb(83, 58, 253);
     pointer-events: none;
     z-index: 0;
 }
 
 .dark .login-bg-gradient {
-    background: linear-gradient(160deg, #1c1e54 0%, #2e2b8c 25%, #0a0e1a 55%, #000 100%);
+    background: rgb(28, 30, 84);
 }
 
 .login-content {
@@ -472,7 +472,6 @@ oauth2ClientSessionId.value = generateRandomUUID();
     width: 80px;
     height: 80px;
     border-radius: 20px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .login-brand .login-page-tile {
@@ -480,14 +479,12 @@ oauth2ClientSessionId.value = generateRandomUUID();
     font-weight: 700;
     color: #fff;
     margin: 12px 0 4px;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .login-page-subtitle {
-    color: rgba(255, 255, 255, 0.85);
+    color: #fff;
     font-size: 14px;
     margin: 0;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .login-card {
@@ -495,14 +492,14 @@ oauth2ClientSessionId.value = generateRandomUUID();
     max-width: 400px;
     background: #fff;
     border-radius: 20px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     padding: 8px 0;
     overflow: hidden;
 }
 
 .dark .login-card {
     background: #1c1c1e;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .login-card .list {
@@ -539,7 +536,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 }
 
 .login-divider > .item-content > .item-inner > small {
-    opacity: 0.7;
+    opacity: 1;
 }
 
 .login-divider > .item-content > .item-inner > hr {
