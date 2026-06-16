@@ -424,7 +424,7 @@ html[dir="rtl"] .bidirectional-switch {
 /* Hide Vuetify skeleton loader everything, show centered spinner instead */
 .v-skeleton-loader {
     position: relative;
-    min-height: 120px;
+    min-height: 200px;
 }
 
 .v-skeleton-loader .v-skeleton-loader__bone {
@@ -443,7 +443,7 @@ html[dir="rtl"] .bidirectional-switch {
     border: 3px solid rgba(128, 128, 128, 0.12);
     border-top-color: rgb(var(--v-theme-primary));
     border-radius: 50%;
-    animation: ebk-spin-desktop .7s linear infinite;
+    animation: ebk-spin-desktop .7s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
 }
 
 @keyframes ebk-spin-desktop {
