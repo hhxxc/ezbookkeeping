@@ -444,13 +444,13 @@ oauth2ClientSessionId.value = generateRandomUUID();
     left: 0;
     right: 0;
     height: 60%;
-    background: rgb(83, 58, 253);
+    background: #3a25cc;
     pointer-events: none;
     z-index: 0;
 }
 
 .dark .login-bg-gradient {
-    background: rgb(28, 30, 84);
+    background: #18184a;
 }
 
 .login-content {
