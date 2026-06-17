@@ -5,59 +5,43 @@
       <stop offset="50%" stop-color="#d4955a"/>
       <stop offset="100%" stop-color="#e8a87c"/>
     </linearGradient>
-    <linearGradient id="nestGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f5f0e8"/>
-      <stop offset="100%" stop-color="#faf6f0"/>
-    </linearGradient>
-    <linearGradient id="egg1" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="ring1" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f8f4ee"/>
+      <stop offset="100%" stop-color="#f5f0e8"/>
+    </linearGradient>
+    <linearGradient id="ring2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f5f0e8"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8a87c"/>
+      <stop offset="100%" stop-color="#c67e48"/>
     </linearGradient>
   </defs>
 
   <!-- Rounded rectangle background (iOS icon style) -->
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
 
-  <!-- Inner glow -->
-  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)" opacity="0"/>
+  <!-- Interlocking rings - representing nest/cycle/home -->
+  <g transform="translate(256, 256)">
+    <!-- Left outer ring -->
+    <path d="M130,-60 C130,-140 60,-200 0,-200 C-60,-200 -130,-140 -130,-60"
+          fill="none" stroke="url(#ring1)" stroke-width="28" stroke-linecap="round" opacity="0.95"/>
 
-  <!-- Nest bowl shape -->
-  <g transform="translate(256, 340)">
-    <!-- Nest outer rim -->
-    <ellipse cx="0" cy="0" rx="168" ry="36" fill="#b8733a" opacity="0.3"/>
-    <!-- Nest body -->
-    <path d="M-160,0 C-160,60 -120,100 -80,110 L80,110 C120,100 160,60 160,0"
-          fill="url(#nestGrad)" stroke="#d4a574" stroke-width="6"/>
-    <!-- Nest rim highlight -->
-    <path d="M-152,-4 C-152,50 -114,90 -76,100 L76,100 C114,90 152,50 152,-4"
-          fill="none" stroke="#fff" stroke-width="3" opacity="0.4"/>
-    <!-- Nest twig details -->
-    <path d="M-140,20 C-100,40 -50,30 0,45 S100,35 140,25"
-          fill="none" stroke="#d4a574" stroke-width="4" opacity="0.6"/>
-    <path d="M-120,50 C-80,65 -30,55 20,70 S90,60 130,50"
-          fill="none" stroke="#c49464" stroke-width="3" opacity="0.4"/>
-    <path d="M-100,75 C-50,85 10,75 60,88 S120,78 140,70"
-          fill="none" stroke="#d4a574" stroke-width="2.5" opacity="0.35"/>
-    <!-- Nest interior shadow -->
-    <ellipse cx="0" cy="10" rx="120" ry="28" fill="#b8733a" opacity="0.1"/>
-  </g>
+    <!-- Right outer ring -->
+    <path d="M130,60 C130,140 60,200 0,200 C-60,200 -130,140 -130,60"
+          fill="none" stroke="url(#ring2)" stroke-width="28" stroke-linecap="round" opacity="0.85"/>
 
-  <!-- Three eggs -->
-  <g transform="translate(256, 310)">
-    <!-- Left egg -->
-    <g transform="translate(-55, -8) rotate(-12)">
-      <ellipse cx="0" cy="0" rx="28" ry="38" fill="url(#egg1)"/>
-      <ellipse cx="-4" cy="-6" rx="12" ry="18" fill="#fff" opacity="0.7"/>
-    </g>
-    <!-- Center egg (slightly higher) -->
-    <g transform="translate(0, -18)">
-      <ellipse cx="0" cy="0" rx="30" ry="40" fill="url(#egg1)"/>
-      <ellipse cx="-5" cy="-8" rx="13" ry="19" fill="#fff" opacity="0.7"/>
-    </g>
-    <!-- Right egg -->
-    <g transform="translate(55, -6) rotate(10)">
-      <ellipse cx="0" cy="0" rx="28" ry="38" fill="url(#egg1)"/>
-      <ellipse cx="-4" cy="-5" rx="12" ry="17" fill="#fff" opacity="0.7"/>
-    </g>
+    <!-- Center knot - the interlocking point -->
+    <ellipse cx="0" cy="0" rx="42" ry="42" fill="url(#accent)" opacity="0.6"/>
+    <ellipse cx="0" cy="0" rx="28" ry="28" fill="url(#ring1)"/>
+
+    <!-- Top arc highlight -->
+    <path d="M-100,-140 C-60,-180 60,-180 100,-140"
+          fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity="0.25"/>
+
+    <!-- Bottom arc shadow -->
+    <path d="M-100,140 C-60,180 60,180 100,140"
+          fill="none" stroke="#b8733a" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
   </g>
 </svg>
