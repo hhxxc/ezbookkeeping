@@ -556,11 +556,11 @@ init();
 .home-summary-income-value {
     font-size: 1em;
     font-weight: 600;
-    color: #16a34a;
+    color: #07c160;
 }
 
 .dark .home-summary-income-value {
-    color: #86efac;
+    color: #6ee7b7;
 }
 
 .home-summary-card .ebk-hide-icon {
