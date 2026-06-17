@@ -6,35 +6,30 @@
 
         <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="showBackgroundGallery = true">
             <f7-link class="home-card-gallery-btn" @click="showBackgroundGallery = true">
-                <f7-icon f7="photo_on_rectangle" style="font-size: 18px; color: rgba(255,255,255,0.7);"></f7-icon>
+                <f7-icon f7="photo_on_rectangle" style="font-size: 16px; color: rgba(0,0,0,0.35);"></f7-icon>
             </f7-link>
-            <f7-card-header class="display-block" style="padding: 100px 24px 20px 28px;">
-                <p class="no-margin">
-                    <span class="card-header-content" v-if="loading">
-                        <span class="home-summary-month">Month</span>
-                        <span>·</span>
-                        <small>Expense</small>
+            <f7-card-header class="display-block" style="padding: 20px 20px 16px;">
+                <div class="home-summary-row">
+                    <span class="home-summary-label">
+                        <span v-if="loading">{{ displayDateRange?.thisMonth?.displayTime }}</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.thisMonth?.displayTime }}</span>
                     </span>
-                    <span class="card-header-content" v-else-if="!loading">
-                        <span class="home-summary-month">{{ displayDateRange?.thisMonth?.displayTime }}</span>
-                        <span>·</span>
-                        <small>{{ tt('Expense') }}</small>
-                    </span>
-                </p>
-                <p class="no-margin">
-                    <span class="month-expense" v-if="loading">0.00 USD</span>
-                    <span class="month-expense" v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayExpenseAmount(transactionOverview.thisMonth) : '-' }}</span>
+                    <span class="home-summary-badge expense-badge">{{ tt('Expense') }}</span>
+                </div>
+                <div class="home-summary-amount expense-amount">
+                    <span v-if="loading">0.00</span>
+                    <span v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayExpenseAmount(transactionOverview.thisMonth) : '-' }}</span>
                     <f7-link class="display-inline-flex margin-inline-start-half" @click="showAmountInHomePage = !showAmountInHomePage">
                         <f7-icon class="ebk-hide-icon" :f7="showAmountInHomePage ? 'eye_slash_fill' : 'eye_fill'"></f7-icon>
                     </f7-link>
-                </p>
-                <p class="no-margin">
-                    <small class="home-summary-misc" v-if="loading">Monthly income 0.00 USD</small>
-                    <small class="home-summary-misc" v-else-if="!loading">
-                        <span>{{ tt('Monthly income') }}</span>
-                        <span>{{ transactionOverview && transactionOverview.thisMonth ? getDisplayIncomeAmount(transactionOverview.thisMonth) : '-' }}</span>
-                    </small>
-                </p>
+                </div>
+                <div class="home-summary-income-row">
+                    <span class="home-summary-income-label">{{ tt('Monthly income') }}</span>
+                    <span class="home-summary-income-value">
+                        <span v-if="loading">0.00</span>
+                        <span v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayIncomeAmount(transactionOverview.thisMonth) : '-' }}</span>
+                    </span>
+                </div>
             </f7-card-header>
         </f7-card>
 
@@ -441,13 +436,18 @@ init();
 
 <style>
 .home-summary-card {
-    background: var(--ebk-primary-gradient);
+    background: #fff;
     border-radius: var(--ebk-card-border-radius);
-    color: #fff;
+    color: #1a1a1a;
     overflow: hidden;
-    margin-top: 14px;
+    margin: 12px 16px !important;
     border: none;
     outline: none;
+}
+
+.dark .home-summary-card {
+    background: #1c1c1e;
+    color: #f0f0f0;
 }
 
 .home-summary-card::before,
@@ -463,71 +463,113 @@ init();
 
 .home-card-gallery-btn {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     z-index: 5;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.2);
-    transition: background 0.15s ease;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .home-card-gallery-btn {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .home-card-gallery-btn:active {
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(0, 0, 0, 0.08);
 }
 
-.home-summary-card::before {
-    content: '';
-    position: absolute;
-    top: -40%;
-    right: -20%;
-    width: 200px;
-    height: 200px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 50%;
-    pointer-events: none;
+.dark .home-card-gallery-btn:active {
+    background: rgba(255, 255, 255, 0.15);
 }
 
-.home-summary-card .card-header-content {
+.home-summary-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
 }
 
-.home-summary-card .home-summary-month {
-    font-size: 1.3em;
+.home-summary-label {
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+.home-summary-badge {
+    font-size: 0.72em;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
     letter-spacing: 0.02em;
 }
 
-.home-summary-card .month-expense {
+.expense-badge {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.dark .expense-badge {
+    background: rgba(220, 38, 38, 0.15);
+    color: #fca5a5;
+}
+
+.home-summary-amount {
     font-size: 2em;
     font-weight: 700;
     letter-spacing: -0.02em;
+    margin-bottom: 8px;
 }
 
-.home-summary-card .home-summary-misc {
-    font-size: 0.95em;
+.expense-amount {
+    color: #dc2626;
 }
 
-.home-summary-card a {
-    color: #fff;
+.dark .expense-amount {
+    color: #fca5a5;
+}
+
+.home-summary-income-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dark .home-summary-income-row {
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.home-summary-income-label {
+    font-size: 0.88em;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.dark .home-summary-income-label {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.home-summary-income-value {
+    font-size: 1em;
+    font-weight: 600;
+    color: #16a34a;
+}
+
+.dark .home-summary-income-value {
+    color: #86efac;
 }
 
 .home-summary-card .ebk-hide-icon {
-    color: #fff;
+    color: rgba(0, 0, 0, 0.25);
+    font-size: 18px;
 }
 
-.home-summary-misc > span {
-    margin-inline-end: 4px;
-}
-
-.home-summary-misc > span:last-child {
-    margin-inline-end: 0;
-}
-
-.dark .home-summary-card {
-    background: var(--ebk-primary-gradient-dark);
+.dark .home-summary-card .ebk-hide-icon {
+    color: rgba(255, 255, 255, 0.35);
 }
 
 .overview-transaction-list .item-title > div {
