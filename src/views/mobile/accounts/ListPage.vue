@@ -14,10 +14,9 @@
         </f7-navbar>
 
         <f7-card class="account-overview-card" :class="{ 'skeleton-text': loading }" :style="accountOverviewCardStyle">
-            <f7-card-header class="display-block" style="padding-top: 120px;">
+            <f7-card-header class="display-block" style="padding: 20px 20px 16px;">
                 <p class="no-margin">
-                    <small class="card-header-content" v-if="loading">Net assets</small>
-                    <small class="card-header-content" v-else-if="!loading">{{ tt('Net assets') }}</small>
+                    <small class="account-overview-label">{{ tt('Net assets') }}</small>
                 </p>
                 <p class="no-margin">
                     <span class="net-assets" v-if="loading">0.00 USD</span>
@@ -26,18 +25,12 @@
                         <f7-icon class="ebk-hide-icon" :f7="showAccountBalance ? 'eye_slash_fill' : 'eye_fill'"></f7-icon>
                     </f7-link>
                 </p>
-                <p class="no-margin">
-                    <small class="account-overview-info" v-if="loading">
-                        <span>Total assets | Total liabilities</span>
-                    </small>
-                    <small class="account-overview-info" v-else-if="!loading">
-                        <span>{{ tt('Total assets') }}</span>
-                        <span>{{ totalAssets }}</span>
-                        <span>|</span>
-                        <span>{{ tt('Total liabilities') }}</span>
-                        <span>{{ totalLiabilities }}</span>
-                    </small>
-                </p>
+                <div class="account-overview-divider"></div>
+                <div class="account-overview-row">
+                    <span class="account-overview-total positive">{{ tt('Total assets') }} <strong>{{ totalAssets }}</strong></span>
+                    <span class="account-overview-divider-vertical">|</span>
+                    <span class="account-overview-total negative">{{ tt('Total liabilities') }} <strong>{{ totalLiabilities }}</strong></span>
+                </div>
             </f7-card-header>
         </f7-card>
 
@@ -596,32 +589,73 @@ init();
 
 <style>
 .account-overview-card {
-    background-color: var(--f7-color-yellow);
+    background: #fff;
 }
 
 .dark .account-overview-card {
-    background-color: var(--f7-theme-color);
+    background: #1c1c1e;
 }
 
 .dark .account-overview-card a {
     color: var(--f7-text-color);
-    opacity: 0.6;
+}
+
+.account-overview-label {
+    font-size: 0.88em;
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.dark .account-overview-label {
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .net-assets {
     font-size: 1.5em;
+    font-weight: 700;
 }
 
-.account-overview-info {
-    opacity: 0.6;
+.account-overview-divider {
+    height: 1px;
+    background: rgba(0, 0, 0, 0.06);
+    margin: 10px 0;
 }
 
-.account-overview-info > span {
-    margin-inline-end: 4px;
+.dark .account-overview-divider {
+    background: rgba(255, 255, 255, 0.08);
 }
 
-.account-overview-info > span:last-child {
-    margin-inline-end: 0;
+.account-overview-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.account-overview-total {
+    font-size: 0.85em;
+}
+
+.account-overview-total.positive {
+    color: #16a34a;
+}
+
+.dark .account-overview-total.positive {
+    color: #86efac;
+}
+
+.account-overview-total.negative {
+    color: #dc2626;
+}
+
+.dark .account-overview-total.negative {
+    color: #fca5a5;
+}
+
+.account-overview-divider-vertical {
+    color: rgba(0, 0, 0, 0.15);
+}
+
+.dark .account-overview-divider-vertical {
+    color: rgba(255, 255, 255, 0.15);
 }
 
 .account-list {
