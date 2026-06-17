@@ -635,11 +635,11 @@ init();
 }
 
 .account-overview-total.positive {
-    color: #16a34a;
+    color: #07c160;
 }
 
 .dark .account-overview-total.positive {
-    color: #86efac;
+    color: #6ee7b7;
 }
 
 .account-overview-total.negative {
