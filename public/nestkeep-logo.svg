@@ -1,47 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#c67e48"/>
-      <stop offset="50%" stop-color="#d4955a"/>
-      <stop offset="100%" stop-color="#e8a87c"/>
+      <stop offset="0%" stop-color="#533afd"/>
+      <stop offset="50%" stop-color="#665efd"/>
+      <stop offset="100%" stop-color="#8e8afc"/>
     </linearGradient>
     <linearGradient id="ring1" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f5f0e8"/>
+      <stop offset="100%" stop-color="#e8e5ff"/>
     </linearGradient>
     <linearGradient id="ring2" x1="1" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f5f0e8"/>
+      <stop offset="100%" stop-color="#e8e5ff"/>
     </linearGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e8a87c"/>
-      <stop offset="100%" stop-color="#c67e48"/>
+      <stop offset="0%" stop-color="#8e8afc"/>
+      <stop offset="100%" stop-color="#533afd"/>
     </linearGradient>
   </defs>
 
-  <!-- Rounded rectangle background (iOS icon style) -->
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
 
-  <!-- Interlocking rings - representing nest/cycle/home -->
   <g transform="translate(256, 256)">
-    <!-- Left outer ring -->
     <path d="M130,-60 C130,-140 60,-200 0,-200 C-60,-200 -130,-140 -130,-60"
           fill="none" stroke="url(#ring1)" stroke-width="28" stroke-linecap="round" opacity="0.95"/>
 
-    <!-- Right outer ring -->
     <path d="M130,60 C130,140 60,200 0,200 C-60,200 -130,140 -130,60"
           fill="none" stroke="url(#ring2)" stroke-width="28" stroke-linecap="round" opacity="0.85"/>
 
-    <!-- Center knot - the interlocking point -->
     <ellipse cx="0" cy="0" rx="42" ry="42" fill="url(#accent)" opacity="0.6"/>
     <ellipse cx="0" cy="0" rx="28" ry="28" fill="url(#ring1)"/>
 
-    <!-- Top arc highlight -->
     <path d="M-100,-140 C-60,-180 60,-180 100,-140"
           fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity="0.25"/>
 
-    <!-- Bottom arc shadow -->
     <path d="M-100,140 C-60,180 60,180 100,140"
-          fill="none" stroke="#b8733a" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
+          fill="none" stroke="#3a25cc" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
   </g>
 </svg>
