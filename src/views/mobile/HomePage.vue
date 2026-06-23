@@ -364,7 +364,7 @@ function init(): void {
         loading.value = true;
 
         // Load overview first for fast initial paint, then warm caches in background
-        overviewStore.loadTransactionOverview({ force: false }).then(() => {
+        overviewStore.loadTransactionOverview({ force: false, loadLast11Months: true }).then(() => {
             loading.value = false;
         }).catch(error => {
             loading.value = false;
@@ -395,7 +395,8 @@ function reload(done?: () => void): void {
     const force = !!done;
 
     overviewStore.loadTransactionOverview({
-        force: force
+        force: force,
+        loadLast11Months: true
     }).then(() => {
         done?.();
 
