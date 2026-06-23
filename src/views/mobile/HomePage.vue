@@ -130,6 +130,36 @@
                 </template>
             </f7-list-item>
 
+            <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.LastMonth.type, minTime: (displayDateRange?.lastMonth?.startTime || 0).toString(), maxTime: (displayDateRange?.lastMonth?.endTime || 0).toString() })}`" chevron-center>
+                <template #media>
+                    <f7-icon f7="calendar"></f7-icon>
+                </template>
+                <template #title>
+                    <div class="padding-top-half">
+                        <span v-if="loading">{{ tt('Last Month') }}</span>
+                        <span v-else-if="!loading">{{ tt('Last Month') }}</span>
+                    </div>
+                </template>
+                <template #footer>
+                    <div class="overview-transaction-footer padding-bottom-half">
+                        <span v-if="loading">MM</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.lastMonth?.displayTime }}</span>
+                    </div>
+                </template>
+                <template #after>
+                    <div class="overview-transaction-amount">
+                        <div class="text-income text-align-right">
+                            <small v-if="loading">0.00 USD</small>
+                            <small v-else-if="!loading && transactionOverview.lastMonth && transactionOverview.lastMonth.valid">{{ getDisplayIncomeAmount(transactionOverview.lastMonth) }}</small>
+                        </div>
+                        <div class="text-expense text-align-right">
+                            <small v-if="loading">0.00 USD</small>
+                            <small v-else-if="!loading && transactionOverview.lastMonth && transactionOverview.lastMonth.valid">{{ getDisplayExpenseAmount(transactionOverview.lastMonth) }}</small>
+                        </div>
+                    </div>
+                </template>
+            </f7-list-item>
+
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.ThisYear.type })}`" chevron-center>
                 <template #media>
                     <f7-icon f7="square_stack_3d_up"></f7-icon>
