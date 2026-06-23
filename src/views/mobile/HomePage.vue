@@ -136,8 +136,17 @@
                 </template>
                 <template #title>
                     <div class="padding-top-half">
-                        <span v-if="loading">{{ tt('This Month') }}</span>
-                        <span v-else-if="!loading">{{ displayDateRange?.lastMonth?.displayTime }}</span>
+                        <span v-if="loading">This Month</span>
+                        <span v-else-if="!loading">{{ tt('This Month') }}</span>
+                    </div>
+                </template>
+                <template #footer>
+                    <div class="overview-transaction-footer padding-bottom-half">
+                        <span v-if="loading">MM/DD</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.lastMonth?.startTime }}</span>
+                        <span>-</span>
+                        <span v-if="loading">MM/DD</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.lastMonth?.endTime }}</span>
                     </div>
                 </template>
                 <template #after>
