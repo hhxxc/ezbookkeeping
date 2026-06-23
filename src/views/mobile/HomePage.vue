@@ -137,7 +137,7 @@
                 <template #title>
                     <div class="padding-top-half">
                         <span v-if="loading">Last Month</span>
-                        <span v-else-if="!loading">{{ tt('Last Month') }}</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.lastMonth?.displayTime || tt('Last Month') }}</span>
                     </div>
                 </template>
                 <template #footer>
