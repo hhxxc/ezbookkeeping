@@ -122,16 +122,16 @@ input[type=number] {
 }
 
 /** Replacing the default style of framework7 **/
-/* Dark mode: pure black, no gray */
+/* Dark mode: warm dark gray for eye comfort */
 :root.dark {
-    --f7-page-bg-color: #000;
-    --f7-page-bg-color-rgb: 0, 0, 0;
-    --f7-card-bg-color: #111;
-    --f7-list-bg-color: #111;
-    --f7-list-strong-bg-color: #1a1a1a;
-    --f7-list-strong-bg-color-rgb: 26, 26, 26;
-    --f7-navbar-bg-color: #000;
-    --f7-toolbar-bg-color: #000;
+    --f7-page-bg-color: #1a1a1e;
+    --f7-page-bg-color-rgb: 26, 26, 30;
+    --f7-card-bg-color: #252530;
+    --f7-list-bg-color: #252530;
+    --f7-list-strong-bg-color: #2c2c38;
+    --f7-list-strong-bg-color-rgb: 44, 44, 56;
+    --f7-navbar-bg-color: #1a1a1e;
+    --f7-toolbar-bg-color: #1a1a1e;
 }
 
 :root {
@@ -457,7 +457,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dark .ios .navbar {
-    background: #000;
+    background: #1a1a1e;
 }
 
 .ios .navbar .navbar-inner {
@@ -466,7 +466,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 .ios.dark .navbar .navbar-inner,
 .ios .dark .navbar .navbar-inner {
-    background: #000;
+    background: #252530;
 }
 
 /* Enhanced list items */
@@ -541,7 +541,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dark .toolbar.tabbar {
-    background: #000;
+    background: #1a1a1e;
 }
 
 .ios .toolbar.tabbar::before {
