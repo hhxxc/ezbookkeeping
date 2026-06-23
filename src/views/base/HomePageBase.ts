@@ -72,6 +72,11 @@ export function useHomePageBase() {
             },
             thisYear: {
                 displayTime: formatDateTimeToGregorianLikeLongYear(parseDateTimeFromUnixTime(overviewStore.transactionDataRange.thisYear.startTime))
+            },
+            lastMonth: {
+                displayTime: formatDateTimeToGregorianLikeLongMonth(parseDateTimeFromUnixTime(overviewStore.transactionDataRange.lastMonth.startTime)),
+                startTime: formatDateTimeToLongMonthDay(parseDateTimeFromUnixTime(overviewStore.transactionDataRange.lastMonth.startTime)),
+                endTime: formatDateTimeToLongMonthDay(parseDateTimeFromUnixTime(overviewStore.transactionDataRange.lastMonth.endTime))
             }
         };
     });
