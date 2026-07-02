@@ -647,7 +647,6 @@ import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts'
 import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
 
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
-import logger from '@/lib/logger.ts';
 
 import {
     isDefined,
@@ -1492,9 +1491,6 @@ function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse
     const batchStore = batchRecognitionStore;
     batchStore.isProcessing.value = false;
 
-    // Sheet confirm() doesn't track batch queue — advance index here
-    batchStore.skipCurrentImage();
-
     const params: string[] = [];
 
     if (result.type) params.push(`type=${result.type}`);
@@ -1513,65 +1509,6 @@ function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse
     params.push(`batchTotal=${batchStore.totalCount}`);
 
     props.f7router.navigate(`/transaction/add?${params.join('&')}`);
-}
-
-function checkAndProcessBatchQueue(): void {
-    if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
-        batchRecognitionStore.isProcessing.value = true;
-        processBatchQueue();
-    }
-}
-
-async function processBatchQueue(): Promise<void> {
-    const batchStore = batchRecognitionStore;
-
-    while (batchStore.hasNext) {
-        try {
-            showLoading();
-
-            const result = await batchStore.processNextImage();
-
-            hideLoading();
-
-            if (!result) {
-                batchStore.reset();
-                return;
-            }
-
-            const params: string[] = [];
-
-            if (result.type) params.push(`type=${result.type}`);
-            if (result.time) params.push(`time=${result.time}`);
-            if (result.categoryId) params.push(`categoryId=${result.categoryId}`);
-            if (result.sourceAccountId) params.push(`accountId=${result.sourceAccountId}`);
-            if (result.destinationAccountId) params.push(`destinationAccountId=${result.destinationAccountId}`);
-            if (result.sourceAmount) params.push(`amount=${result.sourceAmount}`);
-            if (result.destinationAmount) params.push(`destinationAmount=${result.destinationAmount}`);
-            if (result.tagIds) params.push(`tagIds=${result.tagIds.join(',')}`);
-            if (result.comment) params.push(`comment=${encodeURIComponent(result.comment)}`);
-
-            params.push('noTransactionDraft=true');
-            params.push('batchMode=true');
-            params.push(`batchCurrent=${batchStore.currentIndex}`);
-            params.push(`batchTotal=${batchStore.totalCount}`);
-
-            batchStore.isProcessing.value = false;
-
-            props.f7router.navigate(`/transaction/add?${params.join('&')}`);
-            return;
-        } catch (error: any) {
-            hideLoading();
-            logger.error('[batch] Error processing image', error);
-            if (!batchStore.hasNext) {
-                batchStore.reset();
-                showToast('Batch processing completed with errors');
-                return;
-            }
-        }
-    }
-
-    batchStore.reset();
-    showToast('All receipts processed');
 }
 
 function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
@@ -1624,8 +1561,6 @@ function onPageAfterIn(): void {
     }
 
     routeBackOnError(props.f7router, loadingError);
-
-    checkAndProcessBatchQueue();
 }
 
 function onResize(): void {
