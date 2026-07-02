@@ -221,7 +221,7 @@
                     v-model:opened="showTransactionTemplatePopover">
             <f7-list dividers v-if="allTransactionTemplates">
                 <f7-list-item key="AIImageRecognition" :title="tt('AI Image Recognition')"
-                              @click="showAIReceiptImageRecognitionSheet = true; showTransactionTemplatePopover = false"
+                              @click="showAIBatchReceiptImageRecognitionSheet = true; showTransactionTemplatePopover = false"
                               v-if="isTransactionFromAIImageRecognitionEnabled()">
                     <template #media>
                         <f7-icon f7="wand_stars"></f7-icon>
@@ -239,7 +239,8 @@
 
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
-                                     @recognition:change="onReceiptRecognitionChanged"/>
+                                     :is-batch-mode="true"
+                                     @recognition:change="onBatchReceiptRecognitionChanged"/>
         <a-i-image-recognition-sheet ref="aiBatchImageRecognitionSheet"
                                      v-model:show="showAIBatchReceiptImageRecognitionSheet"
                                      :is-batch-mode="true"
