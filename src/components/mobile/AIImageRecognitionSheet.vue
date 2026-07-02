@@ -152,7 +152,7 @@ function openImage(event: Event): void {
 }
 
 function confirm(): void {
-    if (loading.value || recognizing.value || !imageFile.value) {
+    if (recognizing.value || !imageFile.value) {
         return;
     }
 
