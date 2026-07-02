@@ -80,6 +80,12 @@ export const useBatchRecognitionStore = defineStore('batchRecognition', () => {
         }
     }
 
+    function skipCurrentImage(): void {
+        if (currentIndex.value < imageQueue.value.length) {
+            currentIndex.value++;
+        }
+    }
+
     return {
         imageQueue,
         results,
@@ -89,6 +95,7 @@ export const useBatchRecognitionStore = defineStore('batchRecognition', () => {
         hasNext,
         reset,
         setImages,
-        processNextImage
+        processNextImage,
+        skipCurrentImage
     };
 });
