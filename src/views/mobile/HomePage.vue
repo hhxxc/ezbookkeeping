@@ -227,13 +227,6 @@
                         <f7-icon f7="wand_stars"></f7-icon>
                     </template>
                 </f7-list-item>
-                <f7-list-item key="AIBatchRecognition" :title="tt('Batch AI Recognition')"
-                              @click="showAIBatchReceiptImageRecognitionSheet = true; showTransactionTemplatePopover = false"
-                              v-if="isTransactionFromAIImageRecognitionEnabled()">
-                    <template #media>
-                        <f7-icon f7="photo_on_rectangle"></f7-icon>
-                    </template>
-                </f7-list-item>
                 <f7-list-item :key="template.id" :title="template.name"
                               :link="'/transaction/add?templateId=' + template.id"
                               v-for="template in allTransactionTemplates">
