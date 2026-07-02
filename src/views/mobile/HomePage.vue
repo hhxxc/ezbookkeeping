@@ -289,6 +289,7 @@ import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
+import logger from '@/lib/logger.ts';
 import { KnownFileType } from '@/core/file.ts';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '@/consts/file.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
@@ -546,10 +547,12 @@ function startBatchRecognition(): void {
         }
         el.value = '';
 
+        logger.info(`[batch] Selected ${images.length} images`);
         batchRecognitionStore.setImages(images);
         batchRecognitionStore.isProcessing.value = true;
 
         // Process first image directly, bypassing sheet entirely
+        logger.info(`[batch] Starting processNextBatchItem`);
         processNextBatchItem();
     };
     input.click();
@@ -565,6 +568,7 @@ function processNextBatchItem(): void {
     const batchStore = batchRecognitionStore;
 
     if (!batchStore.hasNext) {
+        logger.info('[batch] No more items, resetting');
         batchStore.reset();
         return;
     }
@@ -573,10 +577,12 @@ function processNextBatchItem(): void {
 
     const image = batchStore.getNextImage();
     if (!image) {
+        logger.error('[batch] getNextImage returned null');
         batchStore.reset();
         return;
     }
 
+    logger.info(`[batch] Processing ${batchStore.currentIndex + 1}/${batchStore.totalCount}`);
     showToast(`Processing ${batchStore.currentIndex + 1} of ${batchStore.totalCount}`);
 
     // Compress and auto-recognize
@@ -584,10 +590,12 @@ function processNextBatchItem(): void {
         const imageFile = KnownFileType.JPG.createFileFromBlob(blob, 'image');
         const cancelUuid = generateRandomUUID();
 
+        logger.info('[batch] Compressed, calling recognizeReceiptImage');
         transactionsStore.recognizeReceiptImage({
             imageFile: imageFile,
             cancelableUuid: cancelUuid
         }).then(result => {
+            logger.info('[batch] Recognition succeeded, navigating to edit page');
             batchStore.addResult(result);
             batchStore.isProcessing.value = false;
 
@@ -611,6 +619,7 @@ function processNextBatchItem(): void {
 
             props.f7router.navigate(`/transaction/add?${params.join('&')}`);
         }).catch(error => {
+            logger.error('[batch] Recognition failed', error);
             batchStore.isProcessing.value = false;
             showToast(error.message || 'Recognition failed');
         });
