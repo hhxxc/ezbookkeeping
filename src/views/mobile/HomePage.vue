@@ -255,7 +255,7 @@
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
-                    @click="showAIBatchReceiptImageRecognitionSheet = true">
+                    @click="startBatchRecognition">
                 <f7-icon f7="camera"></f7-icon>
             </f7-fab>
         </template>
@@ -290,6 +290,7 @@ import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_setting
 import { compressJpgImage } from '@/lib/ui/common.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { KnownFileType } from '@/core/file.ts';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@/consts/file.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
 
@@ -524,12 +525,34 @@ function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
     homeGalleryBackgroundId.value = settingsStore.appSettings.homeGalleryBackgroundId || '';
 
-    // Check if batch recognition has more items to process
-    checkAndProcessBatchQueue();
-
     if (!loading.value) {
         reload();
     }
+}
+
+function startBatchRecognition(): void {
+    // Create a hidden file input and trigger it
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = SUPPORTED_IMAGE_MIME_TYPES;
+    input.multiple = true;
+    input.onchange = (event) => {
+        const el = event.target as HTMLInputElement;
+        if (!el.files || !el.files.length) return;
+
+        const images: Blob[] = [];
+        for (let i = 0; i < el.files.length; i++) {
+            images.push(el.files[i] as File);
+        }
+        el.value = '';
+
+        batchRecognitionStore.setImages(images);
+        batchRecognitionStore.isProcessing.value = true;
+
+        // Process first image directly, bypassing sheet entirely
+        processNextBatchItem();
+    };
+    input.click();
 }
 
 function checkAndProcessBatchQueue(): void {
