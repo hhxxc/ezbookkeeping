@@ -22,18 +22,25 @@
                         <span>{{ tt('Tap to change image') }}</span>
                     </div>
                 </div>
-                <div class="image-placeholder" v-else-if="!loading">
+                <div class="image-placeholder" v-else-if="!loading && !isBatchMode">
                     <div class="placeholder-icon">
                         <f7-icon f7="camera_fill" size="40" color="gray"></f7-icon>
                     </div>
                     <span class="placeholder-title">{{ tt('Tap to select image') }}</span>
                     <small class="placeholder-hint">{{ tt('Select a receipt or transaction screenshot to recognize') }}</small>
                 </div>
+                <div class="image-placeholder" v-else-if="!loading && isBatchMode">
+                    <div class="placeholder-icon">
+                        <f7-icon f7="photo_on_rectangle" size="40" color="gray"></f7-icon>
+                    </div>
+                    <span class="placeholder-title">{{ tt('Select multiple images') }}</span>
+                    <small class="placeholder-hint">{{ tt('Select multiple receipts, each will be recognized and added one by one') }}</small>
+                </div>
                 <div class="image-placeholder" v-else-if="loading">
                     <f7-preloader size="32"></f7-preloader>
                     <span class="placeholder-title margin-top-half">{{ tt('Loading image...') }}</span>
                 </div>
-                <input ref="imageInput" type="file" class="file-input-overlay" :accept="SUPPORTED_IMAGE_MIME_TYPES" :disabled="loading || recognizing" @change="openImage($event)" />
+                <input ref="imageInput" type="file" class="file-input-overlay" :accept="SUPPORTED_IMAGE_MIME_TYPES" :multiple="isBatchMode" :disabled="loading || recognizing" @change="openImage($event)" />
             </div>
             <div class="privacy-notice">
                 <small>{{ tt('Uploaded image and personal data will be sent to the large language model, please be aware of potential privacy risks.') }}</small>
@@ -45,12 +52,13 @@
 
 
 <script setup lang="ts">
-import { ref, useTemplateRef } from 'vue';
+import { ref, useTemplateRef, useAttrs } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, closeAllDialog } from '@/lib/ui/mobile.ts';
 
 import { useTransactionsStore } from '@/stores/transaction.ts';
+import { useBatchRecognitionStore } from '@/stores/batchRecognition.ts';
 
 import { KnownFileType } from '@/core/file.ts';
 import { SUPPORTED_IMAGE_MIME_TYPES } from '@/consts/file.ts';
@@ -64,6 +72,7 @@ import logger from '@/lib/logger.ts';
 
 defineProps<{
     show: boolean;
+    isBatchMode?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -75,6 +84,7 @@ const { tt } = useI18n();
 const { showCancelableLoading, showToast, showConfirm } = useI18nUIComponents();
 
 const transactionsStore = useTransactionsStore();
+const batchRecognitionStore = useBatchRecognitionStore();
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
@@ -83,6 +93,7 @@ const recognizing = ref<boolean>(false);
 const cancelRecognizingUuid = ref<string | undefined>(undefined);
 const imageFile = ref<File | null>(null);
 const imageSrc = ref<string | undefined>(undefined);
+const batchImages = ref<Blob[]>([]);
 
 function loadImage(image: Blob): void {
     loading.value = true;
@@ -113,11 +124,25 @@ function openImage(event: Event): void {
         return;
     }
 
-    const image = el.files[0] as File;
+    const props = useAttrs();
+    const isBatch = props.isBatchMode === true;
 
-    el.value = '';
-
-    loadImage(image);
+    if (isBatch) {
+        // Batch mode: store all images in queue
+        const images: Blob[] = [];
+        for (let i = 0; i < el.files.length; i++) {
+            images.push(el.files[i] as File);
+        }
+        el.value = '';
+        batchRecognitionStore.setImages(images);
+        // Auto-recognize the first one
+        loadImage(images[0]);
+        batchRecognitionStore.isProcessing.value = true;
+    } else {
+        const image = el.files[0] as File;
+        el.value = '';
+        loadImage(image);
+    }
 }
 
 function confirm(): void {
