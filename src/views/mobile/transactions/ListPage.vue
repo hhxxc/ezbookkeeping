@@ -587,12 +587,16 @@
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
+        <a-i-image-recognition-sheet ref="aiBatchImageRecognitionSheet"
+                                     v-model:show="showAIBatchReceiptImageRecognitionSheet"
+                                     :is-batch-mode="true"
+                                     @recognition:change="onBatchReceiptRecognitionChanged"/>
 
         <template #fixed>
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
-                    @click="showAIReceiptImageRecognitionSheet = true">
+                    @click="showAIBatchReceiptImageRecognitionSheet = true">
                 <f7-icon f7="camera"></f7-icon>
             </f7-fab>
         </template>
@@ -738,6 +742,7 @@ const {
 } = useTransactionListPageBase();
 
 const environmentsStore = useEnvironmentsStore();
+const batchRecognitionStore = useBatchRecognitionStore();
 const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTagsStore = useTransactionTagsStore();
@@ -753,8 +758,10 @@ const showCustomDateRangeSheet = ref<boolean>(false);
 const showCustomMonthSheet = ref<boolean>(false);
 const showDeleteActionSheet = ref<boolean>(false);
 const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
+const showAIBatchReceiptImageRecognitionSheet = ref<boolean>(false);
 
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
+const aiBatchImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiBatchImageRecognitionSheet');
 
 const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
 const isDarkMode = computed<boolean>(() => environmentsStore.framework7DarkMode || false);
@@ -1478,6 +1485,31 @@ function onPopoverOpen(event: { $el: Framework7Dom }): void {
 
 function onCategoryPopoverOpen(event: { $el: Framework7Dom }): void {
     scrollToSelectedItem(event.$el[0], '.popover-inner', '.popover-inner', 'li.list-item-checked');
+}
+
+function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
+    const batchStore = batchRecognitionStore;
+    batchStore.addResult(result);
+    batchStore.isProcessing.value = false;
+
+    const params: string[] = [];
+
+    if (result.type) params.push(`type=${result.type}`);
+    if (result.time) params.push(`time=${result.time}`);
+    if (result.categoryId) params.push(`categoryId=${result.categoryId}`);
+    if (result.sourceAccountId) params.push(`accountId=${result.sourceAccountId}`);
+    if (result.destinationAccountId) params.push(`destinationAccountId=${result.destinationAccountId}`);
+    if (result.sourceAmount) params.push(`amount=${result.sourceAmount}`);
+    if (result.destinationAmount) params.push(`destinationAmount=${result.destinationAmount}`);
+    if (result.tagIds) params.push(`tagIds=${result.tagIds.join(',')}`);
+    if (result.comment) params.push(`comment=${encodeURIComponent(result.comment)}`);
+
+    params.push('noTransactionDraft=true');
+    params.push('batchMode=true');
+    params.push(`batchCurrent=${batchStore.currentIndex}`);
+    params.push(`batchTotal=${batchStore.totalCount}`);
+
+    props.f7router.navigate(`/transaction/add?${params.join('&')}`);
 }
 
 function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
