@@ -105,6 +105,10 @@ function loadImage(image: Blob): void {
         imageFile.value = KnownFileType.JPG.createFileFromBlob(blob, "image");
         imageSrc.value = URL.createObjectURL(blob);
         loading.value = false;
+        // Auto-recognize for batch mode
+        if (props.isBatchMode) {
+            confirm();
+        }
     }).catch(error => {
         imageFile.value = null;
         imageSrc.value = undefined;
