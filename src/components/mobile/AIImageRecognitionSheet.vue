@@ -168,15 +168,6 @@ function confirm(): void {
         cancelRecognizingUuid.value = undefined;
         closeAllDialog();
 
-        // Advance batch queue index so continuation processes the next image
-        if (props.isBatchMode) {
-            try {
-                batchRecognitionStore.skipCurrentImage();
-            } catch (e) {
-                logger.error('failed to advance batch index', e);
-            }
-        }
-
         findPotentialDuplicateTransactions(response).then(duplicates => {
             if (duplicates.length > 0) {
                 const details = buildDuplicateConfirmMessage(duplicates);
@@ -190,10 +181,6 @@ function confirm(): void {
                 emit('update:show', false);
                 emit('recognition:change', response);
             }
-        }).catch(e => {
-            logger.error('failed to check duplicate transactions', e);
-            emit('update:show', false);
-            emit('recognition:change', response);
         });
     }).catch(error => {
         if (error.canceled) {
