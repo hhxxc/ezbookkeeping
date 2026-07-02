@@ -78,6 +78,7 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'update:show', value: boolean): void;
     (e: 'recognition:change', value: RecognizedReceiptImageResponse): void;
+    (e: 'batch:next'): void;
 }>();
 
 const { tt } = useI18n();
@@ -138,6 +139,8 @@ function openImage(event: Event): void {
         // Auto-recognize the first one
         loadImage(images[0]);
         batchRecognitionStore.isProcessing.value = true;
+        // Emit batch:next so parent knows we're in batch mode
+        emit('batch:next');
     } else {
         const image = el.files[0] as File;
         el.value = '';
