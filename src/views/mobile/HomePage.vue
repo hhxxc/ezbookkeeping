@@ -255,7 +255,7 @@
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
-                    @click="showAIBatchReceiptImageRecognitionSheet = true">
+                    @click="startBatchRecognition">
                 <f7-icon f7="camera"></f7-icon>
             </f7-fab>
         </template>
@@ -270,7 +270,7 @@ import { ref, computed, useTemplateRef, watch } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { useI18nUIComponents, showLoading, hideLoading } from '@/lib/ui/mobile.ts';
+import { useI18nUIComponents } from '@/lib/ui/mobile.ts';
 import { useHomePageBase } from '@/views/base/HomePageBase.ts';
 
 import { useAccountsStore } from '@/stores/account.ts';
@@ -474,9 +474,6 @@ function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse
     const batchStore = batchRecognitionStore;
     batchStore.isProcessing.value = false;
 
-    // Sheet confirm() doesn't track batch queue — advance index here
-    batchStore.skipCurrentImage();
-
     // Navigate to edit page with batch params
     const params: string[] = [];
 
@@ -531,8 +528,6 @@ function onPageAfterIn(): void {
     if (!loading.value) {
         reload();
     }
-
-    checkAndProcessBatchQueue();
 }
 
 function startBatchRecognition(): void {
@@ -570,11 +565,7 @@ async function processBatchQueue(): Promise<void> {
 
     while (batchStore.hasNext) {
         try {
-            showLoading();
-
             const result = await batchStore.processNextImage();
-
-            hideLoading();
 
             if (!result) {
                 batchStore.reset();
@@ -605,7 +596,6 @@ async function processBatchQueue(): Promise<void> {
             props.f7router.navigate(`/transaction/add?${params.join('&')}`);
             return; // Exit - next image will be handled when user returns
         } catch (error: any) {
-            hideLoading();
             logger.error('[batch] Error processing image', error);
             // Continue to next image on error
             if (!batchStore.hasNext) {
