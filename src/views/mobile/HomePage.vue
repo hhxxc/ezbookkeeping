@@ -227,6 +227,13 @@
                         <f7-icon f7="wand_stars"></f7-icon>
                     </template>
                 </f7-list-item>
+                <f7-list-item key="AIBatchRecognition" :title="tt('Batch AI Recognition')"
+                              @click="showAIBatchReceiptImageRecognitionSheet = true; showTransactionTemplatePopover = false"
+                              v-if="isTransactionFromAIImageRecognitionEnabled()">
+                    <template #media>
+                        <f7-icon f7="photo_on_rectangle"></f7-icon>
+                    </template>
+                </f7-list-item>
                 <f7-list-item :key="template.id" :title="template.name"
                               :link="'/transaction/add?templateId=' + template.id"
                               v-for="template in allTransactionTemplates">
@@ -240,6 +247,10 @@
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
+        <a-i-image-recognition-sheet ref="aiBatchImageRecognitionSheet"
+                                     v-model:show="showAIBatchReceiptImageRecognitionSheet"
+                                     :is-batch-mode="true"
+                                     @recognition:change="onBatchReceiptRecognitionChanged"/>
 
         <background-selection-sheet
             v-model:show="showBackgroundGallery"
@@ -272,6 +283,7 @@ import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useOverviewStore } from '@/stores/overview.ts';
+import { useBatchRecognitionStore } from '@/stores/batchRecognition.ts';
 
 import { DateRange } from '@/core/datetime.ts';
 import { TemplateType } from '@/core/template.ts';
@@ -341,12 +353,15 @@ const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const transactionTemplatesStore = useTransactionTemplatesStore();
 const overviewStore = useOverviewStore();
+const batchRecognitionStore = useBatchRecognitionStore();
 
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
+const aiBatchImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiBatchImageRecognitionSheet');
 
 const loading = ref<boolean>(true);
 const showTransactionTemplatePopover = ref<boolean>(false);
 const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
+const showAIBatchReceiptImageRecognitionSheet = ref<boolean>(false);
 
 const allTransactionTemplates = computed<TransactionTemplate[]>(() => {
     const allTemplates = transactionTemplatesStore.allVisibleTemplates;
@@ -452,6 +467,58 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
     }
 
     params.push(`noTransactionDraft=true`);
+
+    props.f7router.navigate(`/transaction/add?${params.join('&')}`);
+}
+
+function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
+    const batchStore = batchRecognitionStore;
+    batchStore.addResult(result);
+    batchStore.isProcessing.value = false;
+
+    // Navigate to edit page with batch params
+    const params: string[] = [];
+
+    if (result.type) {
+        params.push(`type=${result.type}`);
+    }
+
+    if (result.time) {
+        params.push(`time=${result.time}`);
+    }
+
+    if (result.categoryId) {
+        params.push(`categoryId=${result.categoryId}`);
+    }
+
+    if (result.sourceAccountId) {
+        params.push(`accountId=${result.sourceAccountId}`);
+    }
+
+    if (result.destinationAccountId) {
+        params.push(`destinationAccountId=${result.destinationAccountId}`);
+    }
+
+    if (result.sourceAmount) {
+        params.push(`amount=${result.sourceAmount}`);
+    }
+
+    if (result.destinationAmount) {
+        params.push(`destinationAmount=${result.destinationAmount}`);
+    }
+
+    if (result.tagIds) {
+        params.push(`tagIds=${result.tagIds.join(',')}`);
+    }
+
+    if (result.comment) {
+        params.push(`comment=${encodeURIComponent(result.comment)}`);
+    }
+
+    params.push(`noTransactionDraft=true`);
+    params.push(`batchMode=true`);
+    params.push(`batchCurrent=${batchStore.currentIndex}`);
+    params.push(`batchTotal=${batchStore.totalCount}`);
 
     props.f7router.navigate(`/transaction/add?${params.join('&')}`);
 }
