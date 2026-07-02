@@ -52,7 +52,7 @@
 
 
 <script setup lang="ts">
-import { ref, useTemplateRef, useAttrs } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, closeAllDialog } from '@/lib/ui/mobile.ts';
@@ -70,7 +70,7 @@ import { compressJpgImage } from '@/lib/ui/common.ts';
 import { findPotentialDuplicateTransactions, buildDuplicateConfirmMessage } from '@/lib/ai_recognition.ts';
 import logger from '@/lib/logger.ts';
 
-defineProps<{
+const props = defineProps<{
     show: boolean;
     isBatchMode?: boolean;
 }>();
@@ -125,7 +125,6 @@ function openImage(event: Event): void {
         return;
     }
 
-    const props = useAttrs();
     const isBatch = props.isBatchMode === true;
 
     if (isBatch) {
