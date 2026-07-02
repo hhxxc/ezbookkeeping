@@ -286,6 +286,9 @@ import type { RecognizedReceiptImageResponse } from '@/models/large_language_mod
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { compressJpgImage } from '@/lib/ui/common.ts';
+import { generateRandomUUID } from '@/lib/misc.ts';
+import { KnownFileType } from '@/core/file.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
 
@@ -520,9 +523,68 @@ function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
     homeGalleryBackgroundId.value = settingsStore.appSettings.homeGalleryBackgroundId || '';
 
+    // Check if batch recognition has more items to process
+    if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
+        processNextBatchItem();
+    }
+
     if (!loading.value) {
         reload();
     }
+}
+
+function processNextBatchItem(): void {
+    const batchStore = batchRecognitionStore;
+
+    if (!batchStore.hasNext) {
+        batchStore.reset();
+        return;
+    }
+
+    batchStore.isProcessing.value = true;
+
+    const image = batchStore.getNextImage();
+    if (!image) {
+        batchStore.reset();
+        return;
+    }
+
+    // Compress and auto-recognize
+    compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
+        const imageFile = KnownFileType.JPG.createFileFromBlob(blob, 'image');
+        const cancelUuid = generateRandomUUID();
+
+        transactionsStore.recognizeReceiptImage({
+            imageFile: imageFile,
+            cancelableUuid: cancelUuid
+        }).then(result => {
+            batchStore.addResult(result);
+            batchStore.isProcessing.value = false;
+
+            // Navigate to edit page with recognized data
+            const params: string[] = [];
+
+            if (result.type) params.push(`type=${result.type}`);
+            if (result.time) params.push(`time=${result.time}`);
+            if (result.categoryId) params.push(`categoryId=${result.categoryId}`);
+            if (result.sourceAccountId) params.push(`accountId=${result.sourceAccountId}`);
+            if (result.destinationAccountId) params.push(`destinationAccountId=${result.destinationAccountId}`);
+            if (result.sourceAmount) params.push(`amount=${result.sourceAmount}`);
+            if (result.destinationAmount) params.push(`destinationAmount=${result.destinationAmount}`);
+            if (result.tagIds) params.push(`tagIds=${result.tagIds.join(',')}`);
+            if (result.comment) params.push(`comment=${encodeURIComponent(result.comment)}`);
+
+            params.push('noTransactionDraft=true');
+            params.push('batchMode=true');
+            params.push(`batchCurrent=${batchStore.currentIndex}`);
+            params.push(`batchTotal=${batchStore.totalCount}`);
+
+            props.f7router.navigate(`/transaction/add?${params.join('&')}`);
+        }).catch(error => {
+            batchStore.isProcessing.value = false;
+            showToast(error.message || 'Recognition failed');
+        });
+    });
 }
 
 init();
