@@ -1099,7 +1099,9 @@ function save(afterAction: AfterSaveAction): void {
                         showToast('You have saved this transaction');
                     }
 
-                    if (duplicateFromId.value) {
+                    if (query['batchMode'] === 'true') {
+                        router.back();
+                    } else if (duplicateFromId.value) {
                         router.navigate('/transaction/list');
                     } else {
                         router.back();
