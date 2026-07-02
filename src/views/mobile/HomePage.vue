@@ -254,7 +254,7 @@
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
-                    @click="showAIReceiptImageRecognitionSheet = true">
+                    @click="showAIBatchReceiptImageRecognitionSheet = true">
                 <f7-icon f7="camera"></f7-icon>
             </f7-fab>
         </template>
