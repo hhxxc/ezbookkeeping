@@ -170,7 +170,11 @@ function confirm(): void {
 
         // Advance batch queue index so continuation processes the next image
         if (props.isBatchMode) {
-            batchRecognitionStore.currentIndex = batchRecognitionStore.currentIndex + 1;
+            try {
+                batchRecognitionStore.skipCurrentImage();
+            } catch (e) {
+                logger.error('failed to advance batch index', e);
+            }
         }
 
         findPotentialDuplicateTransactions(response).then(duplicates => {
@@ -186,6 +190,10 @@ function confirm(): void {
                 emit('update:show', false);
                 emit('recognition:change', response);
             }
+        }).catch(e => {
+            logger.error('failed to check duplicate transactions', e);
+            emit('update:show', false);
+            emit('recognition:change', response);
         });
     }).catch(error => {
         if (error.canceled) {
