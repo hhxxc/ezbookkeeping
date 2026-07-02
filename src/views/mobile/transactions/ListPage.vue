@@ -1524,7 +1524,11 @@ async function processBatchQueue(): Promise<void> {
 
     while (batchStore.hasNext) {
         try {
+            showLoading();
+
             const result = await batchStore.processNextImage();
+
+            hideLoading();
 
             if (!result) {
                 batchStore.reset();
@@ -1553,6 +1557,7 @@ async function processBatchQueue(): Promise<void> {
             props.f7router.navigate(`/transaction/add?${params.join('&')}`);
             return;
         } catch (error: any) {
+            hideLoading();
             logger.error('[batch] Error processing image', error);
             if (!batchStore.hasNext) {
                 batchStore.reset();
