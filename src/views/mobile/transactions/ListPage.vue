@@ -1490,7 +1490,7 @@ function onCategoryPopoverOpen(event: { $el: Framework7Dom }): void {
 
 function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
     const batchStore = batchRecognitionStore;
-    batchStore.isProcessing = false;
+    batchStore.isProcessing.value = false;
 
     const params: string[] = [];
 
@@ -1514,7 +1514,7 @@ function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse
 
 function checkAndProcessBatchQueue(): void {
     if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
-        batchRecognitionStore.isProcessing = true;
+        batchRecognitionStore.isProcessing.value = true;
         processBatchQueue();
     }
 }
@@ -1548,7 +1548,7 @@ async function processBatchQueue(): Promise<void> {
             params.push(`batchCurrent=${batchStore.currentIndex}`);
             params.push(`batchTotal=${batchStore.totalCount}`);
 
-            batchStore.isProcessing = false;
+            batchStore.isProcessing.value = false;
 
             props.f7router.navigate(`/transaction/add?${params.join('&')}`);
             return;

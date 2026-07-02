@@ -141,7 +141,7 @@ function openImage(event: Event): void {
         batchRecognitionStore.setImages(images);
         // Auto-recognize the first one
         loadImage(images[0]);
-        batchRecognitionStore.isProcessing = true;
+        batchRecognitionStore.isProcessing.value = true;
         // Emit batch:next so parent knows we're in batch mode
         emit('batch:next');
     } else {
