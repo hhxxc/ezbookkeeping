@@ -94,31 +94,28 @@ const recognizing = ref<boolean>(false);
 const cancelRecognizingUuid = ref<string | undefined>(undefined);
 const imageFile = ref<File | null>(null);
 const imageSrc = ref<string | undefined>(undefined);
-const batchImages = ref<Blob[]>([]);
 
-function loadImage(image: Blob): void {
+
+async function loadImage(image: Blob): Promise<void> {
     loading.value = true;
     imageFile.value = null;
     imageSrc.value = undefined;
 
-    compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
+    try {
+        const blob = await compressJpgImage(image, 1280, 1280, 0.8);
         imageFile.value = KnownFileType.JPG.createFileFromBlob(blob, "image");
         imageSrc.value = URL.createObjectURL(blob);
         loading.value = false;
-        // Auto-recognize for batch mode
-        if (props.isBatchMode) {
-            confirm();
-        }
-    }).catch(error => {
+    } catch (error) {
         imageFile.value = null;
         imageSrc.value = undefined;
         loading.value = false;
         logger.error('failed to compress image', error);
         showToast('Unable to load image');
-    });
+    }
 }
 
-function openImage(event: Event): void {
+async function openImage(event: Event): Promise<void> {
     if (!event || !event.target) {
         return;
     }
@@ -139,10 +136,12 @@ function openImage(event: Event): void {
         }
         el.value = '';
         batchRecognitionStore.setImages(images);
-        // Auto-recognize the first one
-        loadImage(images[0]);
-        batchRecognitionStore.isProcessing.value = true;
-        // Emit batch:next so parent knows we're in batch mode
+        batchRecognitionStore.isProcessing = true;
+        // Load preview of first image, then auto-start batch processing
+        await loadImage(images[0] as File);
+        if (imageFile.value) {
+            startBatchProcess();
+        }
         emit('batch:next');
     } else {
         const image = el.files[0] as File;
@@ -151,8 +150,66 @@ function openImage(event: Event): void {
     }
 }
 
+async function startBatchProcess(): Promise<void> {
+    if (recognizing.value) {
+        return;
+    }
+
+    cancelRecognizingUuid.value = generateRandomUUID();
+    recognizing.value = true;
+    showCancelableLoading('Recognizing', 'AI can make mistakes. Check important info.', 'Cancel Recognition', cancelRecognize);
+
+    try {
+        const response = await batchRecognitionStore.processNextImage(cancelRecognizingUuid.value);
+
+        recognizing.value = false;
+        cancelRecognizingUuid.value = undefined;
+        closeAllDialog();
+
+        if (!response) {
+            emit('update:show', false);
+            return;
+        }
+
+        const duplicates = await findPotentialDuplicateTransactions(response);
+        if (duplicates.length > 0) {
+            const details = buildDuplicateConfirmMessage(duplicates);
+            const confirmMessage = tt('A similar transaction already exists, do you still want to add it?') + '\n\n' + details;
+
+            showConfirm(confirmMessage, () => {
+                emit('update:show', false);
+                emit('recognition:change', response);
+            });
+        } else {
+            emit('update:show', false);
+            emit('recognition:change', response);
+        }
+    } catch (error: any) {
+        if (error.canceled) {
+            return;
+        }
+
+        recognizing.value = false;
+        cancelRecognizingUuid.value = undefined;
+        closeAllDialog();
+
+        if (!error.processed) {
+            showToast(error.message || error);
+        }
+
+        // On error, close sheet and let parent continue batch queue
+        emit('update:show', false);
+    }
+}
+
 function confirm(): void {
     if (recognizing.value || !imageFile.value) {
+        return;
+    }
+
+    // In batch mode, use startBatchProcess instead
+    if (props.isBatchMode) {
+        startBatchProcess();
         return;
     }
 
