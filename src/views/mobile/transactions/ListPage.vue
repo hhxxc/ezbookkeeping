@@ -1492,6 +1492,9 @@ function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse
     const batchStore = batchRecognitionStore;
     batchStore.isProcessing.value = false;
 
+    // Sheet confirm() doesn't track batch queue — advance index here
+    batchStore.skipCurrentImage();
+
     const params: string[] = [];
 
     if (result.type) params.push(`type=${result.type}`);
