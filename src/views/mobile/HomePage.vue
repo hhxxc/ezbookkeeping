@@ -525,12 +525,16 @@ function onPageAfterIn(): void {
     homeGalleryBackgroundId.value = settingsStore.appSettings.homeGalleryBackgroundId || '';
 
     // Check if batch recognition has more items to process
-    if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
-        processNextBatchItem();
-    }
+    checkAndProcessBatchQueue();
 
     if (!loading.value) {
         reload();
+    }
+}
+
+function checkAndProcessBatchQueue(): void {
+    if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
+        processNextBatchItem();
     }
 }
 
@@ -549,6 +553,8 @@ function processNextBatchItem(): void {
         batchStore.reset();
         return;
     }
+
+    showToast(`Processing ${batchStore.currentIndex + 1} of ${batchStore.totalCount}`);
 
     // Compress and auto-recognize
     compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
