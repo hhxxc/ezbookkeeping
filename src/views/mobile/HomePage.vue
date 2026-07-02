@@ -472,7 +472,6 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 
 function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
     const batchStore = batchRecognitionStore;
-    batchStore.addResult(result);
     batchStore.isProcessing.value = false;
 
     // Navigate to edit page with batch params

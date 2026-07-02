@@ -1489,7 +1489,6 @@ function onCategoryPopoverOpen(event: { $el: Framework7Dom }): void {
 
 function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
     const batchStore = batchRecognitionStore;
-    batchStore.addResult(result);
     batchStore.isProcessing.value = false;
 
     const params: string[] = [];
