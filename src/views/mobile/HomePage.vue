@@ -532,12 +532,11 @@ function onPageAfterIn(): void {
 }
 
 function startBatchRecognition(): void {
-    // Create a hidden file input and trigger it
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = SUPPORTED_IMAGE_MIME_TYPES;
     input.multiple = true;
-    input.onchange = (event) => {
+    input.onchange = async (event) => {
         const el = event.target as HTMLInputElement;
         if (!el.files || !el.files.length) return;
 
@@ -547,59 +546,34 @@ function startBatchRecognition(): void {
         }
         el.value = '';
 
-        logger.info(`[batch] Selected ${images.length} images`);
         batchRecognitionStore.setImages(images);
         batchRecognitionStore.isProcessing.value = true;
 
-        // Process first image directly, bypassing sheet entirely
-        logger.info(`[batch] Starting processNextBatchItem`);
-        processNextBatchItem();
+        await processBatchQueue();
     };
     input.click();
 }
 
 function checkAndProcessBatchQueue(): void {
     if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
-        processNextBatchItem();
+        batchRecognitionStore.isProcessing.value = true;
+        processBatchQueue();
     }
 }
 
-function processNextBatchItem(): void {
+async function processBatchQueue(): Promise<void> {
     const batchStore = batchRecognitionStore;
 
-    if (!batchStore.hasNext) {
-        logger.info('[batch] No more items, resetting');
-        batchStore.reset();
-        return;
-    }
+    while (batchStore.hasNext) {
+        try {
+            const result = await batchStore.processNextImage();
 
-    batchStore.isProcessing.value = true;
+            if (!result) {
+                batchStore.reset();
+                return;
+            }
 
-    const image = batchStore.getNextImage();
-    if (!image) {
-        logger.error('[batch] getNextImage returned null');
-        batchStore.reset();
-        return;
-    }
-
-    logger.info(`[batch] Processing ${batchStore.currentIndex + 1}/${batchStore.totalCount}`);
-    showToast(`Processing ${batchStore.currentIndex + 1} of ${batchStore.totalCount}`);
-
-    // Compress and auto-recognize
-    compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
-        const imageFile = KnownFileType.JPG.createFileFromBlob(blob, 'image');
-        const cancelUuid = generateRandomUUID();
-
-        logger.info('[batch] Compressed, calling recognizeReceiptImage');
-        transactionsStore.recognizeReceiptImage({
-            imageFile: imageFile,
-            cancelableUuid: cancelUuid
-        }).then(result => {
-            logger.info('[batch] Recognition succeeded, navigating to edit page');
-            batchStore.addResult(result);
-            batchStore.isProcessing.value = false;
-
-            // Navigate to edit page with recognized data
+            // Build params and navigate
             const params: string[] = [];
 
             if (result.type) params.push(`type=${result.type}`);
@@ -617,13 +591,24 @@ function processNextBatchItem(): void {
             params.push(`batchCurrent=${batchStore.currentIndex}`);
             params.push(`batchTotal=${batchStore.totalCount}`);
 
-            props.f7router.navigate(`/transaction/add?${params.join('&')}`);
-        }).catch(error => {
-            logger.error('[batch] Recognition failed', error);
             batchStore.isProcessing.value = false;
-            showToast(error.message || 'Recognition failed');
-        });
-    });
+
+            // Navigate - user edits and saves, then returns to this page
+            props.f7router.navigate(`/transaction/add?${params.join('&')}`);
+            return; // Exit - next image will be handled when user returns
+        } catch (error: any) {
+            logger.error('[batch] Error processing image', error);
+            // Continue to next image on error
+            if (!batchStore.hasNext) {
+                batchStore.reset();
+                showToast('Batch processing completed with errors');
+                return;
+            }
+        }
+    }
+
+    batchStore.reset();
+    showToast('All receipts processed');
 }
 
 init();
