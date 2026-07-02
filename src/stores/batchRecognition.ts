@@ -40,7 +40,7 @@ export const useBatchRecognitionStore = defineStore('batchRecognition', () => {
         totalCount.value = images.length;
     }
 
-    async function processNextImage(): Promise<RecognizedReceiptImageResponse | null> {
+    async function processNextImage(cancelableUuid?: string): Promise<RecognizedReceiptImageResponse | null> {
         if (currentIndex.value >= imageQueue.value.length) {
             reset();
             return null;
@@ -49,6 +49,11 @@ export const useBatchRecognitionStore = defineStore('batchRecognition', () => {
         const idx = currentIndex.value;
         const item = imageQueue.value[idx];
 
+        if (!item) {
+            currentIndex.value++;
+            return null;
+        }
+
         try {
             const blob = await compressJpgImage(item.file, 1280, 1280, 0.8);
 
@@ -56,7 +61,7 @@ export const useBatchRecognitionStore = defineStore('batchRecognition', () => {
             await new Promise(resolve => setTimeout(resolve, 50));
 
             const imageFile = KnownFileType.JPG.createFileFromBlob(blob, 'image');
-            const cancelUuid = generateRandomUUID();
+            const cancelUuid = cancelableUuid || generateRandomUUID();
 
             const transactionsStore = useTransactionsStore();
             const result = await transactionsStore.recognizeReceiptImage({

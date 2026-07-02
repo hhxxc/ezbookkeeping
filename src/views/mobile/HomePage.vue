@@ -472,7 +472,7 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 
 function onBatchReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
     const batchStore = batchRecognitionStore;
-    batchStore.isProcessing.value = false;
+    batchStore.isProcessing = false;
 
     // Navigate to edit page with batch params
     const params: string[] = [];
@@ -528,6 +528,8 @@ function onPageAfterIn(): void {
     if (!loading.value) {
         reload();
     }
+
+    checkAndProcessBatchQueue();
 }
 
 function startBatchRecognition(): void {
@@ -546,7 +548,7 @@ function startBatchRecognition(): void {
         el.value = '';
 
         batchRecognitionStore.setImages(images);
-        batchRecognitionStore.isProcessing.value = true;
+        batchRecognitionStore.isProcessing = true;
 
         await processBatchQueue();
     };
@@ -555,7 +557,7 @@ function startBatchRecognition(): void {
 
 function checkAndProcessBatchQueue(): void {
     if (batchRecognitionStore.hasNext && !batchRecognitionStore.isProcessing) {
-        batchRecognitionStore.isProcessing.value = true;
+        batchRecognitionStore.isProcessing = true;
         processBatchQueue();
     }
 }
@@ -590,7 +592,7 @@ async function processBatchQueue(): Promise<void> {
             params.push(`batchCurrent=${batchStore.currentIndex}`);
             params.push(`batchTotal=${batchStore.totalCount}`);
 
-            batchStore.isProcessing.value = false;
+            batchStore.isProcessing = false;
 
             // Navigate - user edits and saves, then returns to this page
             props.f7router.navigate(`/transaction/add?${params.join('&')}`);
