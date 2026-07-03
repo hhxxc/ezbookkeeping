@@ -106,3 +106,5 @@ $env:Path = "C:\msys64\mingw64\bin;" + $env:Path; $env:CGO_ENABLED="1"; air
 ## 协议
 
 [MIT](./LICENSE)
+
+
