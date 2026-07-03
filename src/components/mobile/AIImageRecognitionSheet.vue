@@ -93,6 +93,8 @@ function loadImage(image: Blob): void {
         imageFile.value = KnownFileType.JPG.createFileFromBlob(blob, "image");
         imageSrc.value = URL.createObjectURL(blob);
         loading.value = false;
+        // Auto-recognize after compression completes
+        confirm();
     }).catch(error => {
         imageFile.value = null;
         imageSrc.value = undefined;
@@ -121,7 +123,7 @@ function openImage(event: Event): void {
 }
 
 function confirm(): void {
-    if (loading.value || recognizing.value || !imageFile.value) {
+    if (recognizing.value || !imageFile.value) {
         return;
     }
 
