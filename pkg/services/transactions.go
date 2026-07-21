@@ -2711,7 +2711,7 @@ func (s *TransactionService) buildTransactionQueryCondition(uid int64, maxTransa
 		// Try to parse keyword as a number to support amount search
 		if amountValue, err := strconv.ParseFloat(keyword, 64); err == nil {
 			// Convert float to cents (integer) since amount is stored in cents in database
-			amountInCents := int64(amountValue * 100)
+			amountInCents := int64(math.Round(amountValue * 100))
 			// Search both comment and amount fields
 			condition = condition + " AND (comment LIKE ? OR amount = ?)"
 			conditionParams = append(conditionParams, "%%"+keyword+"%%")
