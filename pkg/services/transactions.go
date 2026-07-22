@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -2709,9 +2708,8 @@ func (s *TransactionService) buildTransactionQueryCondition(uid int64, maxTransa
 
 	if keyword != "" {
 		// Try to parse keyword as a number to support amount search
-		if amountValue, err := strconv.ParseFloat(keyword, 64); err == nil {
-			// Convert float to cents (integer) since amount is stored in cents in database
-			amountInCents := int64(math.Round(amountValue * 100))
+		if amountInCents, err := utils.ParseAmount(keyword); err == nil {
+			// Using string-based decimal parsing to avoid floating-point precision issues
 			// Search both comment and amount fields
 			condition = condition + " AND (comment LIKE ? OR amount = ?)"
 			conditionParams = append(conditionParams, "%%"+keyword+"%%")
