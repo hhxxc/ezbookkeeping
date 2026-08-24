@@ -64,6 +64,36 @@
                 </template>
             </f7-list-item>
 
+            <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.Yesterday.type })}`" chevron-center>
+                <template #media>
+                    <f7-icon f7="calendar"></f7-icon>
+                </template>
+                <template #title>
+                    <div class="padding-top-half">
+                        <span v-if="loading">Yesterday</span>
+                        <span v-else-if="!loading">{{ tt('Yesterday') }}</span>
+                    </div>
+                </template>
+                <template #footer>
+                    <div class="overview-transaction-footer padding-bottom-half">
+                        <span v-if="loading">MM/DD/YYYY</span>
+                        <span v-else-if="!loading">{{ displayDateRange?.yesterday?.displayTime }}</span>
+                    </div>
+                </template>
+                <template #after>
+                    <div class="overview-transaction-amount">
+                        <div class="text-income text-align-right">
+                            <small v-if="loading">0.00 USD</small>
+                            <small v-else-if="!loading && transactionOverview.yesterday && transactionOverview.yesterday.valid">{{ getDisplayIncomeAmount(transactionOverview.yesterday) }}</small>
+                        </div>
+                        <div class="text-expense text-align-right">
+                            <small v-if="loading">0.00 USD</small>
+                            <small v-else-if="!loading && transactionOverview.yesterday && transactionOverview.yesterday.valid">{{ getDisplayExpenseAmount(transactionOverview.yesterday) }}</small>
+                        </div>
+                    </div>
+                </template>
+            </f7-list-item>
+
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.ThisWeek.type })}`" chevron-center>
                 <template #media>
                     <f7-icon f7="calendar"></f7-icon>

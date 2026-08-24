@@ -669,6 +669,7 @@ export interface TransactionStatisticAssetTrendsRequest {
 
 export const ALL_TRANSACTION_AMOUNTS_REQUEST_TYPE = [
     'today',
+    'yesterday',
     'thisWeek',
     'thisMonth',
     'thisYear',
