@@ -47,6 +47,10 @@ interface TransactionDataRange extends Record<TransactionAmountsRequestType, Wri
         startTime: number;
         endTime: number;
     };
+    yesterday: {
+        startTime: number;
+        endTime: number;
+    };
     thisWeek: {
         startTime: number;
         endTime: number;
@@ -195,6 +199,7 @@ export const useOverviewStore = defineStore('overview', () => {
     function getTransactionDateRange(): TransactionDataRange {
         const dateRange: TransactionDataRange = {
             today: { startTime: 0, endTime: 0 },
+            yesterday: { startTime: 0, endTime: 0 },
             thisWeek: { startTime: 0, endTime: 0 },
             thisMonth: { startTime: 0, endTime: 0 },
             thisYear: { startTime: 0, endTime: 0 },
@@ -215,9 +220,12 @@ export const useOverviewStore = defineStore('overview', () => {
         return dateRange;
     }
 
-    function initTransactionDateRange(dateRange: TransactionDataRange): void {
+   function initTransactionDateRange(dateRange: TransactionDataRange): void {
         dateRange.today.startTime = getTodayFirstUnixTime();
         dateRange.today.endTime = getTodayLastUnixTime();
+
+        dateRange.yesterday.startTime = getUnixTimeBeforeUnixTime(getTodayFirstUnixTime(), 1, 'days');
+        dateRange.yesterday.endTime = getUnixTimeBeforeUnixTime(getTodayLastUnixTime(), 1, 'days');
 
         dateRange.thisWeek.startTime = getThisWeekFirstUnixTime(userStore.currentUserFirstDayOfWeek);
         dateRange.thisWeek.endTime = getThisWeekLastUnixTime(userStore.currentUserFirstDayOfWeek);
@@ -280,6 +288,7 @@ export const useOverviewStore = defineStore('overview', () => {
         const requestParams: TransactionAmountsRequestParams = {
             useTransactionTimezone: settingsStore.appSettings.timezoneUsedForStatisticsInHomePage === TimezoneTypeForStatistics.TransactionTimezone.type,
             today: transactionDataRange.value.today,
+            yesterday: transactionDataRange.value.yesterday,
             thisWeek: transactionDataRange.value.thisWeek,
             thisMonth: transactionDataRange.value.thisMonth,
             thisYear: transactionDataRange.value.thisYear
