@@ -765,11 +765,7 @@ const transactions = computed<TransactionMonthList[]>(() => {
     }
 
     if (pageType.value === TransactionListPageType.List.type) {
-        const data = transactionsStore.transactions;
-        if (transactionsStore.transactionsFilter.sortOrder === 'desc') {
-            return [...data].reverse();
-        }
-        return data;
+        return transactionsStore.transactions;
     } else if (pageType.value === TransactionListPageType.Calendar.type) {
         if (queryMonthlyData.value) {
             const transactionData = currentMonthTransactionData.value;
