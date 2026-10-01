@@ -20,13 +20,17 @@
                                   :is-dark-mode="isDarkMode"
                                   :enable-time-picker="false"
                                   :show-alternate-dates="true"
+                                  :no-swipe-and-scroll="true"
                                   v-model="dateTime"
                                   v-if="mode === 'date'">
                 </date-time-picker>
             </div>
             <div class="block no-margin no-padding padding-vertical-half" v-show="mode === 'time'">
                 <div class="time-picker-container" ref="timePickerContainer">
-                    <div class="picker picker-inline picker-3d">
+                    <!-- 不用 picker-3d：3D 效果依赖 transform-origin 的 Z 分量 + perspective，
+                         在 iOS WebKit 上算出来的圆半径和 Chrome 不一致，候选数字会挤在一起重叠。
+                         这里改成纯 2D 的「鱼眼」效果（等距 + 缩放 + 淡出），任何浏览器都不会重叠。 -->
+                    <div class="picker picker-inline">
                         <div class="picker-columns">
                             <div class="picker-column" v-if="!is24Hour && isMeridiemIndicatorFirst">
                                 <div class="picker-items picker-items-meridiem-indicator-first"
@@ -164,8 +168,6 @@ let resetTimePickerItemPositionCheckedFrames: number | undefined = undefined;
 
 const mode = ref<string>(props.initMode || 'time');
 const dateTime = ref<Date>(getLocalDatetimeFromSameDateTimeOfUnixTime(props.modelValue || getCurrentUnixTime(), props.timezoneUtcOffset));
-const timePickerContainerHeight = ref<number | undefined>(undefined);
-const timePickerItemHeight = ref<number | undefined>(undefined);
 
 const isDarkMode = computed<boolean>(() => environmentsStore.framework7DarkMode || false);
 const numeralSystem = computed<NumeralSystem>(() => getCurrentNumeralSystemType());
@@ -239,15 +241,43 @@ function confirm(): void {
     emit('update:show', false);
 }
 
+const timePickerMaxVisibleDistance = 4;
+
+/**
+ * Returns the style of one candidate item of the time picker.
+ *
+ * The items stay in their normal flow positions (one item height apart), so they can never overlap no matter how
+ * the browser lays out 3D transforms; the distance to the selected value is only expressed by scaling and fading,
+ * which gives the same "wheel" impression as before.
+ */
 function getTimerPickerItemStyle(textualValue: string, textualCurrentValue: string, itemsIndex: number, values: TimePickerValue[]): string {
-    if (!timePickerContainerHeight.value || !timePickerItemHeight.value) {
-        return '';
+    const valueDiff = getTimerPickerValueDiff(textualValue, textualCurrentValue, itemsIndex, values);
+
+    if (!isDefined(valueDiff)) {
+        return 'visibility: hidden;';
+    }
+
+    const distance = Math.abs(valueDiff);
+    const scale = (1 - distance * 0.11).toFixed(3);
+    const opacity = (1 - distance * 0.2).toFixed(3);
+
+    return `transform: scale(${scale}); opacity: ${opacity};`;
+}
+
+function getTimerPickerValueDiff(textualValue: string, textualCurrentValue: string, itemsIndex: number, values: TimePickerValue[]): number | undefined {
+    if (values.length < 1) {
+        return undefined;
     }
 
     const minValue = parseInt(values[0]!.value);
     const maxValue = parseInt(values[values.length - 1]!.value);
     const value = parseInt(textualValue, 10);
     const currentValue = parseInt(textualCurrentValue, 10);
+
+    if (isNaN(value) || isNaN(currentValue)) {
+        return undefined;
+    }
+
     let valueDiff = value - currentValue;
 
     if (Math.abs(valueDiff) >= 5) {
@@ -258,29 +288,18 @@ function getTimerPickerItemStyle(textualValue: string, textualCurrentValue: stri
         }
     }
 
-    const angle = -24 * valueDiff;
-
-    if (angle > 180) {
-        return '';
-    }
-    if (angle < -180) {
-        return '';
+    // the items far away from the selected value are only noise, hide them so that they can never leak outside
+    // of the picker area
+    if (Math.abs(valueDiff) > timePickerMaxVisibleDistance) {
+        return undefined;
     }
 
-    return `transform: translate3d(0, ${-valueDiff * timePickerItemHeight.value}px, -100px) rotateX(${angle}deg)`;
+    return valueDiff;
 }
 
 function initTimePickerStyle(): void {
     const pickerItems = timePickerContainer.value?.querySelectorAll('.picker-item');
     const firstPickerItem = pickerItems ? pickerItems[0] : null;
-
-    if (timePickerContainer.value) {
-        timePickerContainerHeight.value = timePickerContainer.value.offsetHeight as number;
-    }
-
-    if (firstPickerItem && 'offsetHeight' in firstPickerItem) {
-        timePickerItemHeight.value = firstPickerItem.offsetHeight as number;
-    }
 
     if (timePickerContainer.value && firstPickerItem && 'offsetHeight' in firstPickerItem) {
         timePickerContainer.value.style.setProperty('--f7-picker-scroll-padding', `${(timePickerContainer.value.offsetHeight - (firstPickerItem.offsetHeight as number)) / 2}px`);
@@ -471,5 +490,16 @@ watch(mode, (newValue) => {
 .picker-minute,
 .picker-second {
     font-variant-numeric: tabular-nums;
+}
+
+/* 时间轮盘的候选：等距排列 + 按距离缩放/淡出，不依赖 3D，永远不会重叠 */
+.date-time-selection-sheet .time-picker-container .picker-item {
+    overflow: hidden;
+}
+
+.date-time-selection-sheet .time-picker-container .picker-item > span {
+    transform-origin: center center;
+    will-change: transform;
+    transition: transform 0.1s ease-out, opacity 0.1s ease-out;
 }
 </style>
