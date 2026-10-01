@@ -18,6 +18,8 @@
                      :disabled-dates="disabledDates"
                      :range="isDateRange ? { partialRange: false } : undefined"
                      :preset-dates="presetRanges"
+                     @touchstart.capture="onCalendarTouchStart"
+                     @touchend.capture="onCalendarTouchEnd"
                      v-model="dateTime">
         <template #year="{ value }">
             {{ getDisplayYear(value) }}
@@ -42,7 +44,6 @@
         </template>
     </vue-date-picker>
 </template>
-
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue';
 import { type MenuView, VueDatePicker } from '@vuepic/vue-datepicker';
@@ -135,6 +136,119 @@ function getAlternateDate(date: Date): string | undefined {
 
 function switchView(viewType: MenuView): void {
     datetimepicker.value?.switchView(viewType);
+}
+
+const calendarTapMaxMoveDistance = 10;
+
+let calendarTouchStartPoint: { x: number, y: number } | undefined = undefined;
+
+/**
+ * Whether the given value is a plain date (not a date range)
+ */
+function isSingleDate(value: SupportedModelValue): value is Date {
+    return value instanceof Date;
+}
+
+/**
+ * Returns the date represented by a calendar day cell
+ *
+ * Every day cell rendered by @vuepic/vue-datepicker has an id in the form of "dp-<yyyy>-<MM>-<dd>".
+ */
+function getDateOfCalendarCell(cell: Element): Date | undefined {
+    const matched = /^dp-(\d{4})-(\d{2})-(\d{2})$/.exec(cell.getAttribute('id') || '');
+
+    if (!matched) {
+        return undefined;
+    }
+
+    const current = isSingleDate(props.modelValue) ? props.modelValue : new Date();
+    const next = new Date(current.getTime());
+
+    next.setFullYear(parseInt(matched[1]!), parseInt(matched[2]!) - 1, parseInt(matched[3]!));
+
+    return next;
+}
+
+function selectDateOfCalendarCell(cell: Element): void {
+    const next = getDateOfCalendarCell(cell);
+
+    if (!next) {
+        return;
+    }
+
+    if (props.disabledDates && props.disabledDates(next)) {
+        return;
+    }
+
+    if (props.minDate && next.getTime() < props.minDate.getTime()) {
+        return;
+    }
+
+    if (props.maxDate && next.getTime() > props.maxDate.getTime()) {
+        return;
+    }
+
+    emit('update:modelValue', next);
+}
+
+function onCalendarTouchStart(event: TouchEvent): void {
+    const touch = event.changedTouches && event.changedTouches[0];
+    calendarTouchStartPoint = touch ? { x: touch.clientX, y: touch.clientY } : undefined;
+}
+
+/**
+ * Fallback for touch devices (mainly iOS inside the native app shell)
+ *
+ * Framework7 swallows a click when the click target is not exactly the element which received the touchstart
+ * (see "handleClick" in framework7/modules/touch/touch.js: it calls stopImmediatePropagation + preventDefault in
+ * that case), and the browser may not deliver the click at all. The result is a day that only gets the focus ring
+ * but is never selected. Therefore, on touchend, this dispatches another click *on the original touch target*
+ * (which satisfies the Framework7 check) and also selects the date directly, so that either path updates the value.
+ */
+function onCalendarTouchEnd(event: TouchEvent): void {
+    const target = event.target as Element | null;
+    const touch = event.changedTouches && event.changedTouches[0];
+
+    if (!target || !target.closest) {
+        return;
+    }
+
+    // a scroll or a swipe (changing the month) must not be treated as a tap
+    if (calendarTouchStartPoint && touch
+        && (Math.abs(touch.clientX - calendarTouchStartPoint.x) > calendarTapMaxMoveDistance
+            || Math.abs(touch.clientY - calendarTouchStartPoint.y) > calendarTapMaxMoveDistance)) {
+        return;
+    }
+
+    const cell = target.closest('.dp__calendar_item');
+
+    // only day cells are handled here: re-dispatching a click on the month navigation arrows or on the year/month
+    // headers would run their handler twice (they are not idempotent). The year/month overlay entries use the same
+    // "select one value" semantic as a day cell, so they are safe to re-dispatch.
+    const isOverlayEntry = !!target.closest('.dp__overlay_cell');
+
+    if (!cell && !isOverlayEntry) {
+        return;
+    }
+
+    if (cell) {
+        const inner = cell.querySelector('.dp__cell_inner');
+
+        if (inner && inner.classList.contains('dp__cell_disabled')) {
+            return;
+        }
+    }
+
+    target.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        detail: 1
+    }));
+
+    if (cell) {
+        selectDateOfCalendarCell(cell);
+    }
 }
 
 function getDisplayYear(year: number): string {
