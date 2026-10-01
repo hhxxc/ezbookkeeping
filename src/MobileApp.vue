@@ -30,7 +30,8 @@ import { initMapProvider } from '@/lib/map/index.ts';
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { updateMapCacheExpiration } from '@/lib/cache.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
-import { isiOSHomeScreenMode, isModalShowing, setAppFontSize } from '@/lib/ui/mobile.ts';
+import { isiOSHomeScreenMode, isModalShowing, setAppFontSize, isAppShellMode } from '@/lib/ui/mobile.ts';
+import logger from '@/lib/logger.ts';
 
 const { tt, getCurrentLanguageInfo, setLanguage, initLocale } = useI18n();
 
@@ -64,7 +65,7 @@ const f7params = ref<Framework7Parameters>({
         tapHold: true
     },
     serviceWorker: {
-        path: isProduction() ? './sw.js' : undefined,
+        path: isProduction() && !isAppShellMode() ? './sw.js' : undefined,
         scope: './',
     },
     actions: {
@@ -98,7 +99,7 @@ const f7params = ref<Framework7Parameters>({
     },
     view: {
         animate: isEnableAnimate(),
-        browserHistory: !isiOSHomeScreenMode(),
+        browserHistory: !isiOSHomeScreenMode() && !isAppShellMode(),
         browserHistoryInitialMatch: true,
         browserHistoryAnimate: false,
         iosSwipeBack: isEnableSwipeBack(),
@@ -145,7 +146,29 @@ function onBackdropChanged(element: { push?: boolean, opened?: boolean }): void 
     setThemeColorMeta(environmentsStore.framework7DarkMode);
 }
 
+function unregisterServiceWorkersInAppShellMode(): void {
+    if (!isAppShellMode() || !navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) {
+        return;
+    }
+
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+            registration.unregister().then((unregistered) => {
+                if (unregistered) {
+                    logger.info('unregistered service worker because the app is running in app shell mode');
+                }
+            }).catch(() => {
+                // ignore
+            });
+        }
+    }).catch(() => {
+        // ignore
+    });
+}
+
 onMounted(() => {
+    unregisterServiceWorkersInAppShellMode();
+
     setAppFontSize(settingsStore.appSettings.fontSize);
 
     f7ready((f7) => {

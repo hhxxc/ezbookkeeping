@@ -166,6 +166,7 @@ const (
 	defaultAIRecognitionPictureMaxSize                 uint32 = 10485760 // 10MB
 	defaultAnthropicLargeLanguageModelAPIMaximumTokens uint32 = 1024
 	defaultLargeLanguageModelAPIRequestTimeout         uint32 = 60000 // 60 seconds
+	defaultLargeLanguageModelAPIRequestTimeoutPerModel uint32 = 30000 // 30 seconds, used when fallback models are configured
 
 	defaultInMemoryDuplicateCheckerCleanupInterval uint32 = 60  // 1 minutes
 	defaultDuplicateSubmissionsInterval            uint32 = 300 // 5 minutes
@@ -268,6 +269,18 @@ type LLMConfig struct {
 	LargeLanguageModelAPIRequestTimeout uint32
 	LargeLanguageModelAPIProxy          string
 	LargeLanguageModelAPISkipTLSVerify  bool
+
+	// FallbackModels contains the additional models which are tried, in a rotating order, when the
+	// primary model is unavailable, times out or returns an unusable response. Each entry is a full
+	// LLMConfig which inherits every unset item from the primary configuration.
+	FallbackModels []*LLMConfig
+
+	// LargeLanguageModelAPIRequestTimeoutPerModel is the maximum duration of a single attempt when
+	// fallback models are configured, so that a hung model does not consume the whole time budget.
+	LargeLanguageModelAPIRequestTimeoutPerModel uint32
+
+	// RotateModels indicates whether consecutive requests should start from a different model
+	RotateModels bool
 }
 
 // MultiLanguageContentConfig represents a multi-language content setting config
@@ -881,11 +894,11 @@ func loadLLMConfiguration(configFile *ini.File, sectionName string) (*LLMConfig,
 		return nil, errs.ErrInvalidLLMProvider
 	}
 
-	llmConfig.OpenAIAPIKey = getConfigItemStringValue(configFile, sectionName, "openai_api_key")
+	llmConfig.OpenAIAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "openai_api_key"))
 	llmConfig.OpenAIModelID = getConfigItemStringValue(configFile, sectionName, "openai_model_id")
 
 	llmConfig.OpenAICompatibleBaseURL = getConfigItemStringValue(configFile, sectionName, "openai_compatible_base_url")
-	llmConfig.OpenAICompatibleAPIKey = getConfigItemStringValue(configFile, sectionName, "openai_compatible_api_key")
+	llmConfig.OpenAICompatibleAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "openai_compatible_api_key"))
 	llmConfig.OpenAICompatibleAPIKeyFile = getConfigItemStringValue(configFile, sectionName, "openai_compatible_api_key_file")
 	llmConfig.OpenAICompatibleModelID = getConfigItemStringValue(configFile, sectionName, "openai_compatible_model_id")
 
@@ -899,34 +912,209 @@ func loadLLMConfiguration(configFile *ini.File, sectionName string) (*LLMConfig,
 		llmConfig.OpenAICompatibleAPIKey = strings.TrimSpace(string(keyData))
 	}
 
-	llmConfig.AnthropicAPIKey = getConfigItemStringValue(configFile, sectionName, "anthropic_api_key")
+	llmConfig.AnthropicAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "anthropic_api_key"))
 	llmConfig.AnthropicModelID = getConfigItemStringValue(configFile, sectionName, "anthropic_model_id")
 	llmConfig.AnthropicMaxTokens = getConfigItemUint32Value(configFile, sectionName, "anthropic_max_tokens", defaultAnthropicLargeLanguageModelAPIMaximumTokens)
 
 	llmConfig.AnthropicCompatibleBaseURL = getConfigItemStringValue(configFile, sectionName, "anthropic_compatible_base_url")
 	llmConfig.AnthropicCompatibleAPIVersion = getConfigItemStringValue(configFile, sectionName, "anthropic_compatible_api_version")
-	llmConfig.AnthropicCompatibleAPIKey = getConfigItemStringValue(configFile, sectionName, "anthropic_compatible_api_key")
+	llmConfig.AnthropicCompatibleAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "anthropic_compatible_api_key"))
 	llmConfig.AnthropicCompatibleModelID = getConfigItemStringValue(configFile, sectionName, "anthropic_compatible_model_id")
 	llmConfig.AnthropicCompatibleMaxTokens = getConfigItemUint32Value(configFile, sectionName, "anthropic_compatible_max_tokens", defaultAnthropicLargeLanguageModelAPIMaximumTokens)
 
-	llmConfig.OpenRouterAPIKey = getConfigItemStringValue(configFile, sectionName, "openrouter_api_key")
+	llmConfig.OpenRouterAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "openrouter_api_key"))
 	llmConfig.OpenRouterModelID = getConfigItemStringValue(configFile, sectionName, "openrouter_model_id")
 
 	llmConfig.OllamaServerURL = getConfigItemStringValue(configFile, sectionName, "ollama_server_url")
 	llmConfig.OllamaModelID = getConfigItemStringValue(configFile, sectionName, "ollama_model_id")
 
 	llmConfig.LMStudioServerURL = getConfigItemStringValue(configFile, sectionName, "lm_studio_server_url")
-	llmConfig.LMStudioToken = getConfigItemStringValue(configFile, sectionName, "lm_studio_token")
+	llmConfig.LMStudioToken = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "lm_studio_token"))
 	llmConfig.LMStudioModelID = getConfigItemStringValue(configFile, sectionName, "lm_studio_model_id")
 
-	llmConfig.GoogleAIAPIKey = getConfigItemStringValue(configFile, sectionName, "google_ai_api_key")
+	llmConfig.GoogleAIAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "google_ai_api_key"))
 	llmConfig.GoogleAIModelID = getConfigItemStringValue(configFile, sectionName, "google_ai_model_id")
 
 	llmConfig.LargeLanguageModelAPIProxy = getConfigItemStringValue(configFile, sectionName, "proxy", "system")
 	llmConfig.LargeLanguageModelAPIRequestTimeout = getConfigItemUint32Value(configFile, sectionName, "request_timeout", defaultLargeLanguageModelAPIRequestTimeout)
 	llmConfig.LargeLanguageModelAPISkipTLSVerify = getConfigItemBoolValue(configFile, sectionName, "skip_tls_verify", false)
+	llmConfig.RotateModels = getConfigItemBoolValue(configFile, sectionName, "rotate_models", true)
+
+	fallbackModels, err := parseFallbackLLMModels(getConfigItemStringValue(configFile, sectionName, "fallback_models"), llmConfig)
+
+	if err != nil {
+		return nil, err
+	}
+
+	llmConfig.FallbackModels = fallbackModels
+
+	if len(llmConfig.FallbackModels) > 0 {
+		llmConfig.LargeLanguageModelAPIRequestTimeoutPerModel = getConfigItemUint32Value(configFile, sectionName, "request_timeout_per_model", defaultLargeLanguageModelAPIRequestTimeoutPerModel)
+	} else {
+		llmConfig.LargeLanguageModelAPIRequestTimeoutPerModel = llmConfig.LargeLanguageModelAPIRequestTimeout
+	}
 
 	return llmConfig, nil
+}
+
+// IsValidLLMProvider returns whether the given name is a supported large language model provider
+func IsValidLLMProvider(llmProvider string) bool {
+	return llmProvider == OpenAILLMProvider ||
+		llmProvider == OpenAICompatibleLLMProvider ||
+		llmProvider == AnthropicLLMProvider ||
+		llmProvider == AnthropicCompatibleLLMProvider ||
+		llmProvider == OpenRouterLLMProvider ||
+		llmProvider == OllamaLLMProvider ||
+		llmProvider == LMStudioLLMProvider ||
+		llmProvider == GoogleAILLMProvider
+}
+
+// parseFallbackLLMModels parses the fallback models definition.
+//
+// Each entry is separated by ";", and each entry contains comma separated "key=value" pairs, e.g.
+//
+//	model=Qwen/Qwen2.5-VL-32B-Instruct,api_key_file=/volume2/docker/another_key.txt;model=Pro/Qwen2-VL-7B-Instruct
+//
+// The supported keys are "provider", "model" (or "model_id"), "base_url", "api_key", "api_key_file" and
+// "max_tokens". Every item which is not given is inherited from the primary large language model config.
+func parseFallbackLLMModels(value string, primary *LLMConfig) ([]*LLMConfig, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+
+	fallbackModels := make([]*LLMConfig, 0)
+
+	for _, entry := range strings.Split(value, ";") {
+		entry = strings.TrimSpace(entry)
+
+		if entry == "" {
+			continue
+		}
+
+		fallbackConfig := *primary
+		fallbackConfig.FallbackModels = nil
+
+		modelId := ""
+		apiKey := ""
+		apiKeyFile := ""
+		maxTokens := primary.AnthropicMaxTokens
+
+		for _, pair := range strings.Split(entry, ",") {
+			pair = strings.TrimSpace(pair)
+
+			if pair == "" {
+				continue
+			}
+
+			keyValue := strings.SplitN(pair, "=", 2)
+
+			if len(keyValue) != 2 {
+				return nil, errs.ErrInvalidLLMFallbackModels
+			}
+
+			key := strings.ToLower(strings.TrimSpace(keyValue[0]))
+			itemValue := strings.TrimSpace(keyValue[1])
+
+			switch key {
+			case "provider":
+				if !IsValidLLMProvider(itemValue) {
+					return nil, errs.ErrInvalidLLMProvider
+				}
+
+				fallbackConfig.LLMProvider = itemValue
+			case "model", "model_id":
+				modelId = itemValue
+			case "base_url":
+				fallbackConfig.OpenAICompatibleBaseURL = itemValue
+				fallbackConfig.AnthropicCompatibleBaseURL = itemValue
+			case "api_key":
+				apiKey = itemValue
+			case "api_key_file":
+				apiKeyFile = itemValue
+			case "max_tokens":
+				parsedValue, err := strconv.ParseUint(itemValue, 10, 32)
+
+				if err != nil {
+					return nil, errs.ErrInvalidLLMFallbackModels
+				}
+
+				maxTokens = uint32(parsedValue)
+			default:
+				return nil, errs.ErrInvalidLLMFallbackModels
+			}
+		}
+
+		if modelId == "" {
+			return nil, errs.ErrInvalidLLMFallbackModels
+		}
+
+		if apiKey == "" && apiKeyFile != "" {
+			keyData, err := os.ReadFile(apiKeyFile)
+
+			if err != nil {
+				return nil, errs.ErrOperationFailed
+			}
+
+			apiKey = strings.TrimSpace(string(keyData))
+		}
+
+		applyFallbackLLMModel(&fallbackConfig, modelId, apiKey, apiKeyFile, maxTokens)
+		fallbackModels = append(fallbackModels, &fallbackConfig)
+	}
+
+	return fallbackModels, nil
+}
+
+func applyFallbackLLMModel(llmConfig *LLMConfig, modelId string, apiKey string, apiKeyFile string, maxTokens uint32) {
+	switch llmConfig.LLMProvider {
+	case OpenAILLMProvider:
+		llmConfig.OpenAIModelID = modelId
+
+		if apiKey != "" {
+			llmConfig.OpenAIAPIKey = apiKey
+		}
+	case OpenAICompatibleLLMProvider:
+		llmConfig.OpenAICompatibleModelID = modelId
+
+		if apiKey != "" {
+			llmConfig.OpenAICompatibleAPIKey = apiKey
+			llmConfig.OpenAICompatibleAPIKeyFile = apiKeyFile
+		}
+	case AnthropicLLMProvider:
+		llmConfig.AnthropicModelID = modelId
+		llmConfig.AnthropicMaxTokens = maxTokens
+
+		if apiKey != "" {
+			llmConfig.AnthropicAPIKey = apiKey
+		}
+	case AnthropicCompatibleLLMProvider:
+		llmConfig.AnthropicCompatibleModelID = modelId
+		llmConfig.AnthropicCompatibleMaxTokens = maxTokens
+
+		if apiKey != "" {
+			llmConfig.AnthropicCompatibleAPIKey = apiKey
+		}
+	case OpenRouterLLMProvider:
+		llmConfig.OpenRouterModelID = modelId
+
+		if apiKey != "" {
+			llmConfig.OpenRouterAPIKey = apiKey
+		}
+	case OllamaLLMProvider:
+		llmConfig.OllamaModelID = modelId
+	case LMStudioLLMProvider:
+		llmConfig.LMStudioModelID = modelId
+
+		if apiKey != "" {
+			llmConfig.LMStudioToken = apiKey
+		}
+	case GoogleAILLMProvider:
+		llmConfig.GoogleAIModelID = modelId
+
+		if apiKey != "" {
+			llmConfig.GoogleAIAPIKey = apiKey
+		}
+	}
 }
 
 func loadUuidConfiguration(config *Config, configFile *ini.File, sectionName string) error {

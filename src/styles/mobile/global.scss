@@ -1,7 +1,6 @@
 /** Global style **/
 html, body {
     position: fixed;
-    will-change: scroll-position;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: none;
     font-family: 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -1102,9 +1101,11 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
 
 /* ---- 120fps GPU compositing optimizations ---- */
 
-/* Containment: isolate list item rendering */
-.list .item-content,
-.list .item-inner,
+/* Containment: isolate list item rendering
+   NOTE: never add ".list .item-content" / ".list .item-inner" here. "contain: paint" turns the element into a
+   containing block and a clipping box for fixed/absolute positioned descendants, and Framework7 renders the
+   sheet/dialog owned by a list item *inside* that list item (it is only moved to the app root while it is open).
+   That silently breaks the layout and the tap targets of the transaction date/time sheet on iOS. */
 .transaction-info,
 .transaction-info-list li {
     contain: layout style paint;
@@ -1122,6 +1123,13 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
 .transaction-info li.item {
     transform: translateZ(0);
     backface-visibility: hidden;
+}
+
+/* The date/time row of the transaction edit page must stay tappable even when Framework7 marks the list as
+   read-only (view mode). Tapping it toggles whether the time is shown in the default time zone, but the global
+   ".readonly { pointer-events: none !important }" rule would silently swallow every tap. */
+.transaction-edit-datetime.readonly {
+    pointer-events: auto !important;
 }
 
 /* Prevent overscroll chain on inner scrollable areas */
