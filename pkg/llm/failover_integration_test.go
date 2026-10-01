@@ -95,18 +95,29 @@ func TestFailoverBetweenRealHTTPProviders(t *testing.T) {
 }
 
 func TestFailoverSkipsTimedOutProvider(t *testing.T) {
+	var slowServerCalls int32
+
+	// the slow model answers with a different payload, so the assertion below proves that the response really came
+	// from the second model instead of merely relying on how long the call took
 	slowServer := newFakeOpenAICompatibleServer(t, func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(3 * time.Second)
+		atomic.AddInt32(&slowServerCalls, 1)
+
+		select {
+		case <-time.After(2 * time.Second):
+		case <-r.Context().Done():
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fakeChatCompletionsResponse))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"slow"}}]}`))
 	})
 
 	fastServer := newFakeOpenAICompatibleServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fakeChatCompletionsResponse))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"fast"}}]}`))
 	})
 
-	slowConfig := newTestOpenAICompatibleConfig(slowServer.URL+"/v1", "slow-model", 300)
+	slowConfig := newTestOpenAICompatibleConfig(slowServer.URL+"/v1", "slow-model", 200)
 	fastConfig := newTestOpenAICompatibleConfig(fastServer.URL+"/v1", "fast-model", 20000)
 
 	container, config := newContainerFromConfigs(t, slowConfig, fastConfig)
@@ -114,13 +125,12 @@ func TestFailoverSkipsTimedOutProvider(t *testing.T) {
 	config.ReceiptImageRecognitionLLMConfig.LargeLanguageModelAPIRequestTimeout = 60000
 	config.ReceiptImageRecognitionLLMConfig.LargeLanguageModelAPIRequestTimeoutPerModel = 20000
 
-	startedAt := time.Now()
-
 	response, err := container.GetJsonResponseByReceiptImageRecognitionModel(core.NewNullContext(), 1, config, &data.LargeLanguageModelRequest{})
 
 	assert.Nil(t, err)
 	assert.NotNil(t, response)
-	assert.Less(t, time.Since(startedAt), 2*time.Second)
+	assert.Equal(t, "fast", response.Content)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&slowServerCalls))
 }
 
 func TestFailoverKeepsSingleModelBehaviorWhenNoFallbackConfigured(t *testing.T) {

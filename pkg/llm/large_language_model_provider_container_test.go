@@ -191,7 +191,7 @@ func TestBuildAttemptOrderStillTriesEarliestModelWhenAllInCooldown(t *testing.T)
 	second.recordFailure(now)
 
 	// make "second" recover earlier
-	second.cooldownUntilUnixMilli = now.Add(10 * time.Second).UnixMilli()
+	second.cooldownUntilUnixMilli.Store(now.Add(10 * time.Second).UnixMilli())
 
 	order := buildReceiptImageRecognitionAttemptOrder([]*receiptImageRecognitionModelEntry{first, second}, 0, now)
 
