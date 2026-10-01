@@ -34,23 +34,26 @@ const (
 )
 
 // receiptImageRecognitionModelEntry contains one configured receipt image recognition model
+//
+// NOTE: the atomic counters use the sync/atomic value types (instead of bare uint32/int64 fields updated through
+// the atomic package functions) on purpose: the value types always keep their required 64-bit alignment, while a
+// plain int64 field inside a struct can be misaligned on 32-bit ARM and make an atomic access panic with
+// "unaligned 64-bit atomic operation".
 type receiptImageRecognitionModelEntry struct {
 	config   *settings.LLMConfig
 	provider provider.LargeLanguageModelProvider
 	label    string
 
-	consecutiveFailures    uint32
-	cooldownUntilUnixMilli int64
+	consecutiveFailures    atomic.Uint32
+	cooldownUntilUnixMilli atomic.Int64
 }
 
 func (e *receiptImageRecognitionModelEntry) isInCooldown(now time.Time) bool {
-	cooldownUntil := atomic.LoadInt64(&e.cooldownUntilUnixMilli)
-
-	return cooldownUntil > now.UnixMilli()
+	return e.cooldownUntilUnixMilli.Load() > now.UnixMilli()
 }
 
 func (e *receiptImageRecognitionModelEntry) remainingCooldown(now time.Time) time.Duration {
-	cooldownUntil := atomic.LoadInt64(&e.cooldownUntilUnixMilli)
+	cooldownUntil := e.cooldownUntilUnixMilli.Load()
 
 	if cooldownUntil <= now.UnixMilli() {
 		return 0
@@ -60,12 +63,12 @@ func (e *receiptImageRecognitionModelEntry) remainingCooldown(now time.Time) tim
 }
 
 func (e *receiptImageRecognitionModelEntry) recordSuccess() {
-	atomic.StoreUint32(&e.consecutiveFailures, 0)
-	atomic.StoreInt64(&e.cooldownUntilUnixMilli, 0)
+	e.consecutiveFailures.Store(0)
+	e.cooldownUntilUnixMilli.Store(0)
 }
 
 func (e *receiptImageRecognitionModelEntry) recordFailure(now time.Time) time.Duration {
-	failures := atomic.AddUint32(&e.consecutiveFailures, 1)
+	failures := e.consecutiveFailures.Add(1)
 
 	if failures < receiptImageRecognitionModelCooldownAfterFailures {
 		return 0
@@ -83,16 +86,17 @@ func (e *receiptImageRecognitionModelEntry) recordFailure(now time.Time) time.Du
 		cooldown = receiptImageRecognitionModelCooldownDuration * time.Duration(receiptImageRecognitionModelMaxCooldownMultiplier)
 	}
 
-	atomic.StoreInt64(&e.cooldownUntilUnixMilli, now.Add(cooldown).UnixMilli())
+	e.cooldownUntilUnixMilli.Store(now.Add(cooldown).UnixMilli())
 
 	return cooldown
 }
 
 // LargeLanguageModelProviderContainer contains all configured large language model providers
 type LargeLanguageModelProviderContainer struct {
+	// the rotation counter must stay the first field so that it is always 64-bit aligned
+	receiptImageRecognitionRotation        atomic.Uint64
 	receiptImageRecognitionCurrentProvider provider.LargeLanguageModelProvider
 	receiptImageRecognitionModels          []*receiptImageRecognitionModelEntry
-	receiptImageRecognitionRotation        uint64
 }
 
 // Initialize a large language model provider container singleton instance
@@ -241,7 +245,7 @@ func (l *LargeLanguageModelProviderContainer) GetJsonResponseByReceiptImageRecog
 	startIndex := 0
 
 	if llmConfig.RotateModels && total > 1 {
-		startIndex = int((atomic.AddUint64(&l.receiptImageRecognitionRotation, 1) - 1) % uint64(total))
+		startIndex = int((l.receiptImageRecognitionRotation.Add(1) - 1) % uint64(total))
 	}
 
 	now := time.Now()
