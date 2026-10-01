@@ -258,11 +258,11 @@
                 v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction"
             >
                 <template #header>
-                    <div class="transaction-edit-datetime-header" @click="showDateTimeDialog('time')">{{ tt('Transaction Time') }}</div>
+                    <div class="transaction-edit-datetime-header" @click="showDateTimeDialog('date')">{{ tt('Transaction Time') }}</div>
                 </template>
                 <template #title>
-                    <div class="transaction-edit-datetime-title">
-                        <div @click="showDateTimeDialog('date')">{{ transactionDisplayDate }}</div>&nbsp;<div class="transaction-edit-datetime-time" @click="showDateTimeDialog('time')">{{ transactionDisplayTime }}</div>
+                    <div class="transaction-edit-datetime-title" @click="showDateTimeDialog('date')">
+                        <div>{{ transactionDisplayDate }}</div>&nbsp;<div class="transaction-edit-datetime-time" @click.stop="showDateTimeDialog('time')">{{ transactionDisplayTime }}</div>
                     </div>
                 </template>
                 <date-time-selection-sheet :init-mode="transactionDateTimeSheetMode"
