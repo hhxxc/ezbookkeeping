@@ -1,5 +1,5 @@
 <template>
-    <f7-page ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn">
+    <f7-page class="home-page theme-jade" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn">
         <f7-navbar>
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
@@ -29,6 +29,13 @@
                         <span v-if="loading">0.00</span>
                         <span v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayIncomeAmount(transactionOverview.thisMonth) : '-' }}</span>
                     </span>
+                </div>
+                <div class="home-ruler">
+                    <div class="home-ruler-ticks">
+                        <span class="tick" v-for="i in 10" :key="'t' + i"></span>
+                        <span class="tick tick--now"></span>
+                    </div>
+                    <span class="home-ruler-note">{{ tt('This Month') }}</span>
                 </div>
             </f7-card-header>
         </f7-card>
@@ -233,9 +240,9 @@
                 <f7-icon f7="creditcard"></f7-icon>
                 <span class="tabbar-label">{{ tt('Accounts') }}</span>
             </f7-link>
-            <f7-link id="homepage-add-button" class="link dragenabled"
+            <f7-link id="homepage-add-button" class="link dragenabled home-add-button"
                      href="/transaction/add" @taphold="openTransactionTemplatePopover">
-                <f7-icon f7="plus_square" class="ebk-tarbar-big-icon"></f7-icon>
+                <f7-icon f7="plus" class="home-add-icon"></f7-icon>
             </f7-link>
             <f7-link class="link" href="/statistic/transaction">
                 <f7-icon f7="chart_pie"></f7-icon>
@@ -499,18 +506,312 @@ init();
 </script>
 
 <style>
-.home-summary-card {
+/* 页面级浅色皮肤 token（仅作用于首页，不影响其他页面与全局变量） */
+.home-page {
+    --hp-bg: #F7F8FA;
+    --hp-card: #FFFFFF;
+    --hp-primary: #2563EB;
+    --hp-expense: #E5484D;
+    --hp-expense-bg: #FDEDED;
+    --hp-income: #00B42A;
+    --hp-secondary: #86909C;
+    --hp-divider: #F2F3F5;
+    --hp-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+    background: var(--hp-bg);
+}
+
+.dark .home-page {
+    --hp-bg: #111113;
+    --hp-card: #1C1C1E;
+    --hp-primary: #3B82F6;
+    --hp-expense: #F87171;
+    --hp-expense-bg: rgba(244, 63, 94, 0.15);
+    --hp-income: #34D399;
+    --hp-secondary: #9AA0A6;
+    --hp-divider: rgba(255, 255, 255, 0.08);
+    --hp-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== 风格二：暖橙轻奢 ===== */
+.home-page.theme-warm {
+    --hp-bg: #F6F1E9;
+    --hp-card: #FFFFFF;
+    --hp-primary: #C67E48;
+    --hp-expense: #D95F2B;
+    --hp-expense-bg: #FBEADF;
+    --hp-income: #00A36C;
+    --hp-secondary: #8A7A6A;
+    --hp-divider: #EFE7DA;
+    --hp-shadow: 0 2px 16px rgba(198, 126, 72, 0.10);
+}
+
+.dark .home-page.theme-warm {
+    --hp-bg: #17130F;
+    --hp-card: #201B15;
+    --hp-primary: #D99B63;
+    --hp-expense: #E57A4A;
+    --hp-expense-bg: rgba(217, 95, 43, 0.16);
+    --hp-income: #3DBE8C;
+    --hp-secondary: #A29482;
+    --hp-divider: rgba(255, 255, 255, 0.09);
+}
+
+/* ===== 风格三：暗夜高级（强制深色） ===== */
+.home-page.theme-dark {
+    --hp-bg: #0E1116;
+    --hp-card: #1A1F26;
+    --hp-primary: #38BDF8;
+    --hp-expense: #FB7185;
+    --hp-expense-bg: rgba(244, 63, 94, 0.14);
+    --hp-income: #34D399;
+    --hp-secondary: #94A3B8;
+    --hp-divider: rgba(255, 255, 255, 0.08);
+    --hp-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+}
+
+.home-page.theme-dark .home-summary-card {
+    color: #F1F5F9;
+}
+
+.home-page.theme-dark .tabbar.main-tabbar {
+    background: rgba(26, 31, 38, 0.92);
+}
+
+.home-page.theme-dark .tabbar.main-tabbar .link.home-add-button {
+    box-shadow: 0 8px 20px rgba(56, 189, 248, 0.4);
+}
+
+/* ===== 风格四：清新薄荷绿 ===== */
+.home-page.theme-green {
+    --hp-bg: #F0F9F3;
+    --hp-card: #FFFFFF;
+    --hp-primary: #16A34A;
+    --hp-expense: #E5484D;
+    --hp-expense-bg: #FDEDED;
+    --hp-income: #00B42A;
+    --hp-secondary: #7A8B80;
+    --hp-divider: #E8F2EC;
+    --hp-shadow: 0 2px 16px rgba(22, 163, 74, 0.10);
+}
+
+.dark .home-page.theme-green {
+    --hp-bg: #0D1510;
+    --hp-card: #16201A;
+    --hp-primary: #22C55E;
+    --hp-expense: #F87171;
+    --hp-expense-bg: rgba(244, 63, 94, 0.15);
+    --hp-income: #34D399;
+    --hp-secondary: #8BA395;
+    --hp-divider: rgba(255, 255, 255, 0.09);
+}
+
+/* ===== 风格五：玉石（参考墨刀「巢记·详情」设计稿） ===== */
+.home-page.theme-jade {
+    --paper: #F4F6F3;
+    --card: #FFFFFF;
+    --ink: #14201C;
+    --ink-2: #57635D;
+    --ink-3: #8D9892;
+    --rule: #E6EAE4;
+    --rule-2: #EFF2EE;
+    --jade: #1F5F52;
+    --jade-soft: #E9F0ED;
+    --crimson: #B7362C;
+    --amount-red: #D04444;
+    --income-green: #34B56A;
+    --expense-teal: #1FA08C;
+    --font-ui: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans SC", sans-serif;
+    --font-num: "Bahnschrift", "Bahnschrift SemiCondensed", "DIN Alternate", "Roboto Condensed", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(120% 90% at 50% 0%, #F0F1EE 0%, var(--paper) 60%, #DEDFDB 100%);
+}
+
+.home-page.theme-jade .home-summary-card {
+    background: var(--card);
+    border-radius: 20px;
+    color: var(--ink);
+    box-shadow: 0 1px 0 rgba(20, 32, 28, .05), 0 14px 30px -22px rgba(20, 32, 28, .45);
+}
+
+/* 数字字体 */
+.home-page.theme-jade .home-summary-amount,
+.home-page.theme-jade .home-summary-income-value,
+.home-page.theme-jade .overview-transaction-amount .text-income small,
+.home-page.theme-jade .overview-transaction-amount .text-expense small,
+.home-page.theme-jade .overview-transaction-footer {
+    font-family: var(--font-num);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 月份 + 绯红点支出标签 */
+.home-page.theme-jade .home-summary-label {
+    font-family: var(--font-ui);
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    color: var(--ink);
+}
+
+.home-page.theme-jade .expense-badge {
+    background: transparent;
+    color: var(--amount-red);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: .04em;
+    padding: 0 0 0 14px;
+    position: relative;
+}
+
+.home-page.theme-jade .expense-badge::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--crimson);
+}
+
+/* 大金额 */
+.home-page.theme-jade .home-summary-amount {
+    font-size: 46px;
+    font-weight: 500;
+    letter-spacing: .005em;
+    line-height: 1.06;
+    color: var(--amount-red);
+    margin-top: 6px;
+}
+
+.home-page.theme-jade .home-summary-amount .ebk-hide-icon {
+    font-size: 18px;
+}
+
+/* 当月收入 */
+.home-page.theme-jade .home-summary-income-row {
+    border-top-color: var(--rule-2);
+}
+
+.home-page.theme-jade .home-summary-income-label {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.home-page.theme-jade .home-summary-income-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--income-green);
+}
+
+/* 刻度尺（玉石色） */
+.home-page.theme-jade .home-ruler {
+    border-top-color: var(--rule-2);
+}
+
+.home-page.theme-jade .home-ruler .tick {
+    background: var(--ink-3);
+}
+
+.home-page.theme-jade .home-ruler .tick--now {
+    background: var(--crimson);
+}
+
+.home-page.theme-jade .home-ruler-note {
+    font-family: var(--font-ui);
+    color: var(--ink-3);
+}
+
+/* 区间列表白卡 */
+.home-page.theme-jade .overview-transaction-list {
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: 0 1px 0 rgba(20, 32, 28, .05), 0 14px 30px -22px rgba(20, 32, 28, .45);
+}
+
+.home-page.theme-jade .overview-transaction-list .item-title > div {
+    font-family: var(--font-ui);
+    font-size: 15.5px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--ink);
+}
+
+.home-page.theme-jade .overview-transaction-footer {
+    font-size: 12px;
+    color: var(--ink-3);
+    letter-spacing: .02em;
+}
+
+.home-page.theme-jade .overview-transaction-list .text-income {
+    color: var(--amount-red);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.home-page.theme-jade .overview-transaction-list .text-expense {
+    color: var(--expense-teal);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.home-page.theme-jade .overview-transaction-list .item-inner:after {
+    background: var(--rule-2) !important;
+}
+
+/* 毛玻璃 Tab + 方形加号 */
+.home-page.theme-jade .tabbar.main-tabbar {
+    background: rgba(255, 255, 255, .94);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--rule);
+}
+
+.home-page.theme-jade .tabbar.main-tabbar .link {
+    color: var(--ink-3);
+}
+
+.home-page.theme-jade .tabbar.main-tabbar .link.active {
+    color: var(--ink);
+}
+
+.home-page.theme-jade .tabbar.main-tabbar .link.home-add-button {
+    width: 46px;
+    height: 46px;
+    margin-top: -12px;
+    border-radius: 12px;
     background: #fff;
-    border-radius: var(--ebk-card-border-radius);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.home-page.theme-jade .home-add-icon {
+    font-size: 24px;
+    color: var(--ink);
+}
+
+.home-page.theme-jade .home-summary-card .ebk-hide-icon {
+    color: var(--ink-3);
+}
+
+.home-page.theme-jade .home-card-gallery-btn {
+    color: var(--ink-3);
+    background: rgba(20, 32, 28, .05);
+}
+
+/* 月度汇总卡片 */
+.home-summary-card {
+    background: var(--hp-card);
+    border-radius: 20px;
     color: #1a1a1a;
     overflow: hidden;
     margin: 12px 16px !important;
     border: none;
     outline: none;
+    box-shadow: var(--hp-shadow);
 }
 
 .dark .home-summary-card {
-    background: #1c1c1e;
     color: #f0f0f0;
 }
 
@@ -566,34 +867,25 @@ init();
 .home-summary-badge {
     font-size: 0.72em;
     font-weight: 600;
-    padding: 2px 10px;
+    padding: 3px 12px;
     border-radius: 20px;
     letter-spacing: 0.02em;
 }
 
 .expense-badge {
-    background: #fee2e2;
-    color: #dc2626;
-}
-
-.dark .expense-badge {
-    background: rgba(220, 38, 38, 0.15);
-    color: #fca5a5;
+    background: var(--hp-expense-bg);
+    color: var(--hp-expense);
 }
 
 .home-summary-amount {
-    font-size: 2em;
+    font-size: 2.1em;
     font-weight: 700;
     letter-spacing: -0.02em;
     margin-bottom: 8px;
 }
 
 .expense-amount {
-    color: #dc2626;
-}
-
-.dark .expense-amount {
-    color: #fca5a5;
+    color: var(--hp-expense);
 }
 
 .home-summary-income-row {
@@ -601,39 +893,40 @@ init();
     align-items: center;
     justify-content: space-between;
     padding-top: 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.dark .home-summary-income-row {
-    border-top-color: rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--hp-divider);
 }
 
 .home-summary-income-label {
     font-size: 0.88em;
-    color: rgba(0, 0, 0, 0.5);
-}
-
-.dark .home-summary-income-label {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--hp-secondary);
 }
 
 .home-summary-income-value {
     font-size: 1em;
     font-weight: 600;
-    color: #07c160;
-}
-
-.dark .home-summary-income-value {
-    color: #6ee7b7;
+    color: var(--hp-income);
 }
 
 .home-summary-card .ebk-hide-icon {
-    color: rgba(0, 0, 0, 0.25);
+    color: var(--hp-secondary);
     font-size: 18px;
 }
 
-.dark .home-summary-card .ebk-hide-icon {
-    color: rgba(255, 255, 255, 0.35);
+/* 时间列表卡片 */
+.overview-transaction-list {
+    background: var(--hp-card);
+    border-radius: 16px;
+    box-shadow: var(--hp-shadow);
+    overflow: hidden;
+}
+
+.overview-transaction-list .item-content,
+.overview-transaction-list .item-inner {
+    background: transparent !important;
+}
+
+.overview-transaction-list .item-inner:after {
+    background: var(--hp-divider) !important;
 }
 
 .overview-transaction-list .item-title > div {
@@ -648,6 +941,7 @@ init();
 .overview-transaction-list .overview-transaction-footer {
     padding-top: 6px;
     font-size: var(--ebk-large-footer-font-size);
+    color: var(--hp-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -667,15 +961,102 @@ init();
     text-overflow: ellipsis;
 }
 
+.overview-transaction-list .text-income {
+    color: var(--hp-income);
+}
+
+.overview-transaction-list .text-expense {
+    color: var(--hp-expense);
+}
+
+/* 底部 Tab 导航 */
+.tabbar.main-tabbar {
+    overflow: visible;
+    background: var(--hp-card);
+    backdrop-filter: blur(12px);
+}
+
+.dark .tabbar.main-tabbar {
+    background: rgba(28, 28, 30, 0.92);
+}
+
+.tabbar.main-tabbar .link {
+    color: var(--hp-secondary);
+}
+
+.tabbar.main-tabbar .link.active {
+    color: var(--hp-primary);
+}
+
 .tabbar.main-tabbar .link i + span.tabbar-label {
     margin-top: var(--ebk-icon-text-margin);
 }
 
-.tabbar.main-tabbar .link i.ebk-tarbar-big-icon {
-    font-size: var(--ebk-big-icon-button-size);
-    width: var(--ebk-big-icon-button-size);
-    height: var(--ebk-big-icon-button-size);
-    line-height: var(--ebk-big-icon-button-size);
+/* 中间加号：上浮凸起圆钮 */
+.tabbar.main-tabbar .link.home-add-button {
+    width: 60px;
+    height: 60px;
+    margin-top: -30px;
+    border-radius: 50%;
+    background: var(--hp-primary);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.dark .tabbar.main-tabbar .link.home-add-button {
+    background: var(--hp-primary);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.home-add-icon {
+    font-size: 32px;
+    color: #fff;
+}
+
+/* 日刻度尺（参考稿元素） */
+.home-ruler {
+    margin-top: 13px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hp-divider);
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.home-ruler-ticks {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 17px;
+}
+
+.home-ruler .tick {
+    width: 1px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--hp-secondary);
+    opacity: .4;
+}
+
+.home-ruler .tick--now {
+    width: 2px;
+    height: 17px;
+    background: var(--hp-expense);
+    opacity: 1;
+}
+
+.home-ruler-note {
+    flex: none;
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 11px;
+    color: var(--hp-secondary);
+    letter-spacing: .02em;
 }
 
 .template-popover-menu .popover-inner {
