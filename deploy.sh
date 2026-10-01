@@ -58,14 +58,32 @@ for arg in "$@"; do
 done
 
 # ---------------------------------------------------------------- docker 命令
+# Synology DSM 上 docker 装在 /usr/local/bin，但非交互式 shell 的 PATH（尤其是 root 的）
+# 不一定包含它，所以这里显式解析可执行文件路径
+DOCKER_BIN=""
+
+for candidate in "$(command -v docker 2>/dev/null)" /usr/local/bin/docker /var/packages/Docker/target/usr/bin/docker /usr/bin/docker; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+        DOCKER_BIN="$candidate"
+        break
+    fi
+done
+
+if [ -z "$DOCKER_BIN" ]; then
+    echo "ERROR: 找不到 docker 命令，请确认 NAS 上已安装 Docker 套件"
+    exit 1
+fi
+
 if [ "$(id -u)" = "0" ]; then
-    DOCKER="docker"
-elif docker ps >/dev/null 2>&1; then
-    DOCKER="docker"
+    DOCKER="$DOCKER_BIN"
+elif "$DOCKER_BIN" ps >/dev/null 2>&1; then
+    DOCKER="$DOCKER_BIN"
 else
-    DOCKER="sudo docker"
+    DOCKER="sudo $DOCKER_BIN"
     echo "当前用户不能直接访问 docker，将使用 sudo（可能需要输入密码）"
 fi
+
+echo "使用 docker: $DOCKER_BIN"
 
 # ------------------------------------------------------------------ 前置检查
 if [ ! -f "$KEY_FILE" ]; then
@@ -167,11 +185,21 @@ echo "容器状态："
 $DOCKER ps -f "name=$CONTAINER_NAME" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
 if echo "$HEALTH" | grep -q '"status":"ok"'; then
+    LAN_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "src") print $(i + 1)}' | head -1)
+
+    if [ -z "$LAN_IP" ]; then
+        LAN_IP=$(hostname -i 2>/dev/null | awk '{print $1}')
+    fi
+
     echo
     echo "服务已就绪：$HEALTH"
     echo
     echo "访问地址（保持不变的入口）："
-    echo "  - 局域网   http://$(hostname -i 2>/dev/null | awk '{print $1}'):${HOST_PORT}/"
+
+    if [ -n "$LAN_IP" ] && [ "$LAN_IP" != "::1" ]; then
+        echo "  - 局域网   http://${LAN_IP}:${HOST_PORT}/"
+    fi
+
     echo "  - 外网     ${SHELL_BASE_URL}/"
     echo
     echo "iOS 上的「巢记」IPA 是启动壳，直接下拉刷新 / 重开 App 即可看到本次更新，无需重新安装。"
