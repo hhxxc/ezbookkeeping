@@ -45,7 +45,7 @@
     </vue-date-picker>
 </template>
 <script setup lang="ts">
-import { computed, useTemplateRef } from 'vue';
+import { computed, onBeforeUnmount, useTemplateRef } from 'vue';
 import { type MenuView, VueDatePicker } from '@vuepic/vue-datepicker';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -141,6 +141,9 @@ function switchView(viewType: MenuView): void {
 const calendarTapMaxMoveDistance = 10;
 
 let calendarTouchStartPoint: { x: number, y: number } | undefined = undefined;
+let calendarTouchGeneration = 0;
+let calendarDuplicateClickGuard: ((event: MouseEvent) => void) | undefined = undefined;
+let calendarDuplicateClickGuardTimer: number | undefined = undefined;
 
 /**
  * Whether the given value is a plain date (not a date range)
@@ -194,6 +197,90 @@ function selectDateOfCalendarCell(cell: Element): void {
 function onCalendarTouchStart(event: TouchEvent): void {
     const touch = event.changedTouches && event.changedTouches[0];
     calendarTouchStartPoint = touch ? { x: touch.clientX, y: touch.clientY } : undefined;
+    calendarTouchGeneration++;
+}
+
+function getCalendarCellId(date: Date): string {
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+
+    return `dp-${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Moves the focus (the blue focus ring) onto the cell of the newly selected date.
+ *
+ * Selecting a date which is not in the current month re-renders the calendar, and the library reuses the same grid
+ * cells for the new dates. The focus has to be moved *after* that re-render, otherwise the cell which gets the
+ * focus shows another day a moment later. The focus move is retried a few times because the re-render (and the
+ * month transition of the calendar) is asynchronous, and it is aborted as soon as the user touches the calendar
+ * again.
+ */
+function moveFocusToCalendarCell(container: Element | null, date: Date, generation: number, attempt = 0): void {
+    if (!container) {
+        return;
+    }
+
+    const delays = [0, 60, 140, 240];
+    const cellId = getCalendarCellId(date);
+
+    window.setTimeout(() => {
+        if (generation !== calendarTouchGeneration) {
+            return;
+        }
+
+        const cell = container.querySelector(`[id="${cellId}"]`) as HTMLElement | null;
+
+        if (cell && document.activeElement !== cell) {
+            cell.focus({ preventScroll: true });
+        }
+
+        if (attempt < delays.length - 1) {
+            moveFocusToCalendarCell(container, date, generation, attempt + 1);
+            return;
+        }
+
+        if (!cell) {
+            const activeElement = document.activeElement as HTMLElement | null;
+
+            if (activeElement && typeof activeElement.blur === 'function' && container.contains(activeElement)) {
+                activeElement.blur();
+            }
+        }
+    }, attempt === 0 ? 0 : delays[attempt]! - delays[attempt - 1]!);
+}
+
+/**
+ * Suppresses the click which the browser dispatches right after our own click was dispatched in onCalendarTouchEnd.
+ *
+ * That trailing click would hit the same grid *position*, which may already show another date after the calendar
+ * re-rendered (e.g. after selecting a date of the previous month), and would therefore select the wrong date.
+ */
+function armDuplicateClickGuard(): void {
+    disarmDuplicateClickGuard();
+
+    const guard = (event: MouseEvent) => {
+        disarmDuplicateClickGuard();
+        event.stopImmediatePropagation();
+        event.stopPropagation();
+        event.preventDefault();
+    };
+
+    calendarDuplicateClickGuard = guard;
+    document.addEventListener('click', guard, true);
+    calendarDuplicateClickGuardTimer = window.setTimeout(disarmDuplicateClickGuard, 600);
+}
+
+function disarmDuplicateClickGuard(): void {
+    if (calendarDuplicateClickGuardTimer !== undefined) {
+        window.clearTimeout(calendarDuplicateClickGuardTimer);
+        calendarDuplicateClickGuardTimer = undefined;
+    }
+
+    if (calendarDuplicateClickGuard) {
+        document.removeEventListener('click', calendarDuplicateClickGuard, true);
+        calendarDuplicateClickGuard = undefined;
+    }
 }
 
 /**
@@ -239,6 +326,8 @@ function onCalendarTouchEnd(event: TouchEvent): void {
         }
     }
 
+    disarmDuplicateClickGuard();
+
     target.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
@@ -247,7 +336,17 @@ function onCalendarTouchEnd(event: TouchEvent): void {
     }));
 
     if (cell) {
+        const date = getDateOfCalendarCell(cell);
+        const container = cell.closest('.dp__main');
+        const generation = calendarTouchGeneration;
+
         selectDateOfCalendarCell(cell);
+
+        if (date) {
+            moveFocusToCalendarCell(container, date, generation);
+        }
+
+        armDuplicateClickGuard();
     }
 }
 
@@ -271,6 +370,10 @@ function getDisplayDay(date: Date): string {
 
 defineExpose({
     switchView
+});
+
+onBeforeUnmount(() => {
+    disarmDuplicateClickGuard();
 });
 </script>
 
