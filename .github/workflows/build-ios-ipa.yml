@@ -4,10 +4,20 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'ios-shell/**'
+      - 'capacitor.config.ts'
+      - '.github/workflows/build-ios-ipa.yml'
+      - 'public/nestkeep-logo.svg'
   workflow_dispatch:
     inputs:
       api_base_url:
-        description: 'Backend API base URL (overrides IOS_API_BASE_URL variable)'
+        description: 'Server base URL loaded by the IPA shell (overrides IOS_API_BASE_URL variable)'
+        required: false
+        type: string
+        default: ''
+      fallback_api_base_url:
+        description: 'Optional fallback server base URL (e.g. LAN address)'
         required: false
         type: string
         default: ''
@@ -50,30 +60,81 @@ jobs:
             require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
           "
 
-      - name: Force hash routing
+      - name: Verify app shell detection
         run: |
-          sed -i '' 's|browserHistory: !isiOSHomeScreenMode()|browserHistory: false|' src/MobileApp.vue
+          grep -q 'isAppShellMode' src/MobileApp.vue
+          grep -q 'isAppShellMode' src/lib/ui/mobile.ts
 
       - name: Build web
         run: npm run build
 
-      - name: Prepare Capacitor entry
-        run: cp dist/mobile.html dist/index.html
-
-      - name: Inject server settings
+      - name: Prepare Capacitor entry (app shell)
         env:
-          API_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
+          DEFAULT_SERVER: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          FALLBACK_SERVER: ${{ inputs.fallback_api_base_url || vars.IOS_FALLBACK_API_BASE_URL }}
+          SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          printf "window.EZBOOKKEEPING_SERVER_SETTINGS = window.EZBOOKKEEPING_SERVER_SETTINGS || {};\nwindow.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl = '%s';\n" "${API_URL}" > dist/server_settings.js
+          test -f ios-shell/index.html
+          cp ios-shell/index.html dist/index.html
+
+          node -e "
+            const fs = require('fs');
+            const file = 'dist/index.html';
+            let html = fs.readFileSync(file, 'utf8');
+            html = html.split('__NESTKEEP_DEFAULT_SERVER__').join(process.env.DEFAULT_SERVER || '');
+            html = html.split('__NESTKEEP_FALLBACK_SERVER__').join(process.env.FALLBACK_SERVER || '');
+            html = html.split('__NESTKEEP_SHELL_VERSION__').join(process.env.SHELL_VERSION || '');
+            fs.writeFileSync(file, html);
+          "
+
+          if grep -q '__NESTKEEP_DEFAULT_SERVER__\|__NESTKEEP_FALLBACK_SERVER__\|__NESTKEEP_SHELL_VERSION__' dist/index.html; then
+            echo "ERROR: there are unreplaced placeholders in the app shell"
+            exit 1
+          fi
+
+          echo "Shell default server: ${DEFAULT_SERVER}"
+          echo "Shell fallback server: ${FALLBACK_SERVER}"
+          echo "Shell version: ${SHELL_VERSION}"
+          grep -o "NESTKEEP_SHELL_DEFAULT_SERVER = '[^']*'" dist/index.html
+          grep -o "NESTKEEP_SHELL_FALLBACK_SERVER = '[^']*'" dist/index.html
+          grep -o "NESTKEEP_SHELL_VERSION = '[^']*'" dist/index.html
 
       - name: Install Capacitor iOS
         run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
 
       - name: Add iOS platform
+        env:
+          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: test -d ios || npx cap add ios
 
       - name: Sync iOS platform
-        run: npx cap sync ios
+        env:
+          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          npx cap sync ios
+
+          echo "--- capacitor.config.json baked into the app ---"
+          cat ios/App/App/capacitor.config.json
+
+          if ! grep -q '"url"' ios/App/App/capacitor.config.json; then
+            echo "ERROR: the app shell url was not injected into capacitor.config.json"
+            exit 1
+          fi
+
+      - name: Patch Info.plist (allow webview to load http/LAN servers)
+        run: |
+          PLIST="ios/App/App/Info.plist"
+          PB=/usr/libexec/PlistBuddy
+
+          $PB -c "Delete :NSAppTransportSecurity" "$PLIST" >/dev/null 2>&1 || true
+          $PB -c "Add :NSAppTransportSecurity dict" "$PLIST"
+          $PB -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool false" "$PLIST"
+          $PB -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent bool true" "$PLIST"
+          $PB -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST"
+
+          $PB -c "Print :NSAppTransportSecurity" "$PLIST"
 
       - name: Generate iOS App Icons
         run: |

@@ -16,6 +16,7 @@ import { getContributors } from '@/lib/contributors.ts';
 import { getLicense, getThirdPartyLicenses } from '@/lib/licenses.ts';
 import { formatDisplayVersion, getClientDisplayVersion, getClientBuildTime, getClientVersionInfo } from '@/lib/version.ts';
 import { clearAllBrowserCaches } from '@/lib/cache.ts';
+import { getAppShellVersion } from '@/lib/ui/mobile.ts';
 
 const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/hhxxc/ezbookkeeping/releases/latest';
 
@@ -31,7 +32,12 @@ export function useAboutPageBase() {
     const systemsStore = useSystemsStore();
     const exchangeRatesStore = useExchangeRatesStore();
 
-    const clientVersion = `${getClientDisplayVersion()}`;
+    const appShellVersion = getAppShellVersion();
+
+    // When the page is served by the native app shell, the web app itself is always the version of the server side
+    // container, so the version of the installed package (the IPA) is the app shell version instead.
+    const clientVersion = appShellVersion ? `v${appShellVersion}` : `${getClientDisplayVersion()}`;
+    const installedAppVersion = appShellVersion || getClientVersionInfo().version;
 
     const serverVersion = ref<VersionInfo | null>(null);
     const clientVersionMatchServerVersion = ref<boolean>(true);
@@ -74,7 +80,7 @@ export function useAboutPageBase() {
             return false;
         }
 
-        return getClientVersionInfo().version !== clientUpdateInfo.value.latestVersion;
+        return installedAppVersion !== clientUpdateInfo.value.latestVersion;
     });
 
     function refreshBrowserCache(): void {

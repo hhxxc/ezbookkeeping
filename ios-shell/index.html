@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui, viewport-fit=cover"/>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+    <meta name="theme-color" content="#533afd">
+    <meta name="format-detection" content="telephone=no"/>
+    <title>巢记</title>
+    <!--
+      巢记 iOS 启动壳（App Shell）
+      ------------------------------------------------
+      这个页面是 IPA 里唯一被打包的前端内容。它不做任何业务逻辑，
+      只负责：探测可用的服务器地址 -> 跳到服务器上的 Web 应用（/mobile）。
+      所以以后前端有更新，只需要更新 NAS 上的 Docker 容器，IPA 不用重新打包。
+
+      可用的服务器地址来源，按优先级：
+        1. 用户在壳里手工保存的地址（localStorage）
+        2. 构建时注入的默认地址（见下面的 NESTKEEP_SHELL_DEFAULT_SERVER）
+        3. 构建时注入的备用地址（NESTKEEP_SHELL_FALLBACK_SERVER，可为空）
+
+      连续点击 3 次 logo 可以打开服务器设置页。
+    -->
+    <style>
+        :root {
+            --brand: #533afd;
+            --bg: #f6f6f8;
+            --fg: #1a1a1a;
+            --fg-dim: #8a8a8e;
+            --card: #ffffff;
+            --line: rgba(0, 0, 0, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000;
+                --fg: #ffffff;
+                --fg-dim: #8e8e93;
+                --card: #1c1c1e;
+                --line: rgba(255, 255, 255, 0.12);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom) 24px;
+            overflow: hidden;
+        }
+
+        .logo {
+            width: 96px;
+            height: 96px;
+            border-radius: 22px;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .title {
+            margin-top: 16px;
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        .status {
+            margin-top: 22px;
+            font-size: 14px;
+            color: var(--fg-dim);
+            min-height: 20px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .spinner {
+            margin-top: 18px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--line);
+            border-top-color: var(--brand);
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden { display: none !important; }
+
+        /* 设置 / 诊断面板 */
+        #setup {
+            width: 100%;
+            max-width: 420px;
+            margin-top: 24px;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--fg-dim);
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        input[type=url] {
+            width: 100%;
+            padding: 12px 14px;
+            font-size: 15px;
+            color: var(--fg);
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type=url]:focus { border-color: var(--brand); }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 14px;
+            font-size: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: var(--card);
+            color: var(--fg);
+            font-family: inherit;
+        }
+
+        button.primary {
+            background: var(--brand);
+            border-color: var(--brand);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        button:active { opacity: 0.7; }
+
+        #log {
+            margin-top: 14px;
+            width: 100%;
+            max-height: 30vh;
+            overflow: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--fg-dim);
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+<img id="logo" class="logo" src="img/nestkeep-logo-512.png" alt="巢记"/>
+<div class="title">巢记</div>
+<div class="status" id="status">正在连接服务器…</div>
+<div class="spinner" id="spinner"></div>
+
+<div id="setup" class="hidden">
+    <div class="hint">连不上服务器。请确认 NAS 上的 ezbookkeeping 容器正在运行，并检查下面的地址（不需要填结尾的斜杠）。</div>
+    <input id="serverInput" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://example-server.invalid"/>
+    <div class="row">
+        <button class="primary" id="saveBtn">保存并连接</button>
+        <button id="defaultBtn">恢复默认</button>
+    </div>
+    <div class="row">
+        <button id="clearBtn">清除缓存并重连</button>
+    </div>
+    <div id="log"></div>
+</div>
+
+<script>
+    // 构建时由 GitHub Actions 替换（见 .github/workflows/build-ios-ipa.yml）
+    window.NESTKEEP_SHELL_DEFAULT_SERVER = '__NESTKEEP_DEFAULT_SERVER__';
+    window.NESTKEEP_SHELL_FALLBACK_SERVER = '__NESTKEEP_FALLBACK_SERVER__';
+    window.NESTKEEP_SHELL_VERSION = '__NESTKEEP_SHELL_VERSION__';
+
+    (function () {
+        'use strict';
+
+        var STORAGE_KEY_SERVER = 'nestkeep.shell.serverUrl';
+        var STORAGE_KEY_LAST = 'nestkeep.shell.lastServer';
+        var STORAGE_KEY_LAST_REDIRECT = 'nestkeep.shell.lastRedirectAt';
+        var PROBE_TIMEOUT_MS = 4500;
+        var REDIRECT_LOOP_GUARD_MS = 10000;
+        var BUILD_DEFAULT = 'https://example-server.invalid';
+
+        var elLogo = document.getElementById('logo');
+        var elStatus = document.getElementById('status');
+        var elSpinner = document.getElementById('spinner');
+        var elSetup = document.getElementById('setup');
+        var elServerInput = document.getElementById('serverInput');
+        var elLog = document.getElementById('log');
+
+        var logoClicks = 0;
+        var logoTimer = null;
+        var stopped = false;
+
+        function normalizeBase(url) {
+            if (!url) {
+                return '';
+            }
+
+            var value = String(url).trim();
+
+            if (!value) {
+                return '';
+            }
+
+            if (value.indexOf('://') < 0) {
+                value = 'https://' + value;
+            }
+
+            return value.replace(/\/+$/, '');
+        }
+
+        function readPlaceholder(value, fallback) {
+            if (!value || value.indexOf('__NESTKEEP_') === 0) {
+                return fallback;
+            }
+
+            return value;
+        }
+
+        function buildDefaultServer() {
+            return normalizeBase(readPlaceholder(window.NESTKEEP_SHELL_DEFAULT_SERVER, BUILD_DEFAULT));
+        }
+
+        function buildFallbackServer() {
+            return normalizeBase(readPlaceholder(window.NESTKEEP_SHELL_FALLBACK_SERVER, ''));
+        }
+
+        function savedServer() {
+            try {
+                return normalizeBase(window.localStorage.getItem(STORAGE_KEY_SERVER));
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function saveServer(url) {
+            try {
+                if (url) {
+                    window.localStorage.setItem(STORAGE_KEY_SERVER, url);
+                } else {
+                    window.localStorage.removeItem(STORAGE_KEY_SERVER);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function lastServer() {
+            try {
+                return normalizeBase(window.localStorage.getItem(STORAGE_KEY_LAST));
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function rememberServer(url) {
+            try {
+                window.localStorage.setItem(STORAGE_KEY_LAST, url);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        // 防止「壳 -> 服务器 -> 加载失败 -> 壳」无限循环：10 秒内只自动跳转一次
+        function hasJustRedirected() {
+            try {
+                var value = parseInt(window.localStorage.getItem(STORAGE_KEY_LAST_REDIRECT) || '0', 10);
+                return value > 0 && (Date.now() - value) < REDIRECT_LOOP_GUARD_MS;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function markRedirected() {
+            try {
+                window.localStorage.setItem(STORAGE_KEY_LAST_REDIRECT, String(Date.now()));
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function candidates() {
+            var list = [savedServer(), buildDefaultServer(), buildFallbackServer(), lastServer()];
+            var result = [];
+
+            for (var i = 0; i < list.length; i++) {
+                if (list[i] && result.indexOf(list[i]) < 0) {
+                    result.push(list[i]);
+                }
+            }
+
+            return result;
+        }
+
+        function log(message) {
+            elLog.textContent += (elLog.textContent ? '\n' : '') + message;
+            elLog.scrollTop = elLog.scrollHeight;
+        }
+
+        function setStatus(text) {
+            elStatus.textContent = text;
+        }
+
+        function showSetup(message) {
+            elSpinner.classList.add('hidden');
+            setStatus(message || '连不上服务器');
+            elSetup.classList.remove('hidden');
+            elServerInput.value = savedServer() || buildDefaultServer();
+            elServerInput.focus();
+        }
+
+        function hideSetup() {
+            elSetup.classList.add('hidden');
+            elLog.textContent = '';
+        }
+
+        function probe(base) {
+            return new Promise(function (resolve) {
+                var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                var timer = setTimeout(function () {
+                    if (controller) {
+                        controller.abort();
+                    }
+                    resolve(null);
+                }, PROBE_TIMEOUT_MS);
+
+                var options = {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: { 'Accept': 'application/json' }
+                };
+
+                if (controller) {
+                    options.signal = controller.signal;
+                }
+
+                fetch(base + '/healthz.json', options).then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status);
+                    }
+
+                    return response.json();
+                }).then(function (body) {
+                    clearTimeout(timer);
+
+                    var result = body && (body.result || body);
+
+                    if (!result || (result.status !== 'ok' && body.success !== true)) {
+                        resolve(null);
+                        return;
+                    }
+
+                    resolve({ version: result.version || '', commit: result.commit || '' });
+                }).catch(function (error) {
+                    clearTimeout(timer);
+                    log(base + ' -> ' + (error && error.message ? error.message : '连接失败'));
+                    resolve(null);
+                });
+            });
+        }
+
+        function enterApp(base, health) {
+            if (hasJustRedirected()) {
+                showSetup('刚刚已经尝试过打开应用页面，但没有成功加载');
+                return;
+            }
+
+            var shellVersion = readPlaceholder(window.NESTKEEP_SHELL_VERSION, '');
+            var query = 'appshell=1&_t=' + Date.now();
+
+            if (shellVersion) {
+                query += '&shellv=' + encodeURIComponent(shellVersion);
+            }
+
+            var url = base + '/mobile?' + query + '#/';
+            var version = health && health.version ? health.version : '';
+            var commit = health && health.commit ? health.commit : '';
+
+            setStatus('已连接 ' + base + (version ? '（v' + version + (commit ? ' · ' + commit : '') + '）' : ''));
+            rememberServer(base);
+            markRedirected();
+            window.location.replace(url);
+        }
+
+        function connect() {
+            if (stopped) {
+                return;
+            }
+
+            hideSetup();
+            elSpinner.classList.remove('hidden');
+            elLog.textContent = '';
+
+            var list = candidates();
+
+            if (!list.length) {
+                showSetup('没有可用的服务器地址');
+                return;
+            }
+
+            var index = 0;
+
+            function next() {
+                if (stopped) {
+                    return;
+                }
+
+                if (index >= list.length) {
+                    showSetup('连不上服务器');
+                    return;
+                }
+
+                var base = list[index++];
+                setStatus('正在连接 ' + base + ' …');
+                log('尝试 ' + base);
+
+                probe(base).then(function (health) {
+                    if (stopped) {
+                        return;
+                    }
+
+                    if (health) {
+                        enterApp(base, health);
+                    } else {
+                        next();
+                    }
+                });
+            }
+
+            next();
+        }
+
+        function stopAndConfigure() {
+            stopped = true;
+            showSetup('服务器设置');
+        }
+
+        elLogo.addEventListener('click', function () {
+            logoClicks++;
+
+            if (logoTimer) {
+                clearTimeout(logoTimer);
+            }
+
+            logoTimer = setTimeout(function () {
+                logoClicks = 0;
+            }, 700);
+
+            if (logoClicks >= 3) {
+                logoClicks = 0;
+                stopAndConfigure();
+            }
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', function () {
+            var base = normalizeBase(elServerInput.value);
+
+            if (!base) {
+                elServerInput.focus();
+                return;
+            }
+
+            saveServer(base);
+            stopped = false;
+            connect();
+        });
+
+        document.getElementById('defaultBtn').addEventListener('click', function () {
+            saveServer('');
+            elServerInput.value = buildDefaultServer();
+            stopped = false;
+            connect();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', function () {
+            try {
+                window.localStorage.clear();
+            } catch (e) {
+                // ignore
+            }
+
+            if (window.caches && window.caches.keys) {
+                window.caches.keys().then(function (names) {
+                    return Promise.all(names.map(function (name) {
+                        return window.caches.delete(name);
+                    }));
+                }).catch(function () {
+                    // ignore
+                });
+            }
+
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    registrations.forEach(function (registration) {
+                        registration.unregister();
+                    });
+                }).catch(function () {
+                    // ignore
+                });
+            }
+
+            stopped = false;
+            elServerInput.value = buildDefaultServer();
+            connect();
+        });
+
+        // 在线状态变化时自动重试一次
+        window.addEventListener('online', function () {
+            if (!elSetup.classList.contains('hidden')) {
+                stopped = false;
+                connect();
+            }
+        });
+
+        connect();
+    })();
+</script>
+</body>
+</html>

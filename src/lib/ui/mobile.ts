@@ -26,6 +26,50 @@ export function isiOSHomeScreenMode(): boolean {
     return isiOS() && !!window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
 }
 
+interface CapacitorGlobal {
+    isNativePlatform?: () => boolean;
+    getPlatform?: () => string;
+}
+
+/**
+ * Whether the current page is running inside the native app shell (the IPA / APK package).
+ *
+ * The native package ships only a bootstrap shell (ios-shell/index.html); the real web app is
+ * loaded from the server. In that mode we must avoid the HTML5 history API (deep links cannot be
+ * served by a static file server) and must not register a service worker, otherwise a container
+ * update on the server would keep serving the previous web app from the WebView cache.
+ */
+export function isAppShellMode(): boolean {
+    const capacitor = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+
+    if (capacitor && typeof capacitor.isNativePlatform === 'function' && capacitor.isNativePlatform()) {
+        return true;
+    }
+
+    return /[?&]appshell=1(&|#|$)/.test(`${window.location.search}${window.location.hash}`);
+}
+
+/**
+ * Returns the version of the installed native app shell (the IPA package), or an empty string when the page is not
+ * running inside the native app shell.
+ *
+ * The shell passes its own build version in the "shellv" query string, because the version bundled with the web app
+ * is always the version of the server side container instead of the version of the installed package.
+ */
+export function getAppShellVersion(): string {
+    const matched = /[?&]shellv=([^&#]*)/.exec(window.location.search);
+
+    if (!matched || !matched[1]) {
+        return '';
+    }
+
+    try {
+        return decodeURIComponent(matched[1]);
+    } catch (e) {
+        return matched[1];
+    }
+}
+
 export function showLoading(delayConditionFunc?: () => boolean, delayMills?: number): void {
     if (!delayConditionFunc) {
         f7ready((f7) => {

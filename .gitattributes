@@ -1,0 +1,7 @@
+# 保证 shell 脚本 / 工作流文件在仓库里始终是 LF，避免在 Windows 上被 checkout 成 CRLF 后
+# 传到 NAS 上执行时报 "bad interpreter: /bin/bash^M" 之类的错误
+*.sh text eol=lf
+*.bash text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf

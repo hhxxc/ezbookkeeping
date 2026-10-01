@@ -187,33 +187,7 @@ func getConfigWithoutSensitiveData(config *settings.Config) *settings.Config {
 	}
 
 	if clonedConfig.ReceiptImageRecognitionLLMConfig != nil {
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.OpenAIAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.OpenAIAPIKey = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.OpenAICompatibleAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.OpenAICompatibleAPIKey = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.AnthropicCompatibleAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.AnthropicCompatibleAPIKey = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.AnthropicAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.AnthropicAPIKey = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.OpenRouterAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.OpenRouterAPIKey = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.LMStudioToken != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.LMStudioToken = "****"
-		}
-
-		if clonedConfig.ReceiptImageRecognitionLLMConfig.GoogleAIAPIKey != "" {
-			clonedConfig.ReceiptImageRecognitionLLMConfig.GoogleAIAPIKey = "****"
-		}
+		maskReceiptImageRecognitionLLMConfigSecrets(clonedConfig.ReceiptImageRecognitionLLMConfig)
 	}
 
 	if clonedConfig.OAuth2ClientSecret != "" {
@@ -221,4 +195,40 @@ func getConfigWithoutSensitiveData(config *settings.Config) *settings.Config {
 	}
 
 	return clonedConfig
+}
+
+func maskReceiptImageRecognitionLLMConfigSecrets(llmConfig *settings.LLMConfig) {
+	if llmConfig.OpenAIAPIKey != "" {
+		llmConfig.OpenAIAPIKey = "****"
+	}
+
+	if llmConfig.OpenAICompatibleAPIKey != "" {
+		llmConfig.OpenAICompatibleAPIKey = "****"
+	}
+
+	if llmConfig.AnthropicCompatibleAPIKey != "" {
+		llmConfig.AnthropicCompatibleAPIKey = "****"
+	}
+
+	if llmConfig.AnthropicAPIKey != "" {
+		llmConfig.AnthropicAPIKey = "****"
+	}
+
+	if llmConfig.OpenRouterAPIKey != "" {
+		llmConfig.OpenRouterAPIKey = "****"
+	}
+
+	if llmConfig.LMStudioToken != "" {
+		llmConfig.LMStudioToken = "****"
+	}
+
+	if llmConfig.GoogleAIAPIKey != "" {
+		llmConfig.GoogleAIAPIKey = "****"
+	}
+
+	for i := 0; i < len(llmConfig.FallbackModels); i++ {
+		if llmConfig.FallbackModels[i] != nil {
+			maskReceiptImageRecognitionLLMConfigSecrets(llmConfig.FallbackModels[i])
+		}
+	}
 }

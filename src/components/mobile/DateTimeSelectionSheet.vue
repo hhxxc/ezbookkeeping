@@ -13,13 +13,15 @@
         </f7-toolbar>
         <f7-page-content class="margin-top">
             <div class="block no-margin no-padding">
+                <!-- v-if instead of v-show: an inline calendar that is mounted while it is display:none computes
+                     its layout against a zero sized box, which makes the day cells unresponsive on iOS. -->
                 <date-time-picker ref="datetimepicker"
                                   datetime-picker-class="justify-content-center"
                                   :is-dark-mode="isDarkMode"
                                   :enable-time-picker="false"
                                   :show-alternate-dates="true"
                                   v-model="dateTime"
-                                  v-show="mode === 'date'">
+                                  v-if="mode === 'date'">
                 </date-time-picker>
             </div>
             <div class="block no-margin no-padding padding-vertical-half" v-show="mode === 'time'">
@@ -417,6 +419,12 @@ function delayCheckAndResetTimePickerItemPosition(): void {
     window.requestAnimationFrame(delayCheckAndResetTimePickerItemPosition);
 }
 
+function showDatePickerCalendarView(): void {
+    nextTick(() => {
+        datetimepicker.value?.switchView('calendar');
+    });
+}
+
 function onSheetOpen(): void {
     mode.value = props.initMode || 'time';
 
@@ -429,9 +437,9 @@ function onSheetOpen(): void {
             initTimePickerStyle();
             scrollAllTimeSelectedItems();
         });
+    } else {
+        showDatePickerCalendarView();
     }
-
-    datetimepicker.value?.switchView('calendar');
 }
 
 function onSheetClosed(): void {
@@ -440,7 +448,7 @@ function onSheetClosed(): void {
 
 watch(mode, (newValue) => {
     if (newValue === 'date') {
-        datetimepicker.value?.switchView('calendar');
+        showDatePickerCalendarView();
     } else if (newValue === 'time') {
         nextTick(() => {
             initTimePickerStyle();
