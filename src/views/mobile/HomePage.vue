@@ -530,9 +530,10 @@ function uploadHomeBackgroundImage(event: Event): void {
         const imageUrl = data.result.url;
         settingsStore.setHomeSummaryBackgroundImage(imageUrl);
         homeSummaryBackgroundImage.value = imageUrl;
-    }).catch(() => {
+    }).catch(error => {
         hideLoading();
-        showToast(tt('Failed to upload image'));
+        console.error('[HomePage] upload home background failed:', error);
+        showToast(error?.message || tt('Failed to upload image'));
     });
 
     target.value = '';
