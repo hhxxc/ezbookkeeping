@@ -325,7 +325,7 @@ import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
-import { services } from '@/lib/services.ts';
+import services from '@/lib/services.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
 import { KnownFileType } from '@/core/file.ts';
 
