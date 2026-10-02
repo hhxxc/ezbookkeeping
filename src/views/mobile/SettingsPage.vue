@@ -150,7 +150,7 @@ import { getClientDisplayVersion, getDesktopVersionPath } from '@/lib/version.ts
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
-import { services } from '@/lib/services.ts';
+import services from '@/lib/services.ts';
 import { KnownFileType } from '@/core/file.ts';
 
 const props = defineProps<{

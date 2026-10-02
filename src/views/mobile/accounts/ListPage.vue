@@ -230,7 +230,7 @@ import { AccountType, AccountCategory } from '@/core/account.ts';
 import type { Account, AccountShowingIds } from '@/models/account.ts';
 
 import { onSwipeoutDeleted } from '@/lib/ui/mobile.ts';
-import { services } from '@/lib/services.ts';
+import services from '@/lib/services.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
