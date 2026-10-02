@@ -1,6 +1,6 @@
 <template>
     <f7-app v-bind="f7params">
-        <f7-view id="main-view" class="safe-areas" main url="/" :show-progressbar="true" progressbar-color="#2563EB" />
+        <f7-view id="main-view" main url="/" :show-progressbar="true" progressbar-color="#2563EB" />
     </f7-app>
 </template>
 
@@ -117,21 +117,17 @@ const currentNotificationContent = computed<string | null>(() => rootStore.curre
 
 function setThemeColorMeta(darkMode: boolean | undefined): void {
     if (hasPushPopupBackdrop.value) {
-        document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
+        document.querySelector('meta[name=theme-color]')?.setAttribute('content', darkMode ? '#1a1a1e' : '#000');
         return;
     }
 
     if (darkMode) {
-        if (hasBackdrop.value) {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
-        } else {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
-        }
+        document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#1a1a1e');
     } else {
         if (hasBackdrop.value) {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#949495');
+            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
         } else {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#f6f6f8');
+            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#F7F8FA');
         }
     }
 }
