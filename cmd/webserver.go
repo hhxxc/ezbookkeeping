@@ -445,6 +445,9 @@ func startWebServer(c *core.CliContext) error {
 			if config.EnableTransactionPictures {
 				apiV1Route.POST("/transaction/pictures/upload.json", bindApi(api.TransactionPictures.TransactionPictureUploadHandler))
 				apiV1Route.POST("/transaction/pictures/remove_unused.json", bindApi(api.TransactionPictures.TransactionPictureRemoveUnusedHandler))
+
+				// Home Background (uses same picture storage)
+				apiV1Route.POST("/home/backgrounds/upload.json", bindApi(api.HomeBackgrounds.HomeBackgroundUploadHandler))
 			}
 
 			// Transaction Categories

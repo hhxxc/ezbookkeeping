@@ -230,6 +230,7 @@ import { AccountType, AccountCategory } from '@/core/account.ts';
 import type { Account, AccountShowingIds } from '@/models/account.ts';
 
 import { onSwipeoutDeleted } from '@/lib/ui/mobile.ts';
+import { services } from '@/lib/services.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -286,8 +287,9 @@ const noAvailableAccount = computed<boolean>(() => {
 const accountOverviewCardStyle = computed(() => {
     const bgImage = settingsStore.appSettings.homeSummaryBackgroundImage;
     if (bgImage) {
+        const imageUrl = services.getHomeBackgroundImageUrl(bgImage);
         return {
-            'background-image': `url(${bgImage})`,
+            'background-image': `url(${imageUrl})`,
             'background-size': 'cover',
             'background-position': 'center',
             'background-repeat': 'no-repeat'

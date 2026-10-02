@@ -113,21 +113,13 @@
 
             <f7-list-item :title="tt('About')" link="/about" :after="version"></f7-list-item>
 
-            <f7-list-item
-                link="#"
-                class="list-item-no-item-after"
-                :title="tt('Home Background Image')"
-                :after="homeGalleryBackgroundName || tt('Default')"
-                @click="showBackgroundGallery = true"
-            ></f7-list-item>
-
             <f7-list-item>
                 <template #after-title>
-                    <span>{{ tt('Custom Background') }}</span>
+                    <span>{{ tt('Home Background Image') }}</span>
                 </template>
                 <template #after>
                     <div class="display-flex align-items-center">
-                        <img v-if="homeBackgroundImage" :src="homeBackgroundImage" style="width: 40px; height: 20px; object-fit: cover; margin-right: 8px; border-radius: 4px;" />
+                        <img v-if="homeBackgroundImage" :src="services.getHomeBackgroundImageUrl(homeBackgroundImage)" style="width: 40px; height: 20px; object-fit: cover; margin-right: 8px; border-radius: 4px;" />
                         <f7-link @click="onHomeBackgroundImageClick">{{ homeBackgroundImage ? tt('Change') : tt('Upload') }}</f7-link>
                         <f7-link v-if="homeBackgroundImage" @click="onRemoveHomeBackgroundImage" class="margin-inline-start-half">{{ tt('Remove') }}</f7-link>
                     </div>
@@ -135,17 +127,12 @@
             </f7-list-item>
         </f7-list>
 
-        <input ref="homeBgInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_EXTENSIONS" @change="uploadHomeBackgroundImage($event)" />
-
-        <background-selection-sheet
-            v-model:show="showBackgroundGallery"
-            v-model="homeGalleryBackgroundId"
-        />
+        <input ref="homeBgInput" type="file" style="display: none" accept="image/*" @change="uploadHomeBackgroundImage($event)" />
     </f7-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useTemplateRef, watch } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -162,9 +149,9 @@ import { parseDateTimeFromUnixTime } from '@/lib/datetime.ts';
 import { getClientDisplayVersion, getDesktopVersionPath } from '@/lib/version.ts';
 import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
-import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
-import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
-import BackgroundSelectionSheet from '@/components/mobile/BackgroundSelectionSheet.vue';
+import { compressJpgImage } from '@/lib/ui/common.ts';
+import { services } from '@/lib/services.ts';
+import { KnownFileType } from '@/core/file.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -186,23 +173,7 @@ const showThemePopup = ref<boolean>(false);
 const showTimezonePopup = ref<boolean>(false);
 
 const homeBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
-const homeGalleryBackgroundId = ref<string>(settingsStore.appSettings.homeGalleryBackgroundId || '');
-const showBackgroundGallery = ref<boolean>(false);
 const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
-
-const homeGalleryBackgroundName = computed<string>(() => {
-    if (!homeGalleryBackgroundId.value) return '';
-    const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
-    return bg ? bg.name : '';
-});
-
-watch(homeGalleryBackgroundId, (newId) => {
-    if (newId) {
-        settingsStore.setHomeSummaryBackgroundImage('');
-        homeBackgroundImage.value = '';
-    }
-    settingsStore.setHomeGalleryBackgroundId(newId);
-});
 
 const currentNickName = computed<string>(() => userStore.currentUserNickname || tt('User'));
 
@@ -275,57 +246,33 @@ function uploadHomeBackgroundImage(event: Event): void {
         return;
     }
 
-    const reader = new FileReader();
+    showLoading();
 
-    reader.onload = (e) => {
-        const img = new Image();
+    compressJpgImage(file, 800, 600, 0.7).then(compressedBlob => {
+        const compressedFile = KnownFileType.JPG.createFileFromBlob(compressedBlob, 'bg');
+        return services.uploadHomeBackground({ pictureFile: compressedFile });
+    }).then(response => {
+        hideLoading();
+        const data = response.data;
 
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+        if (!data || !data.success || !data.result) {
+            showToast(tt('Failed to upload image'));
+            return;
+        }
 
-            if (!ctx) {
-                return;
-            }
+        const imageUrl = data.result.url;
+        settingsStore.setHomeSummaryBackgroundImage(imageUrl);
+        homeBackgroundImage.value = imageUrl;
+    }).catch(() => {
+        hideLoading();
+        showToast(tt('Failed to upload image'));
+    });
 
-            const targetRatio = 2;
-            const maxOutputWidth = 800;
-
-            let sourceX = 0;
-            let sourceY = 0;
-            let sourceWidth = img.width;
-            let sourceHeight = img.height;
-            const currentRatio = sourceWidth / sourceHeight;
-
-            if (currentRatio > targetRatio) {
-                sourceWidth = sourceHeight * targetRatio;
-                sourceX = (img.width - sourceWidth) / 2;
-            } else if (currentRatio < targetRatio) {
-                sourceHeight = sourceWidth / targetRatio;
-                sourceY = (img.height - sourceHeight) / 2;
-            }
-
-            const outputWidth = Math.min(img.width, maxOutputWidth);
-            const outputHeight = outputWidth / targetRatio;
-
-            canvas.width = outputWidth;
-            canvas.height = outputHeight;
-            ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight);
-
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            settingsStore.setHomeSummaryBackgroundImage(dataUrl);
-            homeBackgroundImage.value = dataUrl;
-        };
-
-        img.src = e.target?.result as string;
-    };
-
-    reader.readAsDataURL(file);
     target.value = '';
 }
 
 function onRemoveHomeBackgroundImage(): void {
-    showConfirm('Remove home background image?', () => {
+    showConfirm(tt('Remove home background image?'), () => {
         settingsStore.setHomeSummaryBackgroundImage('');
         homeBackgroundImage.value = '';
     });

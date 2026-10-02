@@ -4,8 +4,8 @@
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
 
-        <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="showBackgroundGallery = true">
-            <f7-link class="home-card-gallery-btn" @click="showBackgroundGallery = true">
+        <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="onHomeBgInputClick">
+            <f7-link class="home-card-gallery-btn" @click="onHomeBgInputClick">
                 <f7-icon f7="photo_on_rectangle" style="font-size: 16px; color: rgba(0,0,0,0.35);"></f7-icon>
             </f7-link>
             <f7-card-header class="display-block" style="padding: 20px 20px 16px;">
@@ -284,14 +284,11 @@
             </f7-list>
         </f7-popover>
 
+        <input ref="homeBgInput" type="file" style="display: none" accept="image/*" @change="uploadHomeBackgroundImage($event)" />
+
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
-
-        <background-selection-sheet
-            v-model:show="showBackgroundGallery"
-            v-model="homeGalleryBackgroundId"
-        />
 
         <template #fixed>
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
@@ -306,13 +303,12 @@
 
 <script setup lang="ts">
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
-import BackgroundSelectionSheet from '@/components/mobile/BackgroundSelectionSheet.vue';
 
-import { ref, computed, useTemplateRef, watch } from 'vue';
+import { ref, computed, useTemplateRef } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { useI18nUIComponents } from '@/lib/ui/mobile.ts';
+import { useI18nUIComponents, showLoading, hideLoading } from '@/lib/ui/mobile.ts';
 import { useHomePageBase } from '@/views/base/HomePageBase.ts';
 
 import { useAccountsStore } from '@/stores/account.ts';
@@ -329,7 +325,9 @@ import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
-import { GALLERY_BACKGROUNDS } from '@/consts/gallery.ts';
+import { services } from '@/lib/services.ts';
+import { compressJpgImage } from '@/lib/ui/common.ts';
+import { KnownFileType } from '@/core/file.ts';
 
 type AIImageRecognitionSheetType = InstanceType<typeof AIImageRecognitionSheet>;
 
@@ -369,32 +367,13 @@ const monthlyBalanceClass = computed<string>(() => {
 
 const settingsStore = useSettingsStore();
 const homeSummaryBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
-const homeGalleryBackgroundId = ref<string>(settingsStore.appSettings.homeGalleryBackgroundId || '');
-const showBackgroundGallery = ref<boolean>(false);
-
-watch(homeGalleryBackgroundId, (newId) => {
-    if (newId) {
-        settingsStore.setHomeSummaryBackgroundImage('');
-        homeSummaryBackgroundImage.value = '';
-    }
-    settingsStore.setHomeGalleryBackgroundId(newId);
-});
+const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
 
 const homeSummaryCardStyle = computed(() => {
-    if (homeGalleryBackgroundId.value) {
-        const bg = GALLERY_BACKGROUNDS.find(b => b.id === homeGalleryBackgroundId.value);
-        if (bg) {
-            return {
-                'background-image': bg.css,
-                'background-size': 'cover',
-                'background-position': 'center',
-                'background-repeat': 'no-repeat'
-            } as Record<string, string>;
-        }
-    }
     if (homeSummaryBackgroundImage.value) {
+        const imageUrl = services.getHomeBackgroundImageUrl(homeSummaryBackgroundImage.value);
         return {
-            'background-image': `url(${homeSummaryBackgroundImage.value})`,
+            'background-image': `url(${imageUrl})`,
             'background-size': 'cover',
             'background-position': 'center',
             'background-repeat': 'no-repeat'
@@ -522,9 +501,45 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
     props.f7router.navigate(`/transaction/add?${params.join('&')}`);
 }
 
+function onHomeBgInputClick(): void {
+    homeBgInput.value?.click();
+}
+
+function uploadHomeBackgroundImage(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    showLoading();
+
+    compressJpgImage(file, 800, 600, 0.7).then(compressedBlob => {
+        const compressedFile = KnownFileType.JPG.createFileFromBlob(compressedBlob, 'bg');
+        return services.uploadHomeBackground({ pictureFile: compressedFile });
+    }).then(response => {
+        hideLoading();
+        const data = response.data;
+
+        if (!data || !data.success || !data.result) {
+            showToast(tt('Failed to upload image'));
+            return;
+        }
+
+        const imageUrl = data.result.url;
+        settingsStore.setHomeSummaryBackgroundImage(imageUrl);
+        homeSummaryBackgroundImage.value = imageUrl;
+    }).catch(() => {
+        hideLoading();
+        showToast(tt('Failed to upload image'));
+    });
+
+    target.value = '';
+}
+
 function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
-    homeGalleryBackgroundId.value = settingsStore.appSettings.homeGalleryBackgroundId || '';
 
     if (!loading.value) {
         reload();
