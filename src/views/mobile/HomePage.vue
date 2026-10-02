@@ -23,12 +23,22 @@
                         <f7-icon class="ebk-hide-icon" :f7="showAmountInHomePage ? 'eye_slash_fill' : 'eye_fill'"></f7-icon>
                     </f7-link>
                 </div>
-                <div class="home-summary-income-row">
-                    <span class="home-summary-income-label">{{ tt('Monthly income') }}</span>
-                    <span class="home-summary-income-value">
-                        <span v-if="loading">0.00</span>
-                        <span v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayIncomeAmount(transactionOverview.thisMonth) : '-' }}</span>
-                    </span>
+                <div class="home-summary-metrics">
+                    <div class="home-summary-metric">
+                        <span class="home-summary-metric-label">{{ tt('Monthly income') }}</span>
+                        <span class="home-summary-metric-value text-income">
+                            <span v-if="loading">0.00</span>
+                            <span v-else-if="!loading">{{ transactionOverview && transactionOverview.thisMonth ? getDisplayIncomeAmount(transactionOverview.thisMonth) : '-' }}</span>
+                        </span>
+                    </div>
+                    <div class="home-summary-metric-divider"></div>
+                    <div class="home-summary-metric">
+                        <span class="home-summary-metric-label">月结余</span>
+                        <span class="home-summary-metric-value" :class="monthlyBalanceClass">
+                            <span v-if="loading">0.00</span>
+                            <span v-else-if="!loading">{{ monthlyBalanceDisplay }}</span>
+                        </span>
+                    </div>
                 </div>
                 <div class="home-ruler">
                     <div class="home-ruler-ticks">
@@ -334,9 +344,28 @@ const {
     showAmountInHomePage,
     displayDateRange,
     transactionOverview,
+    getDisplayAmount,
     getDisplayIncomeAmount,
     getDisplayExpenseAmount
 } = useHomePageBase();
+
+const monthlyBalanceDisplay = computed<string>(() => {
+    const item = transactionOverview.value?.thisMonth;
+    if (!item) {
+        return '-';
+    }
+
+    return getDisplayAmount(item.incomeAmount - item.expenseAmount, item.incompleteIncomeAmount || item.incompleteExpenseAmount);
+});
+
+const monthlyBalanceClass = computed<string>(() => {
+    const item = transactionOverview.value?.thisMonth;
+    if (!item) {
+        return 'text-expense';
+    }
+
+    return item.incomeAmount - item.expenseAmount >= 0 ? 'text-income' : 'text-expense';
+});
 
 const settingsStore = useSettingsStore();
 const homeSummaryBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
@@ -888,23 +917,36 @@ init();
     color: var(--hp-expense);
 }
 
-.home-summary-income-row {
+.home-summary-metrics {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 8px;
+    align-items: stretch;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--hp-divider);
 }
 
-.home-summary-income-label {
-    font-size: 0.88em;
+.home-summary-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 14px 0 2px;
+}
+
+.home-summary-metric-label {
+    font-size: 0.8em;
     color: var(--hp-secondary);
 }
 
-.home-summary-income-value {
-    font-size: 1em;
+.home-summary-metric-value {
+    font-size: 1.05em;
     font-weight: 600;
-    color: var(--hp-income);
+    font-variant-numeric: tabular-nums;
+}
+
+.home-summary-metric-divider {
+    width: 1px;
+    margin: 2px 14px 2px 0;
+    background: var(--hp-divider);
 }
 
 .home-summary-card .ebk-hide-icon {

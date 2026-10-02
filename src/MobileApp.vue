@@ -1,6 +1,6 @@
 <template>
     <f7-app v-bind="f7params">
-        <f7-view id="main-view" class="safe-areas" main url="/" :show-progressbar="true" progressbar-color="#533afd" />
+        <f7-view id="main-view" class="safe-areas" main url="/" :show-progressbar="true" progressbar-color="#2563EB" />
     </f7-app>
 </template>
 
@@ -46,7 +46,7 @@ const f7params = ref<Framework7Parameters>({
     name: 'NestKeep',
     theme: 'ios',
     colors: {
-        primary: '#533afd'
+        primary: '#2563EB'
     },
     routes: routes,
     darkMode: (() => {

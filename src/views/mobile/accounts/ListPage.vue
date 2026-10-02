@@ -590,6 +590,8 @@ init();
 <style>
 .account-overview-card {
     background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 1px 0 rgba(20, 32, 28, .05), 0 14px 30px -22px rgba(20, 32, 28, .45);
 }
 
 .dark .account-overview-card {
@@ -610,8 +612,9 @@ init();
 }
 
 .net-assets {
-    font-size: 1.5em;
+    font-size: 2em;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 .account-overview-divider {

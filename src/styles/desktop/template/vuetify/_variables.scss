@@ -6,12 +6,12 @@ $font-family-custom: "Inter", -apple-system, blinkmacsystemfont, "Segoe UI", rob
 /* stylelint-disable length-zero-no-unit */
 @forward "@/styles/desktop/template/base/libs/vuetify/variables" with (
     $body-font-family: $font-family-custom !default,
-    $border-radius-root: 8px,
+    $border-radius-root: 12px,
 
     $rounded: (
         "sm": 6px,
         "shaped": 25px 0,
-        "lg": 12px,
+        "lg": 16px,
     ) !default,
 
     // 👉 Typography — Stripe: weight 300, negative letter-spacing on display tiers

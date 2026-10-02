@@ -121,7 +121,7 @@ export default defineConfig(() => {
                     name: '巢记',
                     short_name: '巢记',
                     description: '巢记 - 轻量级个人记账应用',
-                    theme_color: '#C67E48',
+                    theme_color: '#2563EB',
                     background_color: '#F6F7F8',
                     start_url: './',
                     scope: './',
