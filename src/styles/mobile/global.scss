@@ -220,8 +220,14 @@ i.icon.la, i.icon.las, i.icon.lab {
 /** custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 198, 126, 72;
+    --ebk-primary-color: 37, 99, 235;
     --ebk-transaction-tag-chip-bg-color: rgba(0, 0, 0, 0.04);
+
+    /* QianJi-inspired surface: light grey page, white cards */
+    --f7-page-bg-color: #F7F8FA;
+    --f7-page-bg-color-rgb: 247, 248, 250;
+    --f7-navbar-bg-color: #FFFFFF;
+    --f7-toolbar-bg-color: #FFFFFF;
 
     /* Design tokens */
     --ebk-card-border-radius: 16px;
@@ -230,20 +236,20 @@ i.icon.la, i.icon.las, i.icon.lab {
     --ebk-transition-normal: 0.25s ease;
 
     /* Primary color palette */
-    --ebk-primary-50: #fdf2e8;
-    --ebk-primary-100: #fae0cc;
-    --ebk-primary-200: #f5c499;
-    --ebk-primary-300: #f0a866;
-    --ebk-primary-400: #eb8c33;
-    --ebk-primary-500: #c67e48;
-    --ebk-primary-600: #a86535;
-    --ebk-primary-700: #8a4c22;
-    --ebk-primary-800: #6c330f;
-    --ebk-primary-900: #4e1a00;
+    --ebk-primary-50: #eff6ff;
+    --ebk-primary-100: #dbeafe;
+    --ebk-primary-200: #bfdbfe;
+    --ebk-primary-300: #93c5fd;
+    --ebk-primary-400: #60a5fa;
+    --ebk-primary-500: #3b82f6;
+    --ebk-primary-600: #2563eb;
+    --ebk-primary-700: #1d4ed8;
+    --ebk-primary-800: #1e40af;
+    --ebk-primary-900: #1e3a8a;
 
     /* Gradients */
-    --ebk-primary-gradient: #c67e48;
-    --ebk-primary-gradient-dark: #a66335;
+    --ebk-primary-gradient: #2563eb;
+    --ebk-primary-gradient-dark: #1d4ed8;
 
     /* Card shadows */
     --ebk-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
@@ -419,7 +425,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #2563eb;
     --dp-background-color: inherit;
     --dp-border-color: #aaa;
     --dp-menu-border-color: #aaa;
@@ -430,7 +436,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #c67e48;
+    --dp-primary-color: #2563eb;
     --dp-background-color: inherit;
     --dp-border-color: #555;
     --dp-menu-border-color: #555;
@@ -452,7 +458,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /* Enhanced navbar */
 .ios .navbar {
-    background: #f6f6f8;
+    background: #ffffff;
 }
 
 .dark .ios .navbar {
@@ -536,7 +542,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /* Tab bar glass effect (light mode) */
 .toolbar.tabbar {
-    background: #f6f6f8;
+    background: #ffffff;
 }
 
 .dark .toolbar.tabbar {

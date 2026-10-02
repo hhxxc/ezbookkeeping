@@ -908,6 +908,20 @@ init();
     color: var(--f7-text-color);
 }
 
+.statistics-page f7-card,
+.statistics-page .card {
+    border-radius: 16px;
+}
+
+.statistics-list-item .item-after {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.statistics-list-item-overview-amount {
+    font-variant-numeric: tabular-nums;
+}
+
 .card-header.no-border:after {
     display: none;
 }

@@ -202,12 +202,25 @@
                              :id="getTransactionMonthListDomId(transactionMonthList.yearDashMonth)"
                              v-if="!isTransactionMonthListInvisible(transactionMonthList)"
                     >
+                        <template v-for="(transaction, idx) in transactionMonthList.items" :key="transaction.id">
+                        <f7-list-item v-if="shouldShowDayGroupHeader(transactionMonthList, transaction, idx)"
+                                      class="transaction-day-header">
+                            <template #title>
+                                <span class="transaction-day-header-label">{{ getDayGroupHeaderLabel(transaction) }}</span>
+                                <span class="transaction-day-header-total">
+                                    <span class="text-expense" v-if="getDayGroupTotals(transactionMonthList, transaction).expense > 0">
+                                        {{ getDisplayMonthTotalAmount(getDayGroupTotals(transactionMonthList, transaction).expense, defaultCurrency, '-', false) }}
+                                    </span>
+                                    <span class="text-income" v-if="getDayGroupTotals(transactionMonthList, transaction).income > 0">
+                                        {{ getDisplayMonthTotalAmount(getDayGroupTotals(transactionMonthList, transaction).income, defaultCurrency, '+', false) }}
+                                    </span>
+                                </span>
+                            </template>
+                        </f7-list-item>
                         <f7-list-item swipeout chevron-center accordion-item
                                       class="transaction-info"
                                       :id="getTransactionDomId(transaction)"
                                       :link="transaction.editable ? `/transaction/edit?id=${transaction.id}&type=${transaction.type}` : `/transaction/detail?id=${transaction.id}&type=${transaction.type}`"
-                                      :key="transaction.id"
-                                      v-for="(transaction, idx) in transactionMonthList.items"
                         >
                             <template #media>
                                 <div class="display-flex flex-direction-column transaction-date" :style="getTransactionDateStyle(transaction, idx > 0 ? transactionMonthList.items[idx - 1] : undefined)">
@@ -303,6 +316,7 @@
                                 </f7-swipeout-button>
                             </f7-swipeout-actions>
                         </f7-list-item>
+                        </template>
                     </f7-list>
                 </f7-accordion-content>
             </f7-accordion-item>
@@ -915,6 +929,61 @@ function getTransactionDateStyle(transaction: Transaction, previousTransaction: 
     return {
         color: 'transparent'
     };
+}
+
+function getDayGroupKey(transaction: Transaction): string {
+    return transaction.gregorianCalendarYearDashMonthDashDay || `${transaction.gregorianCalendarDayOfMonth}`;
+}
+
+function shouldShowDayGroupHeader(monthList: TransactionMonthList, transaction: Transaction, idx: number): boolean {
+    if (idx === 0) {
+        return true;
+    }
+
+    return getDayGroupKey(transaction) !== getDayGroupKey(monthList.items[idx - 1]);
+}
+
+function getDayGroupTotals(monthList: TransactionMonthList, transaction: Transaction): { income: number; expense: number } {
+    const key = getDayGroupKey(transaction);
+    let income = 0;
+    let expense = 0;
+
+    for (const item of monthList.items) {
+        if (getDayGroupKey(item) !== key) {
+            continue;
+        }
+
+        if (item.type === TransactionType.Income && item.sourceAccount) {
+            income += item.sourceAmount;
+        } else if (item.type === TransactionType.Expense && item.sourceAccount) {
+            expense += item.sourceAmount;
+        }
+    }
+
+    return { income, expense };
+}
+
+function getDayGroupHeaderLabel(transaction: Transaction): string {
+    const key = getDayGroupKey(transaction);
+    const now = new Date();
+
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+    if (key === todayKey) {
+        return tt('Today');
+    }
+
+    if (key === yesterdayKey) {
+        return tt('Yesterday');
+    }
+
+    const parts = transaction.gregorianCalendarYearDashMonthDashDay?.split('-');
+    const monthDay = parts && parts.length === 3 ? `${parts[1]}.${parts[2]}` : `${transaction.gregorianCalendarDayOfMonth}`;
+    const weekday = transaction.displayDayOfWeek ? getWeekdayShortName(transaction.displayDayOfWeek) : '';
+
+    return weekday ? `${monthDay} ${weekday}` : monthDay;
 }
 
 function getCategoryListItemCheckedClass(category: TransactionCategory, queryCategoryIds: Record<string, boolean>): Record<string, boolean> {
@@ -1578,7 +1647,48 @@ init();
 
 .list.transaction-amount-list .transaction-amount-statistics > span {
     margin-inline-start: 8px;
-    font-weight: normal;
+    font-weight: 600;
+}
+
+.list.transaction-info-list .transaction-day-header {
+    background: rgba(0, 0, 0, 0.03);
+    --f7-list-item-min-height: 34px;
+    --f7-list-item-padding-left: 0px;
+    border-radius: 10px;
+    margin-inline: 8px;
+}
+
+.dark .list.transaction-info-list .transaction-day-header {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.list.transaction-info-list .transaction-day-header .item-inner {
+    min-height: 34px;
+    padding-block: 6px;
+}
+
+.list.transaction-info-list .transaction-day-header .item-inner:after {
+    display: none;
+}
+
+.list.transaction-info-list .transaction-day-header .transaction-day-header-label {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+.list.transaction-info-list .transaction-day-header .transaction-day-header-total {
+    margin-inline-start: auto;
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.list.transaction-info-list li.transaction-info .transaction-amount {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
 }
 
 .list.transaction-info-list li.transaction-info .item-media + .item-inner {
@@ -1601,7 +1711,7 @@ init();
 }
 
 .list.transaction-info-list li.transaction-info .transaction-day {
-    opacity: 0.6;
+    opacity: 0.85;
     font-size: var(--ebk-transaction-day-font-size);
     font-weight: bold;
     text-align: left;
