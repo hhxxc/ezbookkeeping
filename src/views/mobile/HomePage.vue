@@ -603,7 +603,8 @@ init();
 }
 
 .home-page.theme-dark .tabbar.main-tabbar {
-    background: rgba(26, 31, 38, 0.92);
+    background: #1a1a1e;
+    border-top-color: #2a2a35;
 }
 
 .home-page.theme-dark .tabbar.main-tabbar .link.home-add-button {
@@ -791,9 +792,9 @@ init();
 
 /* 毛玻璃 Tab + 方形加号 */
 .home-page.theme-jade .tabbar.main-tabbar {
-    background: rgba(255, 255, 255, .94);
-    backdrop-filter: blur(12px);
+    background: #ffffff;
     border-top: 1px solid var(--rule);
+    padding-bottom: var(--f7-safe-area-bottom, 0);
 }
 
 .home-page.theme-jade .tabbar.main-tabbar .link {
@@ -1011,19 +1012,21 @@ init();
     color: var(--hp-expense);
 }
 
-/* 底部 Tab 导航 */
+/* 底部 Tab 导航 - 简洁纯色风格 */
 .tabbar.main-tabbar {
     overflow: visible;
-    background: var(--hp-card);
-    backdrop-filter: blur(12px);
+    background: #ffffff;
+    border-top: 1px solid #e5e7eb;
+    padding-bottom: var(--f7-safe-area-bottom, 0);
 }
 
 .dark .tabbar.main-tabbar {
-    background: rgba(28, 28, 30, 0.92);
+    background: #1a1a1e;
+    border-top-color: #2a2a35;
 }
 
 .tabbar.main-tabbar .link {
-    color: var(--hp-secondary);
+    color: #9ca3af;
 }
 
 .tabbar.main-tabbar .link.active {
