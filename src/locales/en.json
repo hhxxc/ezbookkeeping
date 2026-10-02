@@ -2676,5 +2676,7 @@
     "An error occurred": "An error occurred",
     "Parameter Invalid": "Parameter Invalid",
     "Numeric Overflow": "Numeric Overflow",
-    "Click to close": "Click to close"
+    "Click to close": "Click to close",
+    "Failed to upload image": "Failed to upload image",
+    "Remove home background image?": "Remove home background image?"
 }

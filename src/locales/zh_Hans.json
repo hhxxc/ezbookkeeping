@@ -2670,5 +2670,7 @@
     "An error occurred": "发生错误",
     "Parameter Invalid": "参数错误",
     "Numeric Overflow": "数值溢出",
-    "Click to close": "点击关闭"
+    "Click to close": "点击关闭",
+    "Failed to upload image": "上传图片失败",
+    "Remove home background image?": "移除首页背景图？"
 }

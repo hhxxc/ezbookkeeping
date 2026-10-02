@@ -2655,5 +2655,7 @@
     "An error occurred": "發生錯誤",
     "Parameter Invalid": "參數無效",
     "Numeric Overflow": "數值溢位",
-    "Click to close": "點選關閉"
+    "Click to close": "點選關閉",
+    "Failed to upload image": "上傳圖片失敗",
+    "Remove home background image?": "移除首頁背景圖？"
 }

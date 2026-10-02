@@ -710,6 +710,14 @@ export default {
     removeUnusedTransactionPicture: (req: TransactionPictureUnusedDeleteRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/transaction/pictures/remove_unused.json', req);
     },
+    uploadHomeBackground: ({ pictureFile, clientSessionId }: { pictureFile: File, clientSessionId?: string }): ApiResponsePromise<{ url: string }> => {
+        return axios.postForm<ApiResponse<{ url: string }>>('v1/home/backgrounds/upload.json', {
+            picture: pictureFile,
+            clientSessionId: clientSessionId
+        }, {
+            timeout: DEFAULT_UPLOAD_API_TIMEOUT
+        } as ApiRequestConfig);
+    },
     getAllTransactionCategories: (): ApiResponsePromise<Record<number, TransactionCategoryInfoResponse[]>> => {
         return axios.get<ApiResponse<Record<number, TransactionCategoryInfoResponse[]>>>('v1/transaction/categories/list.json');
     },
@@ -944,5 +952,18 @@ export default {
         } else {
             return pictureUrl + '?' + params.join('&');
         }
+    },
+    getHomeBackgroundImageUrl(relativePath: string): string {
+        if (!relativePath) {
+            return '';
+        }
+
+        // If it's already a data URL (legacy base64), return as-is
+        if (relativePath.startsWith('data:')) {
+            return relativePath;
+        }
+
+        const basePath = getBasePath();
+        return basePath + '/' + relativePath + '?token=' + getCurrentToken();
     }
 };
