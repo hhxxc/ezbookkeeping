@@ -240,9 +240,10 @@ export default defineConfig(() => {
                             return 'common';
                         } else if (/[\\/]src[\\/]locales[\\/]helpers\.(js|ts)/i.test(id)) {
                             return 'common';
-                        } else if (/[\\/]src[\\/]locales[\\/]/i.test(id)) {
-                            return 'locales';
                         } else {
+                            // language JSON files are loaded on demand and each becomes
+                            // its own async chunk, so they must not be merged into a
+                            // single shared chunk here
                             return null;
                         }
                     }

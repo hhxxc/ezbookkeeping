@@ -46,7 +46,7 @@ import 'line-awesome/dist/line-awesome/css/line-awesome.css';
 import { VueDatePicker } from '@vuepic/vue-datepicker';
 import '@vuepic/vue-datepicker/dist/main.css';
 
-import { getI18nOptions } from '@/locales/helpers.ts';
+import { getI18nOptions, preloadInitialLanguageContent } from '@/locales/helpers.ts';
 
 import PinCodeInput from '@/components/common/PinCodeInput.vue';
 import MapView from '@/components/common/MapView.vue';
@@ -83,6 +83,7 @@ import AccountBalanceTrendsBarChart from '@/components/mobile/AccountBalanceTren
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
 
 import { loadRemoteServerSettings } from '@/lib/server_settings.ts';
+import { useUserStore } from '@/stores/user.ts';
 
 import TextareaAutoSize from '@/directives/mobile/textareaAutoSize.ts';
 
@@ -138,10 +139,9 @@ Framework7.use([
 
 const app = createApp(App);
 const pinia = createPinia();
-const i18n = createI18n(getI18nOptions());
+const userStore = useUserStore(pinia);
 registerComponents(app);
 app.use(pinia);
-app.use(i18n);
 
 app.component('VueDatePicker', VueDatePicker);
 
@@ -181,6 +181,14 @@ app.component('AIImageRecognitionSheet', AIImageRecognitionSheet);
 
 app.directive('TextareaAutoSize', TextareaAutoSize);
 
-loadRemoteServerSettings().finally(() => {
+// load the content of the user's language before creating the i18n instance, so that the
+// first visible frame is already in the correct language instead of the default one
+Promise.all([
+    preloadInitialLanguageContent(userStore.currentUserLanguage).catch(() => undefined),
+    loadRemoteServerSettings()
+]).then(([initialLanguage]) => {
+    const i18n = createI18n(getI18nOptions(initialLanguage));
+    app.use(i18n);
+
     app.mount('#app');
 });

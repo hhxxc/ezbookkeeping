@@ -86,7 +86,8 @@ import draggable from 'vuedraggable';
 import router from '@/router/desktop.ts';
 
 import { DecimalSeparator } from '@/core/numeral.ts';
-import { getI18nOptions, getRtlLocales } from '@/locales/helpers.ts';
+import { DEFAULT_LANGUAGE, getLoadedLanguageMessages } from '@/locales/index.ts';
+import { getI18nOptions, getRtlLocales, preloadInitialLanguageContent } from '@/locales/helpers.ts';
 
 import PinCodeInput from '@/components/common/PinCodeInput.vue';
 import MapView from '@/components/common/MapView.vue';
@@ -140,9 +141,11 @@ import '@/styles/desktop/font-size.scss';
 import '@/styles/desktop/amount-color.scss';
 
 import App from './DesktopApp.vue';
+import { useUserStore } from '@/stores/user.ts';
 
 const app = createApp(App);
 const pinia = createPinia();
+const userStore = useUserStore(pinia);
 const i18n = createI18n(getI18nOptions()) as I18n<Record<string, unknown>, Record<string, unknown>, Record<string, unknown>, string, false>;
 const vuetify = createVuetify({
     components: {
@@ -587,4 +590,18 @@ app.component('SwitchToMobileDialog', SwitchToMobileDialog);
 
 app.directive('TextFieldAutoWidth', TextFieldAutoWidth);
 
-app.mount('#app');
+// load the content of the user's language and switch to it before the first render, so
+// that the app does not briefly show the default language on startup
+preloadInitialLanguageContent(userStore.currentUserLanguage).then(initialLanguage => {
+    if (initialLanguage !== DEFAULT_LANGUAGE) {
+        const languageContent = getLoadedLanguageMessages()[initialLanguage];
+
+        if (languageContent) {
+            i18n.global.setLocaleMessage(initialLanguage, languageContent);
+        }
+
+        i18n.global.locale.value = initialLanguage;
+    }
+
+    app.mount('#app');
+});

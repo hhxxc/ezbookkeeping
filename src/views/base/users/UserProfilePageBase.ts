@@ -193,8 +193,9 @@ export function useUserProfilePageBase() {
 
             setCurrentUserProfile(user);
 
-            const localeDefaultSettings = setLanguage(user.language);
-            settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            setLanguage(user.language).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            });
 
             setExpenseAndIncomeAmountColor(user.expenseAmountColor, user.incomeAmountColor);
         }
