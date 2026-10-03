@@ -28,6 +28,7 @@
                         :placeholder="tt('Your username or email')"
                         v-model:value.trim="username"
                         @input="tempToken = ''"
+                        @keyup.enter="loginByPressEnter"
                     ></f7-list-input>
                     <f7-list-input
                         type="password"
