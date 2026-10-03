@@ -1,9 +1,5 @@
 <template>
     <f7-page class="home-page" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn" :style="pageBackgroundStyle">
-        <f7-navbar>
-            <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
-        </f7-navbar>
-
         <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="onHomeBgInputClick">
             <f7-link class="home-card-gallery-btn" @click="onHomeBgInputClick">
                 <f7-icon f7="photo_on_rectangle" style="font-size: 16px; color: rgba(0,0,0,0.35);"></f7-icon>
@@ -612,7 +608,8 @@ init();
     border-radius: var(--ebk-card-border-radius);
     color: var(--hp-ink);
     overflow: hidden;
-    margin: 16px 16px !important;
+    /* 首页没有导航栏，卡片直接从状态栏下方开始 */
+    margin: calc(var(--f7-safe-area-top, 0px) + 8px) 16px 16px !important;
     border: none;
     outline: none;
     box-shadow: var(--hp-shadow);
@@ -810,11 +807,18 @@ init();
 
 /* 底部 Tab 导航 - 纯色不透明 */
 .tabbar.main-tabbar {
+    /* 收紧图标行高度，让按钮整体更贴近屏幕底部 */
+    --f7-tabbar-icons-height: 52px;
     overflow: visible;
     background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border-top: 1px solid var(--ebk-divider-color);
+}
+
+/* 壳模式（页面接管安全区）下按钮行往下探一点，减少底部留白 */
+html.app-shell .tabbar.main-tabbar .toolbar-inner {
+    bottom: calc(var(--f7-safe-area-bottom) - 8px);
 }
 
 .dark .tabbar.main-tabbar {
