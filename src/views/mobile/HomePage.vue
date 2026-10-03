@@ -851,7 +851,8 @@ init();
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border-top: 1px solid var(--rule);
-    padding-bottom: var(--f7-safe-area-bottom, 0);
+    padding-bottom: 0 !important;
+    height: var(--f7-toolbar-height, 44px) !important;
 }
 
 .home-page.theme-jade .tabbar.main-tabbar .link {
@@ -1076,7 +1077,8 @@ init();
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border-top: 1px solid #e5e7eb;
-    padding-bottom: var(--f7-safe-area-bottom, 0);
+    padding-bottom: 0 !important;
+    height: var(--f7-toolbar-height, 44px) !important;
 }
 
 .dark .tabbar.main-tabbar {

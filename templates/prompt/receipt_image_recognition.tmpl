@@ -27,13 +27,14 @@ Your task is to extract structured transaction data from images provided by the 
 ## Important rules
 1. Only include fields you can confidently identify.
 2. If unsure about a value, omit the field (do not guess).
-3. If the image contains multiple orders/transactions (e.g. e-commerce order list screenshots from JD, Taobao, Pinduoduo, Douyin), extract EACH order as a separate item in the array. Do NOT combine them.
-4. For e-commerce order list screenshots, each order card/row should become one transaction item. Use the order's actual amount, time, and description.
-5. If the image contains no transaction information, return an empty array `[]`.
-6. Always return a valid JSON array.
-7. The current time is {{.CurrentDateTime}}. Use this as the fallback time only if no transaction time can be found on the image.
-8. The category, account, and tag values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
-9. Special mapping for category selection: if the receipt contains items related to 婴儿/宝宝/baby/infant/diapers/formula, select the most appropriate parenting/childcare expense category (e.g. 育儿花销, 育儿, etc.). If your options list contains multiple parenting categories, pick the most general one.
+3. **CRITICAL: If the image contains multiple orders/transactions, you MUST extract EVERY single one as a separate item in the array. This is the most important rule. Do NOT skip any order. Do NOT combine orders. Do NOT stop after the first order.**
+4. For e-commerce order list screenshots (JD/京东, Taobao/淘宝, Pinduoduo/拼多多, Douyin/抖音, etc.), scroll through the ENTIRE image from top to bottom. Each order card with a price tag (¥) is a separate transaction. Count how many price tags (¥) you see, and make sure your array has the same number of items.
+5. For each order, extract: the product/item name as "description", the price (¥ amount) as "amount", and the order time if visible.
+6. If the image contains no transaction information, return an empty array `[]`.
+7. Always return a valid JSON array.
+8. The current time is {{.CurrentDateTime}}. Use this as the fallback time only if no transaction time can be found on the image.
+9. The category, account, and tag values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
+10. Special mapping for category selection: if the receipt contains items related to 婴儿/宝宝/baby/infant/diapers/formula, select the most appropriate parenting/childcare expense category (e.g. 育儿花销, 育儿, etc.). If your options list contains multiple parenting categories, pick the most general one.
 
 ## Time extraction rules (IMPORTANT)
 1. Carefully scan the image for any date/time text. Receipts and transaction records almost always contain a transaction time.
