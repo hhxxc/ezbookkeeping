@@ -115,7 +115,7 @@ input[type=number] {
     height: 48px;
     margin: -24px 0 0 -24px;
     border: 4px solid rgba(128, 128, 128, 0.1);
-    border-top-color: #07c160;
+    border-top-color: rgb(var(--ebk-primary-color));
     border-radius: 50%;
     animation: ebk-spin-inline .8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
 }
@@ -230,45 +230,46 @@ i.icon.la, i.icon.las, i.icon.lab {
 /** custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 37, 99, 235;
+    --ebk-primary-color: 38, 166, 154;
     --ebk-transaction-tag-chip-bg-color: rgba(0, 0, 0, 0.04);
 
-    /* QianJi-inspired surface: light grey page, white cards */
-    --f7-page-bg-color: #F7F8FA;
-    --f7-page-bg-color-rgb: 247, 248, 250;
+    /* Clean modern finance surface: light grey page, white cards */
+    --f7-page-bg-color: #F5F7FA;
+    --f7-page-bg-color-rgb: 245, 247, 250;
     --f7-navbar-bg-color: #FFFFFF;
     --f7-toolbar-bg-color: #FFFFFF;
 
     /* Design tokens */
     --ebk-card-border-radius: 16px;
-    --ebk-list-border-radius: 14px;
+    --ebk-list-border-radius: 16px;
+    --ebk-button-border-radius: 8px;
+    --ebk-secondary-text-color: #78909C;
+    --ebk-divider-color: #ECEFF3;
     --ebk-transition-fast: 0.15s ease;
     --ebk-transition-normal: 0.25s ease;
 
-    /* Primary color palette */
-    --ebk-primary-50: #eff6ff;
-    --ebk-primary-100: #dbeafe;
-    --ebk-primary-200: #bfdbfe;
-    --ebk-primary-300: #93c5fd;
-    --ebk-primary-400: #60a5fa;
-    --ebk-primary-500: #3b82f6;
-    --ebk-primary-600: #2563eb;
-    --ebk-primary-700: #1d4ed8;
-    --ebk-primary-800: #1e40af;
-    --ebk-primary-900: #1e3a8a;
+    /* Primary color palette (teal) */
+    --ebk-primary-50: #e0f2f1;
+    --ebk-primary-100: #b2dfdb;
+    --ebk-primary-200: #80cbc4;
+    --ebk-primary-300: #4db6ac;
+    --ebk-primary-400: #26a69a;
+    --ebk-primary-500: #1f9389;
+    --ebk-primary-600: #1a837b;
+    --ebk-primary-700: #146c64;
+    --ebk-primary-800: #10524c;
+    --ebk-primary-900: #0b3b37;
 
-    /* Gradients */
-    --ebk-primary-gradient: #2563eb;
-    --ebk-primary-gradient-dark: #1d4ed8;
-
-    /* Card shadows */
-    --ebk-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    --ebk-card-shadow-dark: 0 2px 12px rgba(0, 0, 0, 0.3);
+    /* Card shadow — single elevation level */
+    --ebk-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --ebk-card-shadow-dark: 0 2px 8px rgba(0, 0, 0, 0.32);
 }
 
 :root.dark {
     --default-icon-color: #fff;
     --ebk-transaction-tag-chip-bg-color: rgba(255, 255, 255, 0.04);
+    --ebk-secondary-text-color: #8A9BAC;
+    --ebk-divider-color: rgba(255, 255, 255, 0.08);
 }
 
 .pin-codes-input {
@@ -276,6 +277,41 @@ i.icon.la, i.icon.las, i.icon.lab {
     --ebk-pin-code-focued-color: var(--f7-input-outline-invalid-border-color, var(--f7-theme-color));
     --ebk-pin-code-border-radius: var(--f7-input-outline-border-radius);
     --ebk-pin-code-input-height: 46px;
+}
+
+/** Design primitives: cards / lists / inputs **/
+/* All cards share one radius and one elevation level */
+.ios .card {
+    border-radius: var(--ebk-card-border-radius);
+    box-shadow: var(--ebk-card-shadow);
+}
+
+.dark .ios .card {
+    box-shadow: var(--ebk-card-shadow-dark);
+}
+
+/* Inset lists behave like cards */
+.page-content .ios .list.inset,
+.ios .page-content .list.inset {
+    box-shadow: var(--ebk-card-shadow);
+}
+
+.dark .page-content .ios .list.inset,
+.dark .ios .page-content .list.inset {
+    box-shadow: var(--ebk-card-shadow-dark);
+}
+
+/* Inputs and search field use 8px radius */
+.ios .searchbar input,
+.ios textarea.resizable,
+.ios .item-input-wrap input,
+.ios .item-input-wrap textarea {
+    border-radius: var(--ebk-button-border-radius);
+}
+
+/* Secondary/helper text */
+:root {
+    --f7-list-item-footer-text-color: var(--ebk-secondary-text-color);
 }
 
 .page-title-bar-icon {
@@ -435,7 +471,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #2563eb;
+    --dp-primary-color: #26a69a;
     --dp-background-color: inherit;
     --dp-border-color: #aaa;
     --dp-menu-border-color: #aaa;
@@ -446,7 +482,7 @@ html[dir="rtl"] i.icon.icon-with-direction {
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #2563eb;
+    --dp-primary-color: #4db6ac;
     --dp-background-color: inherit;
     --dp-border-color: #555;
     --dp-menu-border-color: #555;
@@ -1087,11 +1123,11 @@ html[dir="rtl"] .dp__main .dp__btn.dp--arrow-btn-nav {
 
 .statistics-percent-line .progressbar {
     height: 4px;
-    --f7-progressbar-bg-color: #f8f8f8;
+    --f7-progressbar-bg-color: #eef1f4;
 }
 
 .dark .statistics-percent-line .progressbar {
-    --f7-progressbar-bg-color: #444444;
+    --f7-progressbar-bg-color: #3a3a44;
 }
 
 .statistics-multi-percent-line > div > .progressbar {

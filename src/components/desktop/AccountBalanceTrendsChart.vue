@@ -333,7 +333,7 @@ const chartOptions = computed<object>(() => {
                 },
                 splitLine: {
                     lineStyle: {
-                        color: isDarkMode.value ? '#3a3a3a' : '#f0f0f0',
+                        color: isDarkMode.value ? '#3a3a44' : '#eceff3',
                     }
                 }
             }

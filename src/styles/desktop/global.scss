@@ -61,7 +61,7 @@ body {
 /** Custom class **/
 :root {
     --default-icon-color: #000;
-    --ebk-primary-color: 37, 99, 235;
+    --ebk-primary-color: 38, 166, 154;
     --v-expand-panel-title-bg: rgba(var(--v-theme-on-surface), var(--v-hover-opacity));
     --v-card-title-bg: rgba(var(--v-theme-on-surface), var(--v-hover-opacity));
 }
@@ -441,7 +441,7 @@ html[dir="rtl"] .bidirectional-switch {
     height: 48px;
     margin: -24px 0 0 -24px;
     border: 4px solid rgba(128, 128, 128, 0.1);
-    border-top-color: #07c160;
+    border-top-color: rgb(var(--ebk-primary-color));
     border-radius: 50%;
     animation: ebk-spin-desktop .8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
 }
@@ -612,11 +612,11 @@ body .v-btn-group {
 
 /** Replacing the default style of @vuepic/vue-datepicker **/
 .dp__theme_light {
-    --dp-primary-color: #2563eb;
+    --dp-primary-color: #26a69a;
 }
 
 .dp__theme_dark {
-    --dp-primary-color: #3b82f6;
+    --dp-primary-color: #4db6ac;
 }
 
 /** Fix @vuepic/vue-datepicker style issue **/

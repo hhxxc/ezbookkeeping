@@ -1,6 +1,6 @@
 <template>
     <f7-app v-bind="f7params">
-        <f7-view id="main-view" main url="/" :show-progressbar="true" progressbar-color="#2563EB" />
+        <f7-view id="main-view" main url="/" :show-progressbar="true" progressbar-color="#26A69A" />
     </f7-app>
 </template>
 
@@ -46,7 +46,7 @@ const f7params = ref<Framework7Parameters>({
     name: 'NestKeep',
     theme: 'ios',
     colors: {
-        primary: '#2563EB'
+        primary: '#26A69A'
     },
     routes: routes,
     darkMode: (() => {
@@ -127,7 +127,7 @@ function setThemeColorMeta(darkMode: boolean | undefined): void {
         if (hasBackdrop.value) {
             document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#000');
         } else {
-            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#F7F8FA');
+            document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#F5F7FA');
         }
     }
 }

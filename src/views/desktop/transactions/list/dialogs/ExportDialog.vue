@@ -358,7 +358,7 @@ function doExport(): void {
             cell.fill = {
                 type: 'pattern',
                 pattern: 'solid',
-                fgColor: { argb: 'FF2563EB' },
+                fgColor: { argb: 'FF26A69A' },
             };
             cell.font = {
                 color: { argb: 'FFFFFFFF' },
