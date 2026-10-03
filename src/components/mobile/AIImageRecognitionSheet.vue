@@ -63,7 +63,7 @@
                     </div>
                     <div class="recognized-item-check">
                         <f7-icon f7="checkmark_circle_fill" size="24"
-                                 :color="isSelected(index) ? 'var(--f7-theme-color)' : 'rgba(0,0,0,0.15)'"></f7-icon>
+                                 :color="selectionFlags[index] ? 'var(--f7-theme-color)' : 'rgba(0,0,0,0.15)'"></f7-icon>
                     </div>
                 </div>
             </div>
@@ -123,14 +123,16 @@ const imageSrc = ref<string | undefined>(undefined);
 
 // Multi-result state
 const recognizedResults = ref<RecognizedReceiptImageResponses>([]);
-const selectedIndices = ref<Set<number>>(new Set());
+const selectedFlags = ref<boolean[]>([]);
+
+const selectionFlags = computed(() => selectedFlags.value);
 
 const allSelected = computed(() => {
-    return recognizedResults.value.length > 0 && selectedIndices.value.size === recognizedResults.value.length;
+    return recognizedResults.value.length > 0 && selectedFlags.value.every(v => v);
 });
 
 const selectedResults = computed(() => {
-    return recognizedResults.value.filter((_, i) => selectedIndices.value.has(i));
+    return recognizedResults.value.filter((_, i) => selectedFlags.value[i]);
 });
 
 function loadImage(image: Blob): void {
@@ -138,7 +140,7 @@ function loadImage(image: Blob): void {
     imageFile.value = null;
     imageSrc.value = undefined;
     recognizedResults.value = [];
-    selectedIndices.value = new Set();
+    selectedFlags.value = [];
 
     compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
         imageFile.value = KnownFileType.JPG.createFileFromBlob(blob, "image");
@@ -194,7 +196,7 @@ function confirm(): void {
         const results = Array.isArray(response) ? response : [response];
         recognizedResults.value = results;
         // Select all by default
-        selectedIndices.value = new Set(results.map((_, i) => i));
+        selectedFlags.value = results.map(() => true);
     }).catch(error => {
         if (error.canceled) {
             return;
@@ -244,25 +246,17 @@ function confirmSelection(): void {
 }
 
 function toggleSelect(index: number): void {
-    if (selectedIndices.value.has(index)) {
-        selectedIndices.value.delete(index);
-    } else {
-        selectedIndices.value.add(index);
-    }
-    // Trigger reactivity
-    selectedIndices.value = new Set(selectedIndices.value);
+    const newFlags = [...selectedFlags.value];
+    newFlags[index] = !newFlags[index];
+    selectedFlags.value = newFlags;
 }
 
 function toggleSelectAll(): void {
     if (allSelected.value) {
-        selectedIndices.value = new Set();
+        selectedFlags.value = selectedFlags.value.map(() => false);
     } else {
-        selectedIndices.value = new Set(recognizedResults.value.map((_, i) => i));
+        selectedFlags.value = selectedFlags.value.map(() => true);
     }
-}
-
-function isSelected(index: number): boolean {
-    return selectedIndices.value.has(index);
 }
 
 function getTypeIcon(type: number): string {
@@ -323,7 +317,7 @@ function close(): void {
     imageFile.value = null;
     imageSrc.value = undefined;
     recognizedResults.value = [];
-    selectedIndices.value = new Set();
+    selectedFlags.value = [];
 }
 
 function onSheetOpen(): void {
@@ -337,7 +331,7 @@ function onSheetOpen(): void {
     imageFile.value = null;
     imageSrc.value = undefined;
     recognizedResults.value = [];
-    selectedIndices.value = new Set();
+    selectedFlags.value = [];
 }
 
 function onSheetClosed(): void {
