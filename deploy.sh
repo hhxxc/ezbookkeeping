@@ -140,6 +140,10 @@ echo "==> 停止并删除旧容器 $CONTAINER_NAME"
 $DOCKER stop "$CONTAINER_NAME" >/dev/null 2>&1
 $DOCKER rm "$CONTAINER_NAME" >/dev/null 2>&1
 
+# 确保 storage 目录存在且权限正确（容器以 user 1000 运行）
+mkdir -p "${DATA_DIR}/storage"
+chown -R 1000:1000 "${DATA_DIR}/storage" 2>/dev/null || true
+
 echo "==> 启动新容器"
 
 $DOCKER run -d \
@@ -157,6 +161,7 @@ $DOCKER run -d \
     -e EBK_LLM_IMAGE_RECOGNITION_ROTATE_MODELS="$LLM_ROTATE_MODELS" \
     -e EBKCFP_LLM_IMAGE_RECOGNITION_OPENAI_COMPATIBLE_API_KEY="$KEY_FILE" \
     -v "${DATA_DIR}:/ezbookkeeping/data" \
+    -v "${DATA_DIR}/storage:/ezbookkeeping/storage" \
     -v "${KEY_FILE}:${KEY_FILE}:ro" \
     --restart="$RESTART_POLICY" \
     "$IMAGE_NAME" >/dev/null
