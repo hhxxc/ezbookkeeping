@@ -338,12 +338,13 @@ function logout(): void {
     logouting.value = true;
     showLoading.value = true;
 
-    rootStore.logout().then(() => {
-        logouting.value = false;
-        showLoading.value = false;
+        rootStore.logout().then(() => {
+            logouting.value = false;
+            showLoading.value = false;
 
-        const localeDefaultSettings = initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone);
-        settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            });
 
         setExpenseAndIncomeAmountColor(userStore.currentUserExpenseAmountColor, userStore.currentUserIncomeAmountColor);
 

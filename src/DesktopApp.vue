@@ -102,8 +102,9 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fun
     }
 });
 
-let localeDefaultSettings = initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone);
-settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+initLocale(userStore.currentUserLanguage, settingsStore.appSettings.timeZone).then(localeDefaultSettings => {
+    settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+});
 
 setExpenseAndIncomeAmountColor(userStore.currentUserExpenseAmountColor, userStore.currentUserIncomeAmountColor);
 
@@ -112,8 +113,9 @@ if (isUserLogined() && initialRoutePath !== '/verify_email' && initialRoutePath 
         // refresh token if user is logined
         tokensStore.refreshTokenAndRevokeOldToken().then(response => {
             if (response.user) {
-                localeDefaultSettings = setLanguage(response.user.language);
-                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+                setLanguage(response.user.language).then(localeDefaultSettings => {
+                    settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+                });
 
                 setExpenseAndIncomeAmountColor(response.user.expenseAmountColor, response.user.incomeAmountColor);
 

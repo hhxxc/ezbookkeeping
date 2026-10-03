@@ -43,16 +43,17 @@ export function useSignupPageBase() {
 
             user.value.language = value;
 
-            const localeDefaultSettings = setLanguage(value);
-            settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            setLanguage(value).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
 
-            if (isCurrencyDefault) {
-                user.value.defaultCurrency = settingsStore.localeDefaultSettings.currency;
-            }
+                if (isCurrencyDefault) {
+                    user.value.defaultCurrency = settingsStore.localeDefaultSettings.currency;
+                }
 
-            if (isFirstWeekDayDefault) {
-                user.value.firstDayOfWeek = settingsStore.localeDefaultSettings.firstDayOfWeek;
-            }
+                if (isFirstWeekDayDefault) {
+                    user.value.firstDayOfWeek = settingsStore.localeDefaultSettings.firstDayOfWeek;
+                }
+            });
         },
     });
 
@@ -110,8 +111,9 @@ export function useSignupPageBase() {
 
     function doAfterSignupSuccess(response: RegisterResponse): void {
         if (response.user) {
-            const localeDefaultSettings = setLanguage(response.user.language);
-            settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            setLanguage(response.user.language).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            });
 
             setExpenseAndIncomeAmountColor(response.user.expenseAmountColor, response.user.incomeAmountColor);
         }

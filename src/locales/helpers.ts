@@ -13,7 +13,9 @@ import {
     type LanguageInfo,
     type LanguageOption,
     ALL_LANGUAGES,
-    DEFAULT_LANGUAGE
+    DEFAULT_LANGUAGE,
+    getLoadedLanguageMessages,
+    loadLanguageContent
 } from '@/locales/index.ts';
 
 import {
@@ -273,22 +275,32 @@ export interface LocalizedError {
     readonly parameters?: LocalizedErrorParameter[];
 }
 
-export function getI18nOptions(): object {
+export function getI18nOptions(initialLanguage?: string): object {
     return {
         legacy: false,
-        locale: DEFAULT_LANGUAGE,
+        locale: initialLanguage || DEFAULT_LANGUAGE,
         fallbackLocale: DEFAULT_LANGUAGE,
         formatFallbackMessages: true,
-        messages: (function () {
-            const messages: Record<string, object> = {};
-
-            for (const [languageKey, languageInfo] of entries(ALL_LANGUAGES)) {
-                messages[languageKey] = languageInfo.content;
-            }
-
-            return messages;
-        })()
+        messages: getLoadedLanguageMessages()
     };
+}
+
+// Resolves the language that will be rendered right after the app mounts and loads its
+// content before createI18n() is called, so that the first visible frame is already in
+// the user's language instead of the default one.
+export async function preloadInitialLanguageContent(lastUserLanguage?: string | null): Promise<string> {
+    const sessionLanguageKey: string = getSessionCurrentLanguageKey();
+    let initialLanguage: string = DEFAULT_LANGUAGE;
+
+    if (lastUserLanguage && ALL_LANGUAGES[lastUserLanguage]) {
+        initialLanguage = lastUserLanguage;
+    } else if (sessionLanguageKey && ALL_LANGUAGES[sessionLanguageKey]) {
+        initialLanguage = sessionLanguageKey;
+    }
+
+    await loadLanguageContent(initialLanguage);
+
+    return initialLanguage;
 }
 
 export function getRtlLocales(): Record<string, boolean> {
@@ -304,7 +316,7 @@ export function getRtlLocales(): Record<string, boolean> {
 }
 
 export function useI18n() {
-    const { t, locale } = useVueI18n();
+    const { t, locale, setLocaleMessage } = useVueI18n();
 
     const settingsStore = useSettingsStore();
     const userStore = useUserStore();
@@ -2393,7 +2405,7 @@ export function useI18n() {
         }
     }
 
-    function setLanguage(languageKey: string | null, force?: boolean): LocaleDefaultSettings | null {
+    async function setLanguage(languageKey: string | null, force?: boolean): Promise<LocaleDefaultSettings | null> {
         if (!languageKey) {
             languageKey = getDefaultLanguage();
             logger.info(`No specified language, use browser default language ${languageKey}`);
@@ -2412,6 +2424,14 @@ export function useI18n() {
         }
 
         logger.info(`Apply current language to ${languageKey}`);
+
+        // make sure the content of the target language is available before switching,
+        // otherwise the UI would briefly render with fallback keys/messages
+        const languageContent = await loadLanguageContent(languageKey as string);
+
+        if (languageContent) {
+            setLocaleMessage(languageKey as string, languageContent);
+        }
 
         locale.value = languageKey;
         moment.updateLocale(languageKey, {
@@ -2481,18 +2501,18 @@ export function useI18n() {
         }
     }
 
-    function initLocale(lastUserLanguage?: string, timezone?: string): LocaleDefaultSettings | null {
+    async function initLocale(lastUserLanguage?: string, timezone?: string): Promise<LocaleDefaultSettings | null> {
         const sessionLanguageKey: string = getSessionCurrentLanguageKey();
         let localeDefaultSettings: LocaleDefaultSettings | null = null;
 
         if (lastUserLanguage && getLanguageInfo(lastUserLanguage)) {
             logger.info(`Last user language is ${lastUserLanguage}`);
-            localeDefaultSettings = setLanguage(lastUserLanguage, true);
+            localeDefaultSettings = await setLanguage(lastUserLanguage, true);
         } else if (sessionLanguageKey && getLanguageInfo(sessionLanguageKey)) {
             logger.info(`Session language is ${sessionLanguageKey}`);
-            localeDefaultSettings = setLanguage(sessionLanguageKey, true);
+            localeDefaultSettings = await setLanguage(sessionLanguageKey, true);
         } else {
-            localeDefaultSettings = setLanguage(null, true);
+            localeDefaultSettings = await setLanguage(null, true);
         }
 
         if (timezone) {

@@ -26,8 +26,9 @@ export function useLanguageSelectButtonBase(props: LanguageSelectBaseProps, emit
     const currentLocale = computed<string>({
         get: () => getCurrentLanguageTag(),
         set: (value: string) => {
-            const localeDefaultSettings = setLanguage(value);
-            settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            setLanguage(value).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            });
         }
     });
 

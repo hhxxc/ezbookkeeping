@@ -49,8 +49,9 @@ export function useLoginPageBase(platform: 'mobile' | 'desktop') {
 
     function doAfterLogin(authResponse: AuthResponse): void {
         if (authResponse.user) {
-            const localeDefaultSettings = setLanguage(authResponse.user.language);
-            settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            setLanguage(authResponse.user.language).then(localeDefaultSettings => {
+                settingsStore.updateLocalizedDefaultSettings(localeDefaultSettings);
+            });
 
             setExpenseAndIncomeAmountColor(authResponse.user.expenseAmountColor, authResponse.user.incomeAmountColor);
         }
