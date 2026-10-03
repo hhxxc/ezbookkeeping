@@ -658,6 +658,7 @@ import { TemplateType }  from '@/core/template.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
 import type { TransactionTemplate } from '@/models/transaction_template.ts';
+import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
 import {
     isDefined,
@@ -1540,29 +1541,53 @@ function add(template?: TransactionTemplate): void {
 }
 
 function addByRecognizingImage(): void {
-    aiImageRecognitionDialog.value?.open().then(result => {
-        editDialog.value?.open({
-            time: result.time,
-            type: result.type,
-            categoryId: result.categoryId,
-            accountId: result.sourceAccountId,
-            destinationAccountId: result.destinationAccountId,
-            amount: result.sourceAmount,
-            destinationAmount: result.destinationAmount,
-            tagIds: result.tagIds ? result.tagIds.join(',') : undefined,
-            comment: result.comment,
-            noTransactionDraft: true
-        }).then(result => {
-            if (result && result.message) {
-                snackbar.value?.showMessage(result.message);
-            }
+    aiImageRecognitionDialog.value?.open().then(results => {
+        if (!results || results.length === 0) {
+            return;
+        }
 
-            reload(false, false);
-        }).catch(error => {
-            if (error) {
-                snackbar.value?.showError(error);
-            }
-        });
+        // Open edit dialogs sequentially for each recognized transaction
+        openEditDialogsSequentially(results, 0);
+    });
+}
+
+function openEditDialogsSequentially(results: RecognizedReceiptImageResponses, index: number): void {
+    if (index >= results.length) {
+        reload(false, false);
+        return;
+    }
+
+    const result = results[index];
+    if (!result) {
+        openEditDialogsSequentially(results, index + 1);
+        return;
+    }
+
+    editDialog.value?.open({
+        time: result.time,
+        type: result.type,
+        categoryId: result.categoryId,
+        accountId: result.sourceAccountId,
+        destinationAccountId: result.destinationAccountId,
+        amount: result.sourceAmount,
+        destinationAmount: result.destinationAmount,
+        tagIds: result.tagIds ? result.tagIds.join(',') : undefined,
+        comment: result.comment,
+        noTransactionDraft: true
+    }).then(editResult => {
+        if (editResult && editResult.message) {
+            snackbar.value?.showMessage(editResult.message);
+        }
+
+        // Continue with next result
+        openEditDialogsSequentially(results, index + 1);
+    }).catch(error => {
+        if (error) {
+            snackbar.value?.showError(error);
+        }
+
+        // Continue with next result even on error
+        openEditDialogsSequentially(results, index + 1);
     });
 }
 

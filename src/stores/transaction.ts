@@ -37,7 +37,7 @@ import {
     type ExportTransactionDataRequest
 } from '@/models/data_management.ts';
 import type {
-    RecognizedReceiptImageResponse
+    RecognizedReceiptImageResponses
 } from '@/models/large_language_model.ts';
 
 import {
@@ -1344,7 +1344,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
         });
     }
 
-    function recognizeReceiptImage({ imageFile, cancelableUuid }: { imageFile: File, cancelableUuid?: string }): Promise<RecognizedReceiptImageResponse> {
+    function recognizeReceiptImage({ imageFile, cancelableUuid }: { imageFile: File, cancelableUuid?: string }): Promise<RecognizedReceiptImageResponses> {
         return new Promise((resolve, reject) => {
             services.recognizeReceiptImage({ imageFile, cancelableUuid }).then(response => {
                 const data = response.data;

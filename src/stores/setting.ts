@@ -350,6 +350,12 @@ export const useSettingsStore = defineStore('settings', () => {
         updateUserApplicationCloudSettingValue('homeGalleryBackgroundId', value);
     }
 
+    function setPageBackgroundImage(value: string): void {
+        updateApplicationSettingsValue('pageBackgroundImage', value);
+        appSettings.value.pageBackgroundImage = value;
+        updateUserApplicationCloudSettingValue('pageBackgroundImage', value);
+    }
+
     // Statistics Settings
     function setStatisticsDefaultChartDataType(value: number): void {
         updateApplicationSettingsSubValue('statistics', 'defaultChartDataType', value);
@@ -579,6 +585,7 @@ export const useSettingsStore = defineStore('settings', () => {
         // -- Home Background Image
         setHomeSummaryBackgroundImage,
         setHomeGalleryBackgroundId,
+        setPageBackgroundImage,
         // -- Statistics Settings
         setStatisticsDefaultChartDataType,
         setStatisticsDefaultTimezoneType,

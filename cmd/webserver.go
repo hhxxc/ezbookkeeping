@@ -106,9 +106,9 @@ func startWebServer(c *core.CliContext) error {
 
 	router := gin.New()
 	router.Use(bindMiddleware(middlewares.Recovery))
-		router.Use(corsMiddleware())
+	router.Use(corsMiddleware())
 
-		if config.EnableGZip {
+	if config.EnableGZip {
 		router.Use(gzip.Gzip(gzip.DefaultCompression))
 	}
 
@@ -136,22 +136,22 @@ func startWebServer(c *core.CliContext) error {
 			Scheme: "http",
 			Host:   "127.0.0.1:28081",
 		})
-		
+
 		// Proxy all static assets and HTML files to Vite
 		router.NoRoute(func(ginCtx *gin.Context) {
 			// Skip API routes, let them be handled by the API router
-			if strings.HasPrefix(ginCtx.Request.URL.Path, "/api/") || 
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/avatar/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/pictures/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/qrcode/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/proxy/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/_AMapService/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/oauth2/") ||
-			   strings.HasPrefix(ginCtx.Request.URL.Path, "/mcp/") ||
-			   ginCtx.Request.URL.Path == "/healthz.json" ||
-			   ginCtx.Request.URL.Path == "/server_settings.js" ||
-			   ginCtx.Request.URL.Path == "/mobile/server_settings.js" ||
-			   ginCtx.Request.URL.Path == "/desktop/server_settings.js" {
+			if strings.HasPrefix(ginCtx.Request.URL.Path, "/api/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/avatar/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/pictures/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/qrcode/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/proxy/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/_AMapService/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/oauth2/") ||
+				strings.HasPrefix(ginCtx.Request.URL.Path, "/mcp/") ||
+				ginCtx.Request.URL.Path == "/healthz.json" ||
+				ginCtx.Request.URL.Path == "/server_settings.js" ||
+				ginCtx.Request.URL.Path == "/mobile/server_settings.js" ||
+				ginCtx.Request.URL.Path == "/desktop/server_settings.js" {
 				ginCtx.Next()
 				return
 			}

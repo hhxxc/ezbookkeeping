@@ -65,7 +65,7 @@ import { KnownFileType } from '@/core/file.ts';
 import { ThemeType } from '@/core/theme.ts';
 import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
-import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
+import type { RecognizedReceiptImageResponse, RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
@@ -85,7 +85,7 @@ const snackbar = useTemplateRef<SnackBarType>('snackbar');
 const confirmDialog = useTemplateRef<ConfirmDialogType>('confirmDialog');
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
-let resolveFunc: ((response: RecognizedReceiptImageResponse) => void) | null = null;
+let resolveFunc: ((response: RecognizedReceiptImageResponses) => void) | null = null;
 let rejectFunc: ((reason?: unknown) => void) | null = null;
 
 const showState = ref<boolean>(false);
@@ -116,7 +116,7 @@ function loadImage(file: File): void {
     });
 }
 
-function open(): Promise<RecognizedReceiptImageResponse> {
+function open(): Promise<RecognizedReceiptImageResponses> {
     showState.value = true;
     loading.value = false;
     recognizing.value = false;
@@ -170,16 +170,27 @@ async function recognize(): Promise<void> {
             cancelableUuid: cancelRecognizingUuid.value
         });
 
-        const duplicates = await findPotentialDuplicateTransactions(response);
+        // response is now an array
+        const results = Array.isArray(response) ? response : [response];
 
-        if (duplicates.length > 0) {
-            const details = buildDuplicateConfirmMessage(duplicates);
+        // Check duplicates for all results
+        const duplicateChecks = results.map(r => findPotentialDuplicateTransactions(r));
+        const allDuplicates = await Promise.all(duplicateChecks);
+        const hasDuplicates = allDuplicates.some(d => d.length > 0);
+
+        if (hasDuplicates) {
+            let details = '';
+            for (const duplicates of allDuplicates) {
+                if (duplicates.length > 0) {
+                    details += buildDuplicateConfirmMessage(duplicates) + '\n';
+                }
+            }
             const confirmMessage = tt('A similar transaction already exists, do you still want to add it?') + '\n\n' + details;
 
             await confirmDialog.value?.open(tt('Possible duplicate transaction found'), confirmMessage);
         }
 
-        resolveFunc?.(response);
+        resolveFunc?.(results);
         showState.value = false;
     } catch (error) {
         if ((error as Record<string, unknown>)['canceled']) {

@@ -125,9 +125,23 @@
                     </div>
                 </template>
             </f7-list-item>
+
+            <f7-list-item>
+                <template #after-title>
+                    <span>{{ tt('Page Background Image') }}</span>
+                </template>
+                <template #after>
+                    <div class="display-flex align-items-center">
+                        <img v-if="pageBackgroundImage" :src="services.getHomeBackgroundImageUrl(pageBackgroundImage)" style="width: 40px; height: 20px; object-fit: cover; margin-right: 8px; border-radius: 4px;" />
+                        <f7-link @click="onPageBackgroundImageClick">{{ pageBackgroundImage ? tt('Change') : tt('Upload') }}</f7-link>
+                        <f7-link v-if="pageBackgroundImage" @click="onRemovePageBackgroundImage" class="margin-inline-start-half">{{ tt('Remove') }}</f7-link>
+                    </div>
+                </template>
+            </f7-list-item>
         </f7-list>
 
         <input ref="homeBgInput" type="file" style="display: none" accept="image/*" @change="uploadHomeBackgroundImage($event)" />
+        <input ref="pageBgInput" type="file" style="display: none" accept="image/*" @change="uploadPageBackgroundImage($event)" />
     </f7-page>
 </template>
 
@@ -174,6 +188,9 @@ const showTimezonePopup = ref<boolean>(false);
 
 const homeBackgroundImage = ref<string>(settingsStore.appSettings.homeSummaryBackgroundImage);
 const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
+
+const pageBackgroundImage = ref<string>(settingsStore.appSettings.pageBackgroundImage);
+const pageBgInput = useTemplateRef<HTMLInputElement>('pageBgInput');
 
 const currentNickName = computed<string>(() => userStore.currentUserNickname || tt('User'));
 
@@ -248,7 +265,7 @@ function uploadHomeBackgroundImage(event: Event): void {
 
     showLoading();
 
-    compressJpgImage(file, 800, 600, 0.7).then(compressedBlob => {
+    compressJpgImage(file, 1200, 900, 0.85).then(compressedBlob => {
         const compressedFile = KnownFileType.JPG.createFileFromBlob(compressedBlob, 'bg');
         return services.uploadHomeBackground({ pictureFile: compressedFile });
     }).then(response => {
@@ -276,6 +293,51 @@ function onRemoveHomeBackgroundImage(): void {
     showConfirm(tt('Remove home background image?'), () => {
         settingsStore.setHomeSummaryBackgroundImage('');
         homeBackgroundImage.value = '';
+    });
+}
+
+function onPageBackgroundImageClick(): void {
+    pageBgInput.value?.click();
+}
+
+function uploadPageBackgroundImage(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    showLoading();
+
+    compressJpgImage(file, 1200, 900, 0.85).then(compressedBlob => {
+        const compressedFile = KnownFileType.JPG.createFileFromBlob(compressedBlob, 'page-bg');
+        return services.uploadHomeBackground({ pictureFile: compressedFile });
+    }).then(response => {
+        hideLoading();
+        const data = response.data;
+
+        if (!data || !data.success || !data.result) {
+            showToast(tt('Failed to upload image'));
+            return;
+        }
+
+        const imageUrl = data.result.url;
+        settingsStore.setPageBackgroundImage(imageUrl);
+        pageBackgroundImage.value = imageUrl;
+    }).catch(error => {
+        hideLoading();
+        console.error('[SettingsPage] upload page background failed:', error);
+        showToast(error?.message || tt('Failed to upload image'));
+    });
+
+    target.value = '';
+}
+
+function onRemovePageBackgroundImage(): void {
+    showConfirm(tt('Remove page background image?'), () => {
+        settingsStore.setPageBackgroundImage('');
+        pageBackgroundImage.value = '';
     });
 }
 

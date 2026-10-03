@@ -2678,5 +2678,11 @@
     "Numeric Overflow": "Numeric Overflow",
     "Click to close": "Click to close",
     "Failed to upload image": "Failed to upload image",
-    "Remove home background image?": "Remove home background image?"
+    "Remove home background image?": "Remove home background image?",
+    "Page Background Image": "Page Background Image",
+    "Remove page background image?": "Remove page background image?",
+    "Add Selected": "Add Selected",
+    "Recognized Transactions": "Recognized Transactions",
+    "Deselect All": "Deselect All",
+    "Select All": "Select All"
 }
