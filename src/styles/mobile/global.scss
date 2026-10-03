@@ -541,13 +541,11 @@ html[dir="rtl"] i.icon.icon-with-direction {
     opacity: 1;
 }
 
-/* Tab bar - solid opaque, no blur, no extra safe area padding */
+/* Tab bar - solid opaque, no blur */
 .toolbar.tabbar {
     background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    padding-bottom: 0 !important;
-    height: var(--f7-toolbar-height, 44px) !important;
 }
 
 .dark .toolbar.tabbar {
@@ -556,11 +554,6 @@ html[dir="rtl"] i.icon.icon-with-direction {
 
 .ios .toolbar.tabbar::before {
     display: none;
-}
-
-/* Ensure toolbar inner doesn't add extra padding */
-.toolbar.tabbar > .toolbar-inner {
-    padding-bottom: 0 !important;
 }
 
 /* Center add button glow */
