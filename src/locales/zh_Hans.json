@@ -2672,5 +2672,11 @@
     "Numeric Overflow": "数值溢出",
     "Click to close": "点击关闭",
     "Failed to upload image": "上传图片失败",
-    "Remove home background image?": "移除首页背景图？"
+    "Remove home background image?": "移除首页背景图？",
+    "Page Background Image": "页面背景图",
+    "Remove page background image?": "移除页面背景图？",
+    "Add Selected": "添加已选",
+    "Recognized Transactions": "识别到的交易",
+    "Deselect All": "取消全选",
+    "Select All": "全选"
 }

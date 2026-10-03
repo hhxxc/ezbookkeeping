@@ -170,7 +170,7 @@ import type {
     UserApplicationCloudSettingsUpdateRequest
 } from '@/models/user_app_cloud_setting.ts';
 import type {
-    RecognizedReceiptImageResponse
+    RecognizedReceiptImageResponses
 } from '@/models/large_language_model.ts';
 
 import {
@@ -826,8 +826,8 @@ export default {
     deleteInsightsExplorer: (req: InsightsExplorerDeleteRequest): ApiResponsePromise<boolean> => {
         return axios.post<ApiResponse<boolean>>('v1/insights/explorers/delete.json', req);
     },
-    recognizeReceiptImage: ({ imageFile, cancelableUuid }: { imageFile: File, cancelableUuid?: string }): ApiResponsePromise<RecognizedReceiptImageResponse> => {
-        return axios.postForm<ApiResponse<RecognizedReceiptImageResponse>>('v1/llm/transactions/recognize_receipt_image.json', {
+    recognizeReceiptImage: ({ imageFile, cancelableUuid }: { imageFile: File, cancelableUuid?: string }): ApiResponsePromise<RecognizedReceiptImageResponses> => {
+        return axios.postForm<ApiResponse<RecognizedReceiptImageResponses>>('v1/llm/transactions/recognize_receipt_image.json', {
             image: imageFile
         }, {
             timeout: DEFAULT_LLM_API_TIMEOUT,

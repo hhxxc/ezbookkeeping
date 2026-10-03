@@ -74,6 +74,7 @@ export interface ApplicationSettings extends BaseApplicationSetting {
     // Home Background Image
     homeSummaryBackgroundImage: string,
     homeGalleryBackgroundId: string,
+    pageBackgroundImage: string,
     // Statistics Settings
     statistics: {
         defaultChartDataType: number;
@@ -155,6 +156,7 @@ export const ALL_ALLOWED_CLOUD_SYNC_APP_SETTING_KEY_TYPES: Record<string, UserAp
     // Home Background Image
     'homeSummaryBackgroundImage': UserApplicationCloudSettingType.String,
     'homeGalleryBackgroundId': UserApplicationCloudSettingType.String,
+    'pageBackgroundImage': UserApplicationCloudSettingType.String,
     // Statistics Settings
     'statistics.defaultChartDataType': UserApplicationCloudSettingType.Number,
     'statistics.defaultTimezoneType': UserApplicationCloudSettingType.Number,
@@ -218,6 +220,7 @@ export const DEFAULT_APPLICATION_SETTINGS: ApplicationSettings = {
     // Home Background Image
     homeSummaryBackgroundImage: '',
     homeGalleryBackgroundId: '',
+    pageBackgroundImage: '',
     // Statistics Settings
     statistics: {
         defaultChartDataType: ChartDataType.ExpenseBySecondaryCategory.type,

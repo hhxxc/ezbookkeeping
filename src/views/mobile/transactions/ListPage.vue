@@ -654,7 +654,7 @@ import { TemplateType } from '@/core/template.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
 
-import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
+import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 
@@ -1545,7 +1545,23 @@ function onCategoryPopoverOpen(event: { $el: Framework7Dom }): void {
     scrollToSelectedItem(event.$el[0], '.popover-inner', '.popover-inner', 'li.list-item-checked');
 }
 
-function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
+const pendingRecognitionQueue = ref<RecognizedReceiptImageResponses>([]);
+
+function onReceiptRecognitionChanged(results: RecognizedReceiptImageResponses): void {
+    if (!results || results.length === 0) {
+        return;
+    }
+
+    pendingRecognitionQueue.value = [...results];
+    navigateToNextRecognition();
+}
+
+function navigateToNextRecognition(): void {
+    if (pendingRecognitionQueue.value.length === 0) {
+        return;
+    }
+
+    const result = pendingRecognitionQueue.value.shift()!;
     const params: string[] = [];
 
     if (result.type) {
@@ -1590,6 +1606,12 @@ function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): vo
 }
 
 function onPageAfterIn(): void {
+    // Continue recognition queue if there are pending results
+    if (pendingRecognitionQueue.value.length > 0) {
+        navigateToNextRecognition();
+        return;
+    }
+
     if (transactionsStore.transactionListStateInvalid && !loading.value) {
         reload();
     }

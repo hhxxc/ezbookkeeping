@@ -2657,5 +2657,11 @@
     "Numeric Overflow": "數值溢位",
     "Click to close": "點選關閉",
     "Failed to upload image": "上傳圖片失敗",
-    "Remove home background image?": "移除首頁背景圖？"
+    "Remove home background image?": "移除首頁背景圖？",
+    "Page Background Image": "頁面背景圖",
+    "Remove page background image?": "移除頁面背景圖？",
+    "Add Selected": "新增已選",
+    "Recognized Transactions": "識別到的交易",
+    "Deselect All": "取消全選",
+    "Select All": "全選"
 }

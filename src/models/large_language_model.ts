@@ -9,3 +9,5 @@ export interface RecognizedReceiptImageResponse {
     readonly tagIds?: string[];
     readonly comment?: string;
 }
+
+export type RecognizedReceiptImageResponses = RecognizedReceiptImageResponse[];

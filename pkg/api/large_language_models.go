@@ -231,14 +231,56 @@ func (a *LargeLanguageModelsApi) RecognizeReceiptImageHandler(c *core.WebContext
 		return nil, errs.ErrNoTransactionInformationInImage
 	}
 
+	trimmedContent := strings.TrimSpace(llmResponse.Content)
+
+	// Try parsing as array first (new format)
+	if strings.HasPrefix(trimmedContent, "[") {
+		var results []*models.RecognizedReceiptImageResult
+
+		if err := json.Unmarshal([]byte(trimmedContent), &results); err != nil {
+			log.Errorf(c, "[large_language_models.RecognizeReceiptImageHandler] failed to unmarshal recognized receipt image results array from llm response \"%s\" for user \"uid:%d\", because %s", llmResponse.Content, uid, err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+
+		if len(results) == 0 {
+			return nil, errs.ErrNoTransactionInformationInImage
+		}
+
+		responses := make([]*models.RecognizedReceiptImageResponse, 0, len(results))
+
+		for _, result := range results {
+			response, parseErr := a.parseRecognizedReceiptImageResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
+
+			if parseErr != nil {
+				log.Warnf(c, "[large_language_models.RecognizeReceiptImageHandler] failed to parse one of the recognized results for user \"uid:%d\", skipping: %s", uid, parseErr.Error())
+				continue
+			}
+
+			responses = append(responses, response)
+		}
+
+		if len(responses) == 0 {
+			return nil, errs.ErrNoTransactionInformationInImage
+		}
+
+		return responses, nil
+	}
+
+	// Fallback: parse as single object (backward compatibility)
 	var result *models.RecognizedReceiptImageResult
 
-	if err := json.Unmarshal([]byte(llmResponse.Content), &result); err != nil {
+	if err := json.Unmarshal([]byte(trimmedContent), &result); err != nil {
 		log.Errorf(c, "[large_language_models.RecognizeReceiptImageHandler] failed to unmarshal recognized receipt image result from llm response \"%s\" for user \"uid:%d\", because %s", llmResponse.Content, uid, err.Error())
 		return nil, errs.Or(err, errs.ErrOperationFailed)
 	}
 
-	return a.parseRecognizedReceiptImageResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
+	response, parseErr := a.parseRecognizedReceiptImageResponse(c, uid, clientTimezone, result, accountMap, expenseCategoryMap, incomeCategoryMap, transferCategoryMap, tagMap)
+
+	if parseErr != nil {
+		return nil, parseErr
+	}
+
+	return []*models.RecognizedReceiptImageResponse{response}, nil
 }
 
 func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.WebContext, uid int64, clientTimezone *time.Location, recognizedResult *models.RecognizedReceiptImageResult, accountMap map[string]*models.Account, expenseCategoryMap map[string]*models.TransactionCategory, incomeCategoryMap map[string]*models.TransactionCategory, transferCategoryMap map[string]*models.TransactionCategory, tagMap map[string]*models.TransactionTag) (*models.RecognizedReceiptImageResponse, *errs.Error) {

@@ -1,5 +1,5 @@
 <template>
-    <f7-page class="home-page theme-jade" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn">
+    <f7-page class="home-page theme-jade" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn" :style="pageBackgroundStyle">
         <f7-navbar>
             <f7-nav-title :title="tt('global.app.title')"></f7-nav-title>
         </f7-navbar>
@@ -319,7 +319,7 @@ import { useOverviewStore } from '@/stores/overview.ts';
 import { DateRange } from '@/core/datetime.ts';
 import { TemplateType } from '@/core/template.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
-import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
+import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
@@ -372,6 +372,21 @@ const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
 const homeSummaryCardStyle = computed(() => {
     if (homeSummaryBackgroundImage.value) {
         const imageUrl = services.getHomeBackgroundImageUrl(homeSummaryBackgroundImage.value);
+        return {
+            'background-image': `url(${imageUrl})`,
+            'background-size': 'cover',
+            'background-position': 'center',
+            'background-repeat': 'no-repeat'
+        } as Record<string, string>;
+    }
+    return {} as Record<string, string>;
+});
+
+const pageBackgroundImage = ref<string>(settingsStore.appSettings.pageBackgroundImage);
+
+const pageBackgroundStyle = computed(() => {
+    if (pageBackgroundImage.value) {
+        const imageUrl = services.getHomeBackgroundImageUrl(pageBackgroundImage.value);
         return {
             'background-image': `url(${imageUrl})`,
             'background-size': 'cover',
@@ -457,7 +472,24 @@ function reload(done?: () => void): void {
     });
 }
 
-function onReceiptRecognitionChanged(result: RecognizedReceiptImageResponse): void {
+const pendingRecognitionQueue = ref<RecognizedReceiptImageResponses>([]);
+
+function onReceiptRecognitionChanged(results: RecognizedReceiptImageResponses): void {
+    if (!results || results.length === 0) {
+        return;
+    }
+
+    // Put all results in queue, navigate to first one
+    pendingRecognitionQueue.value = [...results];
+    navigateToNextRecognition();
+}
+
+function navigateToNextRecognition(): void {
+    if (pendingRecognitionQueue.value.length === 0) {
+        return;
+    }
+
+    const result = pendingRecognitionQueue.value.shift()!;
     const params: string[] = [];
 
     if (result.type) {
@@ -515,7 +547,7 @@ function uploadHomeBackgroundImage(event: Event): void {
 
     showLoading();
 
-    compressJpgImage(file, 800, 600, 0.7).then(compressedBlob => {
+    compressJpgImage(file, 1200, 900, 0.85).then(compressedBlob => {
         const compressedFile = KnownFileType.JPG.createFileFromBlob(compressedBlob, 'bg');
         return services.uploadHomeBackground({ pictureFile: compressedFile });
     }).then(response => {
@@ -541,6 +573,13 @@ function uploadHomeBackgroundImage(event: Event): void {
 
 function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
+    pageBackgroundImage.value = settingsStore.appSettings.pageBackgroundImage;
+
+    // Continue recognition queue if there are pending results
+    if (pendingRecognitionQueue.value.length > 0) {
+        navigateToNextRecognition();
+        return;
+    }
 
     if (!loading.value) {
         reload();
@@ -806,9 +845,11 @@ init();
     background: var(--rule-2) !important;
 }
 
-/* 毛玻璃 Tab + 方形加号 */
+/* 纯色 Tab + 方形加号 */
 .home-page.theme-jade .tabbar.main-tabbar {
-    background: #ffffff;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-top: 1px solid var(--rule);
     padding-bottom: var(--f7-safe-area-bottom, 0);
 }
@@ -1028,16 +1069,18 @@ init();
     color: var(--hp-expense);
 }
 
-/* 底部 Tab 导航 - 简洁纯色风格 */
+/* 底部 Tab 导航 - 纯色不透明 */
 .tabbar.main-tabbar {
     overflow: visible;
-    background: #ffffff;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-top: 1px solid #e5e7eb;
     padding-bottom: var(--f7-safe-area-bottom, 0);
 }
 
 .dark .tabbar.main-tabbar {
-    background: #1a1a1e;
+    background: #1a1a1e !important;
     border-top-color: #2a2a35;
 }
 

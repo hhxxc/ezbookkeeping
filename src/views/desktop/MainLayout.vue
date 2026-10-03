@@ -235,7 +235,7 @@ import { ThemeType } from '@/core/theme.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isUserScheduledTransactionEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { getSystemTheme, setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
-import type { RecognizedReceiptImageResponse } from '@/models/large_language_model.ts';
+import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 import { getClientDisplayVersion } from '@/lib/version.ts';
 import logger from '@/lib/logger.ts';
 
@@ -363,7 +363,17 @@ function showAddDialogInTransactionListPage(): void {
 }
 
 function openAIImageRecognition(): void {
-    aiImageRecognitionDialog.value?.open().then((result: RecognizedReceiptImageResponse) => {
+    aiImageRecognitionDialog.value?.open().then((results: RecognizedReceiptImageResponses) => {
+        if (!results || results.length === 0) {
+            return;
+        }
+
+        // Navigate to the first result
+        const result = results[0];
+        if (!result) {
+            return;
+        }
+
         const params: string[] = [];
 
         if (result.type) {

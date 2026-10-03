@@ -541,14 +541,16 @@ html[dir="rtl"] i.icon.icon-with-direction {
     opacity: 1;
 }
 
-/* Tab bar glass effect (light mode) */
+/* Tab bar - solid opaque, no blur */
 .toolbar.tabbar {
-    background: #ffffff;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     padding-bottom: var(--f7-safe-area-bottom, 0);
 }
 
 .dark .toolbar.tabbar {
-    background: #1a1a1e;
+    background: #1a1a1e !important;
 }
 
 .ios .toolbar.tabbar::before {
