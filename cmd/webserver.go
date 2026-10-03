@@ -109,8 +109,16 @@ func startWebServer(c *core.CliContext) error {
 	router.Use(corsMiddleware())
 
 	if config.EnableGZip {
-		router.Use(gzip.Gzip(gzip.DefaultCompression))
+		// Skip formats that are already compressed (fonts, images, archives),
+		// compressing them again only costs CPU without shrinking the payload
+		router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{
+			".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".mp4",
+			".woff", ".woff2", ".ttf", ".eot", ".otf",
+			".zip", ".gz", ".br",
+		})))
 	}
+
+	router.Use(staticAssetsCacheControlMiddleware())
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		_ = v.RegisterValidation("notBlank", validators.NotBlank)
@@ -539,6 +547,48 @@ func startWebServer(c *core.CliContext) error {
 func bindMiddleware(fn core.MiddlewareHandlerFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		fn(core.WrapWebContext(c))
+	}
+}
+
+// staticAssetsCacheControlMiddleware applies HTTP caching policies to static assets.
+// js/css/fonts files are content-hashed by the frontend build (e.g. mobile-wNn8Cbpg.js),
+// so they are safe to cache for a year; img/ also contains unhashed files copied from
+// public/ (icons and so on), so they only get a short lifetime; HTML entries, manifest
+// and sw.js must always be revalidated so that a new deployment is picked up immediately.
+// Without explicit headers, WebView caches (WKWebView in particular) re-download
+// everything on each cold start, which is very slow on low-bandwidth links.
+func staticAssetsCacheControlMiddleware() gin.HandlerFunc {
+	htmlEntries := map[string]bool{
+		"/":                   true,
+		"/index.html":         true,
+		"/mobile":             true,
+		"/mobile.html":        true,
+		"/desktop":            true,
+		"/desktop.html":       true,
+		"/manifest.json":      true,
+		"/sw.js":              true,
+		"/server_settings.js": true,
+	}
+
+	return func(c *gin.Context) {
+		p := c.Request.URL.Path
+
+		if strings.HasPrefix(p, "/mobile/") {
+			p = strings.TrimPrefix(p, "/mobile")
+		} else if strings.HasPrefix(p, "/desktop/") {
+			p = strings.TrimPrefix(p, "/desktop")
+		}
+
+		switch {
+		case strings.HasPrefix(p, "/js/"), strings.HasPrefix(p, "/css/"), strings.HasPrefix(p, "/fonts/"), strings.HasPrefix(p, "/workbox-"):
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		case strings.HasPrefix(p, "/img/"):
+			c.Header("Cache-Control", "public, max-age=604800")
+		case htmlEntries[p]:
+			c.Header("Cache-Control", "no-cache")
+		}
+
+		c.Next()
 	}
 }
 
