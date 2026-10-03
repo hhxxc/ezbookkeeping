@@ -70,6 +70,42 @@ export function getAppShellVersion(): string {
     }
 }
 
+// The IPA version that switched the native shell to contentInset: never. From that version on
+// the web page fills the whole screen (including under the status bar and home indicator) and
+// must manage the safe area insets itself (see the html.app-shell rules in global.scss).
+const APP_SHELL_FULL_BLEED_VERSION = '1.6.00.97';
+
+function compareVersionStrings(a: string, b: string): number {
+    const partsA = a.split('.').map(part => parseInt(part, 10) || 0);
+    const partsB = b.split('.').map(part => parseInt(part, 10) || 0);
+    const length = Math.max(partsA.length, partsB.length);
+
+    for (let index = 0; index < length; index++) {
+        const diff = (partsA[index] || 0) - (partsB[index] || 0);
+
+        if (diff !== 0) {
+            return diff;
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Whether the current native shell renders the web page full screen (contentInset: never),
+ * so that safe area insets must be handled by the page itself. Older shells keep insetting
+ * the content natively, and the page must not add safe area paddings on top of that.
+ */
+export function isAppShellSafeAreaSelfManaged(): boolean {
+    if (!isAppShellMode()) {
+        return false;
+    }
+
+    const shellVersion = getAppShellVersion();
+
+    return !!shellVersion && compareVersionStrings(shellVersion, APP_SHELL_FULL_BLEED_VERSION) >= 0;
+}
+
 export function showLoading(delayConditionFunc?: () => boolean, delayMills?: number): void {
     if (!delayConditionFunc) {
         f7ready((f7) => {

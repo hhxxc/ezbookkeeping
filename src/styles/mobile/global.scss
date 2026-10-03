@@ -16,6 +16,14 @@ html, body {
     }
 }
 
+/* 原生壳（v1.6.00.97 起 contentInset: never）下 WebView 铺满整屏，
+   状态栏和底部小圆条区域由页面自己接管，恢复 Framework7 的 env() 内边距。
+   类由 mobile-main.ts 在壳版本 >= 1.6.00.97 时挂到 html 上，老壳不加，避免双重内边距。 */
+html.app-shell {
+    --f7-safe-area-top: env(safe-area-inset-top) !important;
+    --f7-safe-area-bottom: env(safe-area-inset-bottom) !important;
+}
+
 html {
     touch-action: manipulation;
     -webkit-font-smoothing: antialiased;

@@ -31,6 +31,7 @@ import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { updateMapCacheExpiration } from '@/lib/cache.ts';
 import { setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
 import { isiOSHomeScreenMode, isModalShowing, setAppFontSize, isAppShellMode } from '@/lib/ui/mobile.ts';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import logger from '@/lib/logger.ts';
 
 const { tt, getCurrentLanguageInfo, setLanguage, initLocale } = useI18n();
@@ -196,6 +197,16 @@ onMounted(() => {
             environmentsStore.framework7DarkMode = darkMode;
             setThemeColorMeta(darkMode);
         });
+    });
+
+    // 原生壳铺满整屏后，页面顶到状态栏下面，状态栏文字颜色必须跟随应用明暗主题，
+    // 否则深色系统 + 浅色主题时白色状态栏文字会淹没在白色导航栏里
+    watch(() => environmentsStore.framework7DarkMode, (darkMode) => {
+        if (!isAppShellMode() || darkMode === undefined) {
+            return;
+        }
+
+        StatusBar.setStyle({ style: darkMode ? Style.Dark : Style.Light }).catch(() => undefined);
     });
 
     document.addEventListener('DOMContentLoaded', () => {
