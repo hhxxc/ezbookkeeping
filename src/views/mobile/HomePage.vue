@@ -1,6 +1,6 @@
 <template>
     <f7-page class="home-page" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn" :style="pageBackgroundStyle">
-        <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading }" :style="homeSummaryCardStyle" @taphold="onHomeBgInputClick">
+        <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading, 'has-bg': !!homeSummaryBackgroundImage }" :style="homeSummaryCardStyle" @taphold="onHomeBgInputClick">
             <f7-link class="home-card-gallery-btn" @click="onHomeBgInputClick">
                 <f7-icon f7="photo_on_rectangle" style="font-size: 16px; color: rgba(0,0,0,0.35);"></f7-icon>
             </f7-link>
@@ -361,8 +361,9 @@ const homeBgInput = useTemplateRef<HTMLInputElement>('homeBgInput');
 const homeSummaryCardStyle = computed(() => {
     if (homeSummaryBackgroundImage.value) {
         const imageUrl = services.getHomeBackgroundImageUrl(homeSummaryBackgroundImage.value);
+        // 图片上叠一层暗色渐变（scrim），保证卡片文字在任意图片上都可读
         return {
-            'background-image': `url(${imageUrl})`,
+            'background-image': `linear-gradient(rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.46)), url(${imageUrl})`,
             'background-size': 'cover',
             'background-position': 'center',
             'background-repeat': 'no-repeat'
@@ -732,6 +733,38 @@ init();
     width: 1px;
     margin: 2px 16px 2px 0;
     background: var(--hp-divider);
+}
+
+/* 设置了背景图时：文字统一走白色系并加投影，分割线提亮，保证在任意图片上可读 */
+.home-summary-card.has-bg .home-summary-label,
+.home-summary-card.has-bg .home-summary-amount {
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.home-summary-card.has-bg .home-summary-metric-label {
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.home-summary-card.has-bg .home-summary-metrics {
+    border-top-color: rgba(255, 255, 255, 0.28);
+}
+
+.home-summary-card.has-bg .home-summary-metric-divider {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.home-summary-card.has-bg .ebk-hide-icon {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.home-summary-card.has-bg .home-card-gallery-btn {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.home-summary-card.has-bg .home-card-gallery-btn i.f7-icons {
+    color: rgba(255, 255, 255, 0.85) !important;
 }
 
 /* 区间列表卡片 */
