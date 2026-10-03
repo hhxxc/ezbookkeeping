@@ -34,11 +34,11 @@
 
 ### 移动端
 
-![NestKeep Mobile](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/mobile/en.png)
+![NestKeep Mobile](./docs/screenshots/mobile.png)
 
 ### 桌面端
 
-![NestKeep Desktop](https://raw.githubusercontent.com/wiki/mayswind/ezbookkeeping/img/desktop/en.png)
+![NestKeep Desktop](./docs/screenshots/desktop.png)
 
 ## 快速开始
 
