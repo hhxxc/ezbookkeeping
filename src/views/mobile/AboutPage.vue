@@ -388,7 +388,7 @@ init();
 
     .update-progress-bar {
         height: 100%;
-        background: var(--f7-theme-color, #2563eb);
+        background: var(--f7-theme-color, #26a69a);
         border-radius: 3px;
         transition: width .3s ease;
     }

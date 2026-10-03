@@ -20,7 +20,7 @@
             <circle class="pie-chart-text-background"
                     cx="0" cy="0"
                     stroke="#ddd"
-                    :style="{ '--pie-chart-text-background': centerTextBackground ? centerTextBackground : '#7f2020' }"
+                    :style="{ '--pie-chart-text-background': centerTextBackground ? centerTextBackground : '#37474f' }"
                     :r="diameter / 2.5"
                     v-if="showCenterText"/>
 

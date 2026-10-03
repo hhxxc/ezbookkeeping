@@ -29,14 +29,14 @@ export const ALL_ACCOUNT_COLORS: ColorValue[] = allAvailableColors;
 export const ALL_CATEGORY_COLORS: ColorValue[] = allAvailableColors;
 
 export const DEFAULT_CHART_COLORS: ColorValue[] = [
-    'cc4a66',
-    'e3564a',
-    'fc892c',
-    'ffc349',
-    '4dd291',
-    '24ceb3',
-    '2ab4d0',
-    '065786',
-    '713670',
-    '8e1d51'
+    '26a69a', // teal (primary)
+    '5b8db8', // mist blue
+    'e3a85f', // apricot
+    'c97b7b', // bean red
+    '7fb77e', // matcha green
+    '8e7cc3', // muted violet
+    'c78fb0', // lotus pink
+    '9e9e7e', // olive
+    '879bab', // blue gray
+    'b08968'  // warm brown
 ];

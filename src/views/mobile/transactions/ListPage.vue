@@ -1676,7 +1676,7 @@ init();
     background: rgba(0, 0, 0, 0.03);
     --f7-list-item-min-height: 34px;
     --f7-list-item-padding-left: 0px;
-    border-radius: 10px;
+    border-radius: 8px;
     margin-inline: 8px;
 }
 
