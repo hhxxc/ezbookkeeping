@@ -83,6 +83,7 @@ import AccountBalanceTrendsBarChart from '@/components/mobile/AccountBalanceTren
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
 
 import { loadRemoteServerSettings } from '@/lib/server_settings.ts';
+import { isAppShellSafeAreaSelfManaged } from '@/lib/ui/mobile.ts';
 import { useUserStore } from '@/stores/user.ts';
 
 import TextareaAutoSize from '@/directives/mobile/textareaAutoSize.ts';
@@ -98,6 +99,11 @@ import '@/styles/mobile/font-size-xxxx-large.scss';
 import '@/styles/mobile/amount-color.scss';
 
 import App from '@/MobileApp.vue';
+
+// 新版原生壳（contentInset: never）下页面铺满整屏，安全区由页面自己接管
+if (isAppShellSafeAreaSelfManaged()) {
+    document.documentElement.classList.add('app-shell');
+}
 
 Framework7.use([
     Framework7Dialog,

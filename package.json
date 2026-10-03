@@ -19,6 +19,8 @@
     "test": "cross-env TS_NODE_PROJECT=\"./tsconfig.jest.json\" jest"
   },
   "dependencies": {
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.1",
     "@mdi/js": "7.4.47",
     "@vuepic/vue-datepicker": "12.1.0",
     "axios": "1.15.2",

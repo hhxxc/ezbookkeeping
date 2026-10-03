@@ -87,10 +87,11 @@ const config: CapacitorConfig = {
         ...(serverUrl ? { url: serverUrl } : {})
     },
     ios: {
-        contentInset: 'always',
+        contentInset: 'never',
         backgroundColor: '#f6f6f8ff'
     },
     android: {
+        contentInset: 'never',
         backgroundColor: '#f6f6f8ff'
     }
 };
