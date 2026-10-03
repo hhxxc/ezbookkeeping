@@ -1,0 +1,249 @@
+
+> nestkeep@1.5.0 serve
+> cross-env NODE_ENV=development vite
+
+
+  [32m[1mVITE[22m v7.3.2[39m  [2mready in [0m[1m560[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m28081[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://172.29.48.1:[1m28081[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.159.24:[1m28081[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://169.254.170.121:[1m28081[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.197:[1m28081[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.188.1:[1m28081[22m/[39m
+[2m[32m  ➜[39m[22m[2m  press [22m[1mh + enter[22m[2m to show help[22m
+Browserslist: browsers data (caniuse-lite) is 6 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($i == list.length($maps)): $value; else: $result)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+53 │         $current-val: if($i == list.length($maps), $value, $result);
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_utils.scss 53:23                 @use
+    src\styles\desktop\template\base\libs\vuetify\_overrides.scss 4:1  @use
+    src\styles\desktop\template\base\libs\vuetify\_index.scss 4:1      @use
+    src\styles\desktop\template\vuetify\index.scss 4:1                 root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+  ╷
+8 │     box-shadow: map.get(vuetify.$shadow-key-umbra, $z), map.get(vuetify.$shadow-key-penumbra, $z), map.get(vuetify.$shadow-key-ambient, $z) if($important, !important, null);
+  │                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\styles\desktop\template\base\_mixins.scss 8:141                   @use
+    src\styles\desktop\template\base\placeholders\_vertical-nav.scss 4:1  @forward
+    src\styles\desktop\template\base\placeholders\_index.scss 4:1         @use
+    src\styles\desktop\template\base\_vertical-nav.scss 4:1               @use
+    src\styles\desktop\template\base\_index.scss 7:1                      @use
+    src\styles\desktop\template\template\index.scss 5:1                   root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+35 │         #{$border-property}: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) if($important, !important, null);
+   │                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_mixins.scss 35:93                   @use
+    src\styles\desktop\template\base\placeholders\_vertical-nav.scss 4:1  @forward
+    src\styles\desktop\template\base\placeholders\_index.scss 4:1         @use
+    src\styles\desktop\template\base\_vertical-nav.scss 4:1               @use
+    src\styles\desktop\template\base\_index.scss 7:1                      @use
+    src\styles\desktop\template\template\index.scss 5:1                   root stylesheet
+
+[2m15:03:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ new dependencies optimized: [33mvuetify/components/VCombobox[32m[39m
+[2m15:03:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ optimized dependencies changed. reloading[39m
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+  ╷
+8 │     box-shadow: map.get(vuetify.$shadow-key-umbra, $z), map.get(vuetify.$shadow-key-penumbra, $z), map.get(vuetify.$shadow-key-ambient, $z) if($important, !important, null);
+  │                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\styles\desktop\template\base\_mixins.scss 8:141             @use
+    src\styles\desktop\template\vuetify\components\_alert.scss 4:1  @use
+    src\styles\desktop\template\vuetify\components\index.scss 4:1   @use
+    src\styles\desktop\template\vuetify\index.scss 6:1              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+35 │         #{$border-property}: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) if($important, !important, null);
+   │                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_mixins.scss 35:93             @use
+    src\styles\desktop\template\vuetify\components\_alert.scss 4:1  @use
+    src\styles\desktop\template\vuetify\components\index.scss 4:1   @use
+    src\styles\desktop\template\vuetify\index.scss 6:1              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($i == list.length($maps)): $value; else: $result)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+53 │         $current-val: if($i == list.length($maps), $value, $result);
+   │                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_utils.scss 53:23                 @use
+    src\styles\desktop\template\base\libs\vuetify\_overrides.scss 4:1  @use
+    src\styles\desktop\template\base\libs\vuetify\_index.scss 4:1      @use
+    src\styles\desktop\template\vuetify\index.scss 4:1                 root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+  ╷
+8 │     box-shadow: map.get(vuetify.$shadow-key-umbra, $z), map.get(vuetify.$shadow-key-penumbra, $z), map.get(vuetify.$shadow-key-ambient, $z) if($important, !important, null);
+  │                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\styles\desktop\template\base\_mixins.scss 8:141                   @use
+    src\styles\desktop\template\base\placeholders\_vertical-nav.scss 4:1  @forward
+    src\styles\desktop\template\base\placeholders\_index.scss 4:1         @use
+    src\styles\desktop\template\base\_vertical-nav.scss 4:1               @use
+    src\styles\desktop\template\base\_index.scss 7:1                      @use
+    src\styles\desktop\template\template\index.scss 5:1                   root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+35 │         #{$border-property}: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) if($important, !important, null);
+   │                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_mixins.scss 35:93                   @use
+    src\styles\desktop\template\base\placeholders\_vertical-nav.scss 4:1  @forward
+    src\styles\desktop\template\base\placeholders\_index.scss 4:1         @use
+    src\styles\desktop\template\base\_vertical-nav.scss 4:1               @use
+    src\styles\desktop\template\base\_index.scss 7:1                      @use
+    src\styles\desktop\template\template\index.scss 5:1                   root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+  ╷
+8 │     box-shadow: map.get(vuetify.$shadow-key-umbra, $z), map.get(vuetify.$shadow-key-penumbra, $z), map.get(vuetify.$shadow-key-ambient, $z) if($important, !important, null);
+  │                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\styles\desktop\template\base\_mixins.scss 8:141             @use
+    src\styles\desktop\template\vuetify\components\_alert.scss 4:1  @use
+    src\styles\desktop\template\vuetify\components\index.scss 4:1   @use
+    src\styles\desktop\template\vuetify\index.scss 6:1              root stylesheet
+
+DEPRECATION WARNING [if-function]: The Sass if() syntax is deprecated in favor of the modern CSS syntax.
+
+Suggestion: if(sass($important): !important)
+
+More info: https://sass-lang.com/d/if-function
+
+   ╷
+35 │         #{$border-property}: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)) if($important, !important, null);
+   │                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   ╵
+    src\styles\desktop\template\base\_mixins.scss 35:93             @use
+    src\styles\desktop\template\vuetify\components\_alert.scss 4:1  @use
+    src\styles\desktop\template\vuetify\components\index.scss 4:1   @use
+    src\styles\desktop\template\vuetify\index.scss 6:1              root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+1 │ @import 'framework7/css';
+  │         ^^^^^^^^^^^^^^^^
+  ╵
+    src\mobile-ltr.scss 1:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import 'framework7/components/dialog/css';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\mobile-ltr.scss 2:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+3 │ @import 'framework7/components/popup/css';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\mobile-ltr.scss 3:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+4 │ @import 'framework7/components/login-screen/css';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\mobile-ltr.scss 4:9  root stylesheet
+
+DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+5 │ @import 'framework7/components/popover/css';
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    src\mobile-ltr.scss 5:9  root stylesheet
+
+WARNING: 29 repetitive deprecation warnings omitted.
+Run in verbose mode to see all warnings.
+
+[2m15:31:32[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mcore/color.ts[22m
+[2m15:32:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/HomePage.vue[22m
+[2m15:32:34[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/HomePage.vue[22m
+[2m15:32:54[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/HomePage.vue?vue&type=style&index=0&lang.css[22m
+[2m15:54:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue[22m
+[2m15:54:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue[22m
+[2m15:54:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue[22m
+[2m15:54:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue[22m
+[2m15:54:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue[22m
+[2m15:55:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/transactions/ListPage.vue?vue&type=style&index=0&lang.css[22m
+[2m16:00:32[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mconsts/brand.ts[22m
+[2m16:00:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/styles/desktop/global.scss[22m
+[2m16:00:50[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/components/common/PinCodeInput.vue?vue&type=style&index=0&lang.css[22m
+[2m16:00:52[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/mobile/AboutPage.vue?vue&type=style&index=0&lang.css[22m
+[2m16:01:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/components/desktop/CalendarHeatMapChart.vue[22m
+[2m16:01:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/components/desktop/HeatMapChart.vue[22m
+[2m16:01:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/views/desktop/transactions/list/dialogs/ExportDialog.vue[22m
+[2m16:06:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@id/virtual:plugin-vuetify:components/VGrid/VSpacer.sass, /@id/virtual:plugin-vuetify:components/VLayout/VLayout.sass, /@id/virtual:plugin-vuetify:components/VLayout/VLayoutItem.sass, /@id/virtual:plugin-vuetify:components/VApp/VApp.sass, /@id/virtual:plugin-vuetify:components/VDataTable/VDataTableFooter.sass, /@id/virtual:plugin-vuetify:components/VMain/VMain.sass, /@id/virtual:plugin-vuetify:components/VBadge/VBadge.sass, /@id/virtual:plugin-vuetify:components/VDialog/VDialog.sass, /@id/virtual:plugin-vuetify:components/VTabs/VTab.sass, /@id/virtual:plugin-vuetify:components/VNavigationDrawer/VNavigationDrawer.sass, /@id/virtual:plugin-vuetify:components/VSnackbar/VSnackbar.sass, /@id/virtual:plugin-vuetify:components/VAlert/VAlert.sass, /@id/virtual:plugin-vuetify:components/VExpansionPanel/VExpansionPanel.sass, /@id/virtual:plugin-vuetify:components/VTextarea/VTextarea.sass, /@id/virtual:plugin-vuetify:components/VTextField/VTextField.sass, /@id/virtual:plugin-vuetify:components/VTabs/VTabs.sass, /@id/virtual:plugin-vuetify:components/VDataTable/VDataTable.sass, /@id/virtual:plugin-vuetify:components/VToolbar/VToolbar.sass, /@id/virtual:plugin-vuetify:components/VSwitch/VSwitch.sass, /@id/virtual:plugin-vuetify:components/VSkeletonLoader/VSkeletonLoader.sass, /@id/virtual:plugin-vuetify:components/VVirtualScroll/VVirtualScroll.sass, /@id/virtual:plugin-vuetify:components/VSelectionControlGroup/VSelectionControlGroup.sass, /@id/virtual:plugin-vuetify:components/VMenu/VMenu.sass, /@id/virtual:plugin-vuetify:components/VTooltip/VTooltip.sass, /@id/virtual:plugin-vuetify:components/VResponsive/VResponsive.sass, /@id/virtual:plugin-vuetify:directives/ripple/VRipple.sass, /@id/virtual:plugin-vuetify:components/VImg/VImg.sass, /@id/virtual:plugin-vuetify:components/VBtnToggle/VBtnToggle.sass, /@id/virtual:plugin-vuetify:components/VOverlay/VOverlay.sass, /@id/virtual:plugin-vuetify:components/VList/VList.sass, /@id/virtual:plugin-vuetify:components/VProgressLinear/VProgressLinear.sass, /@id/virtual:plugin-vuetify:components/VCheckbox/VCheckbox.sass, /@id/virtual:plugin-vuetify:components/VCounter/VCounter.sass, /@id/virtual:plugin-vuetify:components/VPagination/VPagination.sass, /@id/virtual:plugin-vuetify:components/VSheet/VSheet.sass, /@id/virtual:plugin-vuetify:components/VSlideGroup/VSlideGroup.sass, /@id/virtual:plugin-vuetify:components/VIcon/VIcon.sass, /@id/virtual:plugin-vuetify:components/VBtnGroup/VBtnGroup.sass, /@id/virtual:plugin-vuetify:components/VSelectionControl/VSelectionControl.sass, /@id/virtual:plugin-vuetify:components/VProgressCircular/VProgressCircular.sass, /@id/virtual:plugin-vuetify:components/VList/VListItem.sass, /@id/virtual:plugin-vuetify:components/VField/VField.sass, /@id/virtual:plugin-vuetify:components/VWindow/VWindow.sass, /@id/virtual:plugin-vuetify:components/VChipGroup/VChipGroup.sass, /@id/virtual:plugin-vuetify:components/VDivider/VDivider.sass, /@id/virtual:plugin-vuetify:components/VInput/VInput.sass, /@id/virtual:plugin-vuetify:components/VLabel/VLabel.sass, /@id/virtual:plugin-vuetify:components/VMessages/VMessages.sass, /@id/virtual:plugin-vuetify:components/VGrid/VContainer.sass, /@id/virtual:plugin-vuetify:components/VCard/VCard.sass, /@id/virtual:plugin-vuetify:components/VGrid/VGrid.sass, /@id/virtual:plugin-vuetify:components/VAutocomplete/VAutocomplete.sass, /@id/virtual:plugin-vuetify:components/VSelect/VSelect.sass, /@id/virtual:plugin-vuetify:components/VAvatar/VAvatar.sass, /@id/virtual:plugin-vuetify:components/VChip/VChip.sass, /@id/virtual:plugin-vuetify:components/VBtn/VBtn.sass, /@id/virtual:plugin-vuetify:components/VTable/VTable.sass, /@id/virtual:plugin-vuetify:components/VCombobox/VCombobox.sass, /@id/virtual:plugin-vuetify:styles/main.sass, /styles/desktop/template/template/index.scss, /styles/desktop/template/vuetify/index.scss[22m
+[2m16:06:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/@id/virtual:plugin-vuetify:components/VGrid/VSpacer.sass, /@id/virtual:plugin-vuetify:components/VLayout/VLayout.sass, /@id/virtual:plugin-vuetify:components/VLayout/VLayoutItem.sass, /@id/virtual:plugin-vuetify:components/VApp/VApp.sass, /@id/virtual:plugin-vuetify:components/VDataTable/VDataTableFooter.sass, /@id/virtual:plugin-vuetify:components/VMain/VMain.sass, /@id/virtual:plugin-vuetify:components/VBadge/VBadge.sass, /@id/virtual:plugin-vuetify:components/VDialog/VDialog.sass, /@id/virtual:plugin-vuetify:components/VTabs/VTab.sass, /@id/virtual:plugin-vuetify:components/VNavigationDrawer/VNavigationDrawer.sass, /@id/virtual:plugin-vuetify:components/VSnackbar/VSnackbar.sass, /@id/virtual:plugin-vuetify:components/VAlert/VAlert.sass, /@id/virtual:plugin-vuetify:components/VExpansionPanel/VExpansionPanel.sass, /@id/virtual:plugin-vuetify:components/VTextarea/VTextarea.sass, /@id/virtual:plugin-vuetify:components/VTextField/VTextField.sass, /@id/virtual:plugin-vuetify:components/VTabs/VTabs.sass, /@id/virtual:plugin-vuetify:components/VDataTable/VDataTable.sass, /@id/virtual:plugin-vuetify:components/VToolbar/VToolbar.sass, /@id/virtual:plugin-vuetify:components/VSwitch/VSwitch.sass, /@id/virtual:plugin-vuetify:components/VSkeletonLoader/VSkeletonLoader.sass, /@id/virtual:plugin-vuetify:components/VVirtualScroll/VVirtualScroll.sass, /@id/virtual:plugin-vuetify:components/VSelectionControlGroup/VSelectionControlGroup.sass, /@id/virtual:plugin-vuetify:components/VMenu/VMenu.sass, /@id/virtual:plugin-vuetify:components/VTooltip/VTooltip.sass, /@id/virtual:plugin-vuetify:components/VResponsive/VResponsive.sass, /@id/virtual:plugin-vuetify:directives/ripple/VRipple.sass, /@id/virtual:plugin-vuetify:components/VImg/VImg.sass, /@id/virtual:plugin-vuetify:components/VBtnToggle/VBtnToggle.sass, /@id/virtual:plugin-vuetify:components/VOverlay/VOverlay.sass, /@id/virtual:plugin-vuetify:components/VList/VList.sass, /@id/virtual:plugin-vuetify:components/VProgressLinear/VProgressLinear.sass, /@id/virtual:plugin-vuetify:components/VCheckbox/VCheckbox.sass, /@id/virtual:plugin-vuetify:components/VCounter/VCounter.sass, /@id/virtual:plugin-vuetify:components/VPagination/VPagination.sass, /@id/virtual:plugin-vuetify:components/VSheet/VSheet.sass, /@id/virtual:plugin-vuetify:components/VSlideGroup/VSlideGroup.sass, /@id/virtual:plugin-vuetify:components/VIcon/VIcon.sass, /@id/virtual:plugin-vuetify:components/VBtnGroup/VBtnGroup.sass, /@id/virtual:plugin-vuetify:components/VSelectionControl/VSelectionControl.sass, /@id/virtual:plugin-vuetify:components/VProgressCircular/VProgressCircular.sass, /@id/virtual:plugin-vuetify:components/VList/VListItem.sass, /@id/virtual:plugin-vuetify:components/VField/VField.sass, /@id/virtual:plugin-vuetify:components/VWindow/VWindow.sass, /@id/virtual:plugin-vuetify:components/VChipGroup/VChipGroup.sass, /@id/virtual:plugin-vuetify:components/VDivider/VDivider.sass, /@id/virtual:plugin-vuetify:components/VInput/VInput.sass, /@id/virtual:plugin-vuetify:components/VLabel/VLabel.sass, /@id/virtual:plugin-vuetify:components/VMessages/VMessages.sass, /@id/virtual:plugin-vuetify:components/VGrid/VContainer.sass, /@id/virtual:plugin-vuetify:components/VCard/VCard.sass, /@id/virtual:plugin-vuetify:components/VGrid/VGrid.sass, /@id/virtual:plugin-vuetify:components/VAutocomplete/VAutocomplete.sass, /@id/virtual:plugin-vuetify:components/VSelect/VSelect.sass, /@id/virtual:plugin-vuetify:components/VAvatar/VAvatar.sass, /@id/virtual:plugin-vuetify:components/VChip/VChip.sass, /@id/virtual:plugin-vuetify:components/VBtn/VBtn.sass, /@id/virtual:plugin-vuetify:components/VTable/VTable.sass, /@id/virtual:plugin-vuetify:components/VCombobox/VCombobox.sass, /@id/virtual:plugin-vuetify:styles/main.sass, /styles/desktop/template/template/index.scss, /styles/desktop/template/vuetify/index.scss[22m
