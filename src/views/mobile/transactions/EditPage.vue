@@ -1,6 +1,6 @@
 <template>
-    <f7-page @page:afterin="onPageAfterIn" @page:beforeout="onPageBeforeOut">
-        <f7-navbar>
+    <f7-page :class="{ 'quick-edit-layout': useQuickEditLayout }" @page:afterin="onPageAfterIn" @page:beforeout="onPageBeforeOut">
+        <f7-navbar v-if="!useQuickEditLayout">
             <f7-nav-left :class="{ 'disabled': loading }" :back-link="tt('Back')"></f7-nav-left>
             <f7-nav-title :title="tt(title)"></f7-nav-title>
             <f7-nav-right :class="{ 'navbar-compact-icons': true, 'disabled': loading }" v-if="mode !== TransactionEditPageMode.View || transaction.type !== TransactionType.ModifyBalance">
@@ -10,7 +10,149 @@
             </f7-nav-right>
         </f7-navbar>
 
-        <f7-block :class="{ 'no-margin-top margin-bottom': true, 'disabled': loading }">
+        <template v-if="useQuickEditLayout">
+            <div class="quick-edit-header">
+                <div class="quick-edit-header-side">
+                    <f7-link class="quick-edit-header-icon" icon-f7="multiply" :class="{ 'disabled': loading }" @click="goBack"></f7-link>
+                </div>
+                <f7-segmented strong round class="quick-edit-type-segmented">
+                    <f7-button round :text="tt('Expense')" :active="transaction.type === TransactionType.Expense"
+                               @click="switchTransactionType(TransactionType.Expense)"></f7-button>
+                    <f7-button round :text="tt('Income')" :active="transaction.type === TransactionType.Income"
+                               @click="switchTransactionType(TransactionType.Income)"></f7-button>
+                    <f7-button round :text="tt('Transfer')" :active="transaction.type === TransactionType.Transfer"
+                               @click="switchTransactionType(TransactionType.Transfer)"></f7-button>
+                </f7-segmented>
+                <div class="quick-edit-header-side quick-edit-header-side-right">
+                    <f7-link class="quick-edit-header-icon" icon-f7="ellipsis" :class="{ 'disabled': loading }" @click="showMoreActionSheet = true"></f7-link>
+                </div>
+            </div>
+
+            <div class="quick-edit-body" :class="{ 'disabled': loading || submitting }">
+                <div class="quick-edit-category-area">
+                    <div class="quick-edit-category-grid">
+                        <div class="quick-edit-category-item" :key="category.id"
+                             v-for="category in visibleCurrentTypeCategories"
+                             @click="selectPrimaryCategory(category)">
+                            <div class="quick-edit-category-icon" :class="{ 'active': category.id === selectedPrimaryCategoryId }"
+                                 :style="getCategoryCircleStyle(category)">
+                                <item-icon icon-type="category" :icon-id="category.icon" size="22px"
+                                           :color="category.id === selectedPrimaryCategoryId ? 'FFFFFF' : undefined"></item-icon>
+                            </div>
+                            <div class="quick-edit-category-name" :class="{ 'active': category.id === selectedPrimaryCategoryId }">{{ category.name }}</div>
+                        </div>
+                    </div>
+                    <div class="quick-edit-subcategory-bar" v-if="visibleSubCategoriesOfSelected.length">
+                        <f7-chip class="quick-edit-subcategory-chip" :key="subCategory.id"
+                                 :class="{ 'active': subCategory.id === transaction.categoryId }"
+                                 v-for="subCategory in visibleSubCategoriesOfSelected"
+                                 @click="selectSubCategory(subCategory)">{{ subCategory.name }}</f7-chip>
+                    </div>
+                    <div class="quick-edit-pictures" v-if="transaction.pictures && transaction.pictures.length > 0">
+                        <swiper-container
+                            :pagination="false"
+                            :space-between="10"
+                            :slides-per-view="'auto'"
+                            class="transaction-pictures"
+                        >
+                            <swiper-slide class="transaction-picture-container" :key="picIdx"
+                                          v-for="(pictureInfo, picIdx) in transaction.pictures"
+                                          @click="viewOrRemovePicture(pictureInfo)">
+                                <div class="transaction-picture">
+                                    <div class="display-flex justify-content-center align-items-center transaction-picture-control-backdrop">
+                                        <f7-icon class="picture-control-icon picture-remove-icon" f7="trash" v-if="pictureInfo.pictureId !== removingPictureId"></f7-icon>
+                                        <f7-preloader color="white" :size="28" v-if="pictureInfo.pictureId === removingPictureId" />
+                                    </div>
+                                    <img alt="picture" :src="getTransactionPictureUrl(pictureInfo, true)"/>
+                                </div>
+                            </swiper-slide>
+                        </swiper-container>
+                    </div>
+                </div>
+
+                <div class="quick-edit-chips-bar">
+                    <f7-chip class="quick-edit-chip" @click="showSourceAccountSheet = true" v-if="transaction.type !== TransactionType.Transfer">
+                        <template #media><f7-icon f7="creditcard"></f7-icon></template>
+                        <template #text>{{ sourceAccountName || tt('Account') }}</template>
+                    </f7-chip>
+                    <f7-chip class="quick-edit-chip" @click="showSourceAccountSheet = true" v-if="transaction.type === TransactionType.Transfer">
+                        <template #media><f7-icon f7="minus"></f7-icon></template>
+                        <template #text>{{ sourceAccountName || tt('Source Account') }}</template>
+                    </f7-chip>
+                    <f7-chip class="quick-edit-chip" @click="showDestinationAccountSheet = true" v-if="transaction.type === TransactionType.Transfer">
+                        <template #media><f7-icon f7="plus"></f7-icon></template>
+                        <template #text>{{ destinationAccountName || tt('Destination Account') }}</template>
+                    </f7-chip>
+                    <f7-chip class="quick-edit-chip" @click="showDateTimeDialog('date')">
+                        <template #media><f7-icon f7="calendar"></f7-icon></template>
+                        <template #text>{{ transactionTimeChipText }}</template>
+                    </f7-chip>
+                    <f7-chip class="quick-edit-chip" @click="showTransactionTagSheet = true">
+                        <template #media><f7-icon f7="number"></f7-icon></template>
+                        <template #text>{{ tagsChipText }}</template>
+                    </f7-chip>
+                    <f7-chip class="quick-edit-chip" @click="showOpenPictureDialog"
+                             v-if="isTransactionPicturesEnabled() && canAddTransactionPicture">
+                        <template #media><f7-icon f7="photo"></f7-icon></template>
+                        <template #text>{{ picturesChipText }}</template>
+                    </f7-chip>
+                </div>
+
+                <div class="quick-edit-input-bar" @click="activeAmountField = 'source'">
+                    <input type="text" class="quick-edit-note-input"
+                           :placeholder="tt('Tap to enter note')"
+                           v-model="transaction.comment" />
+                    <div class="quick-edit-amount" :class="[sourceAmountClass, { 'inactive': transaction.type === TransactionType.Transfer && activeAmountField !== 'source' }]">
+                        <span class="quick-edit-amount-text">{{ sourceAmountDisplay }}</span>
+                    </div>
+                </div>
+                <div class="quick-edit-input-bar quick-edit-input-bar-second"
+                     v-if="transaction.type === TransactionType.Transfer"
+                     @click="activeAmountField = 'destination'">
+                    <span class="quick-edit-input-bar-label">{{ tt('Transfer In Amount') }}</span>
+                    <div class="quick-edit-amount text-color-primary"
+                         :class="{ 'inactive': activeAmountField !== 'destination' }">
+                        <span class="quick-edit-amount-text">{{ destinationAmountDisplay }}</span>
+                    </div>
+                </div>
+
+                <div class="quick-edit-keypad">
+                    <f7-button class="quick-edit-key" @click="inputDigit(1)"><span class="quick-edit-key-text">{{ keypadDigits[1] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(2)"><span class="quick-edit-key-text">{{ keypadDigits[2] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(3)"><span class="quick-edit-key-text">{{ keypadDigits[3] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="backspaceAmount" @taphold="clearAmountInput">
+                        <span class="quick-edit-key-text"><f7-icon class="icon-with-direction" f7="delete_left"></f7-icon></span>
+                    </f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(4)"><span class="quick-edit-key-text">{{ keypadDigits[4] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(5)"><span class="quick-edit-key-text">{{ keypadDigits[5] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(6)"><span class="quick-edit-key-text">{{ keypadDigits[6] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" :class="{ 'quick-edit-key-active-side': transaction.type === TransactionType.Transfer && activeAmountField === 'source' }" @click="onMinusKey">
+                        <span class="quick-edit-key-text">&minus;</span>
+                    </f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(7)"><span class="quick-edit-key-text">{{ keypadDigits[7] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(8)"><span class="quick-edit-key-text">{{ keypadDigits[8] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(9)"><span class="quick-edit-key-text">{{ keypadDigits[9] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" :class="{ 'quick-edit-key-active-side': transaction.type === TransactionType.Transfer && activeAmountField === 'destination' }" @click="onPlusKey">
+                        <span class="quick-edit-key-text">&plus;</span>
+                    </f7-button>
+                    <f7-button class="quick-edit-key quick-edit-key-action" @click="save(AfterSaveAction.StayWithNewTransaction)" v-if="mode === TransactionEditPageMode.Add">
+                        <span class="quick-edit-key-text">{{ tt('Record Again') }}</span>
+                    </f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDigit(0)"><span class="quick-edit-key-text">{{ keypadDigits[0] }}</span></f7-button>
+                    <f7-button class="quick-edit-key" @click="inputDecimalSeparator" v-if="amountFractionDigits > 0">
+                        <span class="quick-edit-key-text">{{ decimalSeparator }}</span>
+                    </f7-button>
+                    <f7-button class="quick-edit-key" disabled v-else></f7-button>
+                    <f7-button class="quick-edit-key quick-edit-key-save"
+                               :class="{ 'quick-edit-key-span-2': mode !== TransactionEditPageMode.Add, 'disabled': inputIsEmpty || submitting }"
+                               @click="save(AfterSaveAction.GoBack)">
+                        <span class="quick-edit-key-text">{{ tt('Save') }}</span>
+                    </f7-button>
+                </div>
+            </div>
+        </template>
+
+        <f7-block :class="{ 'no-margin-top margin-bottom': true, 'disabled': loading }" v-if="!useQuickEditLayout">
             <f7-segmented strong round :class="{ 'readonly': pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add }">
                 <f7-button round :text="tt('Expense')" :active="transaction.type === TransactionType.Expense"
                            :disabled="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode !== TransactionEditPageMode.Add && transaction.type !== TransactionType.Expense"
@@ -29,7 +171,7 @@
             </f7-segmented>
         </f7-block>
 
-        <f7-list strong inset dividers class="margin-vertical skeleton-text" v-if="loading">
+        <f7-list strong inset dividers class="margin-vertical skeleton-text" v-if="loading && !useQuickEditLayout">
             <f7-list-input label="Template Name" placeholder="Template Name" v-if="pageTypeAndMode?.type === TransactionEditPageType.Template"></f7-list-input>
             <f7-list-item
                 class="transaction-edit-amount ebk-large-amount"
@@ -51,7 +193,7 @@
             <f7-list-input type="textarea" label="Description" placeholder="Your transaction description (optional)"></f7-list-input>
         </f7-list>
 
-        <f7-list form strong inset dividers class="margin-vertical" v-else-if="!loading">
+        <f7-list form strong inset dividers class="margin-vertical" v-else-if="!loading && !useQuickEditLayout">
             <f7-list-input
                 type="text"
                 clear-button
@@ -127,17 +269,6 @@
                         <span>{{ tt('None') }}</span>
                     </div>
                 </template>
-                <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
-                                           primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
-                                           primary-hidden-field="hidden" primary-sub-items-field="subCategories"
-                                           secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
-                                           secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
-                                           secondary-hidden-field="hidden"
-                                           :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
-                                           :items="allCategories[CategoryType.Expense]"
-                                           v-model:show="showCategorySheet"
-                                           v-model="transaction.expenseCategoryId">
-                </tree-view-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -159,17 +290,6 @@
                         <span>{{ tt('None') }}</span>
                     </div>
                 </template>
-                <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
-                                           primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
-                                           primary-hidden-field="hidden" primary-sub-items-field="subCategories"
-                                           secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
-                                           secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
-                                           secondary-hidden-field="hidden"
-                                           :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
-                                           :items="allCategories[CategoryType.Income]"
-                                           v-model:show="showCategorySheet"
-                                           v-model="transaction.incomeCategoryId">
-                </tree-view-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -191,17 +311,6 @@
                         <span>{{ tt('None') }}</span>
                     </div>
                 </template>
-                <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
-                                           primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
-                                           primary-hidden-field="hidden" primary-sub-items-field="subCategories"
-                                           secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
-                                           secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
-                                           secondary-hidden-field="hidden"
-                                           :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
-                                           :items="allCategories[CategoryType.Transfer]"
-                                           v-model:show="showCategorySheet"
-                                           v-model="transaction.transferCategoryId">
-                </tree-view-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -212,19 +321,6 @@
                 :title="sourceAccountName"
                 @click="showSourceAccountSheet = true"
             >
-                <two-column-list-item-selection-sheet primary-key-field="id" primary-value-field="category"
-                                                      primary-title-field="name" primary-footer-field="displayBalance"
-                                                      primary-icon-field="icon" primary-icon-type="account"
-                                                      primary-sub-items-field="accounts"
-                                                      :primary-title-i18n="true"
-                                                      secondary-key-field="id" secondary-value-field="id"
-                                                      secondary-title-field="name" secondary-footer-field="displayBalance"
-                                                      secondary-icon-field="icon" secondary-icon-type="account" secondary-color-field="color"
-                                                      :enable-filter="true" :filter-placeholder="tt('Find account')" :filter-no-items-text="tt('No available account')"
-                                                      :items="allVisibleCategorizedAccounts"
-                                                      v-model:show="showSourceAccountSheet"
-                                                      v-model="transaction.sourceAccountId">
-                </two-column-list-item-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -236,19 +332,6 @@
                 v-if="transaction.type === TransactionType.Transfer"
                 @click="showDestinationAccountSheet = true"
             >
-                <two-column-list-item-selection-sheet primary-key-field="id" primary-value-field="category"
-                                                      primary-title-field="name" primary-footer-field="displayBalance"
-                                                      primary-icon-field="icon" primary-icon-type="account"
-                                                      primary-sub-items-field="accounts"
-                                                      :primary-title-i18n="true"
-                                                      secondary-key-field="id" secondary-value-field="id"
-                                                      secondary-title-field="name" secondary-footer-field="displayBalance"
-                                                      secondary-icon-field="icon" secondary-icon-type="account" secondary-color-field="color"
-                                                      :enable-filter="true" :filter-placeholder="tt('Find account')" :filter-no-items-text="tt('No available account')"
-                                                      :items="allVisibleCategorizedAccounts"
-                                                      v-model:show="showDestinationAccountSheet"
-                                                      v-model="transaction.destinationAccountId">
-                </two-column-list-item-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -265,12 +348,6 @@
                         <div>{{ transactionDisplayDate }}</div>&nbsp;<div class="transaction-edit-datetime-time" @click.stop="showDateTimeDialog('time')">{{ transactionDisplayTime }}</div>
                     </div>
                 </template>
-                <date-time-selection-sheet :init-mode="transactionDateTimeSheetMode"
-                                           :timezone-utc-offset="transaction.utcOffset"
-                                           :model-value="transaction.time"
-                                           v-model:show="showTransactionDateTimeSheet"
-                                           @update:model-value="updateTransactionTime">
-                </date-time-selection-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -332,18 +409,6 @@
                         <span class="transaction-edit-timezone-name" v-else-if="!transaction.timeZone && transaction.timeZone !== ''">{{ transactionTimezoneTimeDifference }}</span>
                     </f7-block>
                 </template>
-                <list-item-selection-popup value-type="item"
-                                           key-field="name" value-field="name"
-                                           title-field="displayNameWithUtcOffset"
-                                           :title="tt('Transaction Timezone')"
-                                           :enable-filter="true"
-                                           :filter-placeholder="tt('Timezone')"
-                                           :filter-no-items-text="tt('No results')"
-                                           :items="allTimezones"
-                                           :model-value="transaction.timeZone"
-                                           v-model:show="showTimezonePopup"
-                                           @update:model-value="updateTransactionTimezone">
-                </list-item-selection-popup>
             </f7-list-item>
 
             <f7-list-item
@@ -360,12 +425,6 @@
                         <span v-else-if="!transaction.geoLocation">{{ geoLocationStatusInfo }}</span>
                     </f7-block>
                 </template>
-
-                <map-sheet :readonly="mode === TransactionEditPageMode.View"
-                           v-model="transaction.geoLocation"
-                           v-model:set-geo-location-by-click-map="setGeoLocationByClickMap"
-                           v-model:show="showGeoLocationMapSheet">
-                </map-sheet>
             </f7-list-item>
 
             <f7-list-item
@@ -374,11 +433,6 @@
                 :header="tt('Tags')"
                 @click="showTransactionTagSheet = true"
             >
-                <transaction-tag-selection-sheet :allow-add-new-tag="true" :enable-filter="true"
-                                                 v-model:show="showTransactionTagSheet"
-                                                 v-model="transaction.tagIds">
-                </transaction-tag-selection-sheet>
-
                 <template #footer>
                     <f7-block class="margin-top-half no-padding no-margin" v-if="transaction.tagIds && transaction.tagIds.length">
                         <f7-chip media-text-color="var(--f7-chip-text-color)" class="transaction-edit-tag"
@@ -435,6 +489,101 @@
 
         </f7-list>
 
+        <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
+                                   primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
+                                   primary-hidden-field="hidden" primary-sub-items-field="subCategories"
+                                   secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
+                                   secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
+                                   secondary-hidden-field="hidden"
+                                   :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
+                                   :items="allCategories[CategoryType.Expense]"
+                                   v-model:show="showCategorySheet"
+                                   v-model="transaction.expenseCategoryId"
+                                   v-if="transaction.type === TransactionType.Expense">
+        </tree-view-selection-sheet>
+        <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
+                                   primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
+                                   primary-hidden-field="hidden" primary-sub-items-field="subCategories"
+                                   secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
+                                   secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
+                                   secondary-hidden-field="hidden"
+                                   :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
+                                   :items="allCategories[CategoryType.Income]"
+                                   v-model:show="showCategorySheet"
+                                   v-model="transaction.incomeCategoryId"
+                                   v-if="transaction.type === TransactionType.Income">
+        </tree-view-selection-sheet>
+        <tree-view-selection-sheet primary-key-field="id" primary-title-field="name"
+                                   primary-icon-field="icon" primary-icon-type="category" primary-color-field="color"
+                                   primary-hidden-field="hidden" primary-sub-items-field="subCategories"
+                                   secondary-key-field="id" secondary-value-field="id" secondary-title-field="name"
+                                   secondary-icon-field="icon" secondary-icon-type="category" secondary-color-field="color"
+                                   secondary-hidden-field="hidden"
+                                   :enable-filter="true" :filter-placeholder="tt('Find category')" :filter-no-items-text="tt('No available category')"
+                                   :items="allCategories[CategoryType.Transfer]"
+                                   v-model:show="showCategorySheet"
+                                   v-model="transaction.transferCategoryId"
+                                   v-if="transaction.type === TransactionType.Transfer">
+        </tree-view-selection-sheet>
+
+        <two-column-list-item-selection-sheet primary-key-field="id" primary-value-field="category"
+                                              primary-title-field="name" primary-footer-field="displayBalance"
+                                              primary-icon-field="icon" primary-icon-type="account"
+                                              primary-sub-items-field="accounts"
+                                              :primary-title-i18n="true"
+                                              secondary-key-field="id" secondary-value-field="id"
+                                              secondary-title-field="name" secondary-footer-field="displayBalance"
+                                              secondary-icon-field="icon" secondary-icon-type="account" secondary-color-field="color"
+                                              :enable-filter="true" :filter-placeholder="tt('Find account')" :filter-no-items-text="tt('No available account')"
+                                              :items="allVisibleCategorizedAccounts"
+                                              v-model:show="showSourceAccountSheet"
+                                              v-model="transaction.sourceAccountId">
+        </two-column-list-item-selection-sheet>
+        <two-column-list-item-selection-sheet primary-key-field="id" primary-value-field="category"
+                                              primary-title-field="name" primary-footer-field="displayBalance"
+                                              primary-icon-field="icon" primary-icon-type="account"
+                                              primary-sub-items-field="accounts"
+                                              :primary-title-i18n="true"
+                                              secondary-key-field="id" secondary-value-field="id"
+                                              secondary-title-field="name" secondary-footer-field="displayBalance"
+                                              secondary-icon-field="icon" secondary-icon-type="account" secondary-color-field="color"
+                                              :enable-filter="true" :filter-placeholder="tt('Find account')" :filter-no-items-text="tt('No available account')"
+                                              :items="allVisibleCategorizedAccounts"
+                                              v-model:show="showDestinationAccountSheet"
+                                              v-model="transaction.destinationAccountId">
+        </two-column-list-item-selection-sheet>
+
+        <date-time-selection-sheet :init-mode="transactionDateTimeSheetMode"
+                                   :timezone-utc-offset="transaction.utcOffset"
+                                   :model-value="transaction.time"
+                                   v-model:show="showTransactionDateTimeSheet"
+                                   @update:model-value="updateTransactionTime">
+        </date-time-selection-sheet>
+
+        <list-item-selection-popup value-type="item"
+                                   key-field="name" value-field="name"
+                                   title-field="displayNameWithUtcOffset"
+                                   :title="tt('Transaction Timezone')"
+                                   :enable-filter="true"
+                                   :filter-placeholder="tt('Timezone')"
+                                   :filter-no-items-text="tt('No results')"
+                                   :items="allTimezones"
+                                   :model-value="transaction.timeZone"
+                                   v-model:show="showTimezonePopup"
+                                   @update:model-value="updateTransactionTimezone">
+        </list-item-selection-popup>
+
+        <map-sheet :readonly="mode === TransactionEditPageMode.View"
+                   v-model="transaction.geoLocation"
+                   v-model:set-geo-location-by-click-map="setGeoLocationByClickMap"
+                   v-model:show="showGeoLocationMapSheet">
+        </map-sheet>
+
+        <transaction-tag-selection-sheet :allow-add-new-tag="true" :enable-filter="true"
+                                         v-model:show="showTransactionTagSheet"
+                                         v-model="transaction.tagIds">
+        </transaction-tag-selection-sheet>
+
         <f7-actions close-by-outside-click close-on-escape :opened="showGeoLocationActionSheet" @actions:closed="showGeoLocationActionSheet = false">
             <f7-actions-group>
                 <f7-actions-button v-if="mode !== TransactionEditPageMode.View" @click="updateGeoLocation(true)">{{ tt('Update Geographic Location') }}</f7-actions-button>
@@ -460,8 +609,13 @@
                 <f7-actions-button v-if="transaction.hideAmount" @click="transaction.hideAmount = false">{{ tt('Show Amount') }}</f7-actions-button>
                 <f7-actions-button v-if="!transaction.hideAmount" @click="transaction.hideAmount = true">{{ tt('Hide Amount') }}</f7-actions-button>
             </f7-actions-group>
-            <f7-actions-group v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && (mode === TransactionEditPageMode.Add || mode === TransactionEditPageMode.Edit) && isTransactionPicturesEnabled() && !showTransactionPictures">
+            <f7-actions-group v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && (mode === TransactionEditPageMode.Add || mode === TransactionEditPageMode.Edit) && isTransactionPicturesEnabled() && !showTransactionPictures && !useQuickEditLayout">
                 <f7-actions-button @click="showTransactionPictures = true">{{ tt('Add Picture') }}</f7-actions-button>
+            </f7-actions-group>
+            <f7-actions-group v-if="useQuickEditLayout">
+                <f7-actions-button @click="showGeoLocationActionSheet = true">{{ tt('Geographic Location') }}</f7-actions-button>
+                <f7-actions-button @click="showTimezonePopup = true">{{ tt('Transaction Timezone') }}</f7-actions-button>
+                <f7-actions-button v-if="mode === TransactionEditPageMode.Edit && transaction.type !== TransactionType.ModifyBalance" @click="duplicate(false, false)">{{ tt('Duplicate') }}</f7-actions-button>
             </f7-actions-group>
             <f7-actions-group v-if="pageTypeAndMode?.type === TransactionEditPageType.Transaction && mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance">
                 <f7-actions-button @click="duplicate(false, false)">{{ tt('Duplicate') }}</f7-actions-button>
@@ -474,21 +628,20 @@
             </f7-actions-group>
         </f7-actions>
 
-        <template #fixed v-if="(quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomLeftFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomCenterFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomRightFloating.type) && mode !== TransactionEditPageMode.View">
+        <template #fixed>
             <f7-fab id="quick-save-button" :class="{ 'disabled': inputIsEmpty || submitting }" :position="quickSaveButtonFloatingPosition"
                     :text="tt(quickSaveButtonTitle)"
-                    @click="quickSave">
+                    @click="quickSave"
+                    v-if="(quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomLeftFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomCenterFloating.type || quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomRightFloating.type) && mode !== TransactionEditPageMode.View && !useQuickEditLayout">
             </f7-fab>
-        </template>
-
-        <template #fixed v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance">
             <f7-fab id="copy-button" position="center-bottom" color="primary"
-                    @click="duplicate(false, false)">
+                    @click="duplicate(false, false)"
+                    v-if="mode === TransactionEditPageMode.View && transaction.type !== TransactionType.ModifyBalance">
                 <f7-icon f7="doc_on_doc"></f7-icon>
             </f7-fab>
         </template>
 
-        <f7-toolbar id="quick-save-button" tabbar bottom v-if="quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomFixed.type && mode !== TransactionEditPageMode.View">
+        <f7-toolbar id="quick-save-button" tabbar bottom v-if="quickSaveButtonStyleType === TransactionQuickSaveButtonStyle.BottomFixed.type && mode !== TransactionEditPageMode.View && !useQuickEditLayout">
             <f7-link :class="{ 'disabled': inputIsEmpty || submitting }" @click="quickSave">
                 <span class="tabbar-primary-link">{{ tt(quickSaveButtonTitle) }}</span>
             </f7-link>
@@ -517,7 +670,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, watch, useTemplateRef } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -553,19 +706,29 @@ import { SUPPORTED_IMAGE_EXTENSIONS } from '@/consts/file.ts';
 
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { TransactionPictureInfoBasicResponse } from '@/models/transaction_picture_info.ts';
+import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { Transaction } from '@/models/transaction.ts';
 
 import {
     getTimezoneOffset,
     getTimezoneOffsetMinutes,
-    parseDateTimeFromUnixTimeWithTimezoneOffset
+    parseDateTimeFromUnixTimeWithTimezoneOffset,
+    getCurrentUnixTime
 } from '@/lib/datetime.ts';
 import { formatCoordinate } from '@/lib/coordinate.ts';
 import { generateRandomUUID } from '@/lib/misc.ts';
+import { isNumber } from '@/lib/common.ts';
 import { compressTransactionPicture } from '@/lib/ui/common.ts';
-import { getTransactionPrimaryCategoryName, getTransactionSecondaryCategoryName } from '@/lib/category.ts';
+import {
+    getTransactionPrimaryCategoryName,
+    getTransactionSecondaryCategoryName,
+    transactionTypeToCategoryType,
+    allVisiblePrimaryTransactionCategoriesByType
+} from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
 import { getMapProvider, isTransactionPicturesEnabled } from '@/lib/server_settings.ts';
+import { ALL_CURRENCIES } from '@/consts/currency.ts';
+import { DEFAULT_CATEGORY_COLOR } from '@/consts/color.ts';
 import logger from '@/lib/logger.ts';
 
 const props = defineProps<{
@@ -583,8 +746,13 @@ const {
     getMultiWeekdayLongNames,
     formatDateTimeToLongDate,
     formatDateTimeToLongTime,
+    formatDateTimeToShortDate,
     formatGregorianTextualYearMonthDayToLongDate,
-    parseAmountFromLocalizedNumerals
+    parseAmountFromLocalizedNumerals,
+    parseAmountFromWesternArabicNumerals,
+    formatAmountToWesternArabicNumeralsWithoutDigitGrouping,
+    getAllLocalizedDigits,
+    getCurrentDecimalSeparator
 } = useI18n();
 const { showAlert, showConfirm, showToast, routeBackOnError } = useI18nUIComponents();
 
@@ -611,6 +779,7 @@ const {
     allVisibleAccounts,
     allVisibleCategorizedAccounts,
     allCategories,
+    allCategoriesMap,
     allTagsMap,
     firstVisibleAccountId,
     hasVisibleExpenseCategories,
@@ -661,8 +830,6 @@ const showQuickSavePopover = ref<boolean>(false);
 const showTimezonePopup = ref<boolean>(false);
 const showGeoLocationActionSheet = ref<boolean>(false);
 const showMoreActionSheet = ref<boolean>(false);
-const showSourceAmountSheet = ref<boolean>(false);
-const showDestinationAmountSheet = ref<boolean>(false);
 const showCategorySheet = ref<boolean>(false);
 const showSourceAccountSheet = ref<boolean>(false);
 const showDestinationAccountSheet = ref<boolean>(false);
@@ -682,6 +849,11 @@ const destinationAmountInputValue = ref<string>('');
 const isSourceAmountFocused = ref<boolean>(false);
 const isDestinationAmountFocused = ref<boolean>(false);
 const shouldClearAmountOnFocus = ref<boolean>(false);
+
+// Quick edit layout state
+const activeAmountField = ref<'source' | 'destination'>('source');
+const sourceAmountKeypadValue = ref<string>('');
+const destinationAmountKeypadValue = ref<string>('');
 
 const quickSaveButtonStyleType = computed<number>(() => settingsStore.appSettings.quickSaveButtonStyleInMobileTransactionListPage);
 const quickSaveButtonFloatingPosition = computed<string>(() => {
@@ -708,6 +880,127 @@ const sourceAmountClass = computed<Record<string, boolean>>(() => {
     classes[getFontClassByAmount(transaction.value.sourceAmount)] = true;
 
     return classes;
+});
+
+const useQuickEditLayout = computed<boolean>(() => {
+    if (pageTypeAndMode?.type !== TransactionEditPageType.Transaction) {
+        return false;
+    }
+
+    if (mode.value !== TransactionEditPageMode.Add && mode.value !== TransactionEditPageMode.Edit) {
+        return false;
+    }
+
+    return transaction.value.type !== TransactionType.ModifyBalance;
+});
+
+const visibleCurrentTypeCategories = computed<TransactionCategory[]>(() => {
+    const categoryType = transactionTypeToCategoryType(transaction.value.type);
+
+    if (categoryType === null) {
+        return [];
+    }
+
+    return allVisiblePrimaryTransactionCategoriesByType(allCategories.value, categoryType);
+});
+
+const selectedPrimaryCategoryId = computed<string>(() => {
+    const categoryId = transaction.value.categoryId;
+
+    if (!categoryId) {
+        return '';
+    }
+
+    const category = allCategoriesMap.value[categoryId];
+
+    if (!category) {
+        return '';
+    }
+
+    return category.parentId && category.parentId !== '0' ? category.parentId : category.id;
+});
+
+const selectedPrimaryCategory = computed<TransactionCategory | null>(() => {
+    return visibleCurrentTypeCategories.value.find(category => category.id === selectedPrimaryCategoryId.value) ?? null;
+});
+
+const visibleSubCategoriesOfSelected = computed<TransactionCategory[]>(() => {
+    return (selectedPrimaryCategory.value?.subCategories ?? []).filter(subCategory => !subCategory.hidden);
+});
+
+const keypadDigits = computed<string[]>(() => getAllLocalizedDigits());
+const decimalSeparator = computed<string>(() => getCurrentDecimalSeparator());
+
+const amountFractionDigits = computed<number>(() => {
+    const currency = activeAmountField.value === 'destination' ? destinationAccountCurrency.value : sourceAccountCurrency.value;
+    const currencyInfo = currency ? ALL_CURRENCIES[currency] : undefined;
+
+    if (!currencyInfo || !isNumber(currencyInfo.fraction)) {
+        return 2;
+    }
+
+    return currencyInfo.fraction;
+});
+
+const transactionTimeChipText = computed<string>(() => {
+    const dateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(transaction.value.time, transaction.value.utcOffset);
+    const todayDateTime = parseDateTimeFromUnixTimeWithTimezoneOffset(getCurrentUnixTime(), transaction.value.utcOffset);
+
+    if (formatDateTimeToShortDate(dateTime) === formatDateTimeToShortDate(todayDateTime)) {
+        return tt('Today');
+    }
+
+    return formatDateTimeToShortDate(dateTime);
+});
+
+const tagsChipText = computed<string>(() => {
+    if (transaction.value.tagIds && transaction.value.tagIds.length) {
+        return `${tt('Tags')} (${transaction.value.tagIds.length})`;
+    }
+
+    return tt('Tags');
+});
+
+const picturesChipText = computed<string>(() => {
+    const count = transaction.value.pictures ? transaction.value.pictures.length : 0;
+
+    if (count) {
+        return `${tt('Pictures')} (${count})`;
+    }
+
+    return tt('Pictures');
+});
+
+const sourceAmountDisplay = computed<string>(() => {
+    if (transaction.value.hideAmount) {
+        return getDisplayAmount(transaction.value.sourceAmount, true, sourceAccountCurrency.value);
+    }
+
+    return getKeypadDisplayText(sourceAmountKeypadValue.value, sourceAccountCurrency.value);
+});
+
+const destinationAmountDisplay = computed<string>(() => {
+    if (transaction.value.hideAmount) {
+        return getDisplayAmount(transaction.value.destinationAmount, true, destinationAccountCurrency.value);
+    }
+
+    return getKeypadDisplayText(destinationAmountKeypadValue.value, destinationAccountCurrency.value);
+});
+
+watch(() => transaction.value.sourceAmount, (newValue) => {
+    if (parseAmountFromWesternArabicNumerals(sourceAmountKeypadValue.value) === newValue) {
+        return;
+    }
+
+    sourceAmountKeypadValue.value = amountCentsToKeypadValue(newValue, sourceAccountCurrency.value);
+});
+
+watch(() => transaction.value.destinationAmount, (newValue) => {
+    if (parseAmountFromWesternArabicNumerals(destinationAmountKeypadValue.value) === newValue) {
+        return;
+    }
+
+    destinationAmountKeypadValue.value = amountCentsToKeypadValue(newValue, destinationAccountCurrency.value);
 });
 
 const destinationAmountClass = computed<Record<string, boolean>>(() => {
@@ -1197,6 +1490,167 @@ function quickSave(): void {
     save(AfterSaveAction.GoBack);
 }
 
+function getKeypadDisplayText(keypadValue: string, currency?: string): string {
+    const zeroText = formatAmountToWesternArabicNumeralsWithoutDigitGrouping(0, currency);
+    return numeralSystem.value.replaceWesternArabicDigitsToLocalizedDigits(keypadValue || zeroText);
+}
+
+function amountCentsToKeypadValue(value: number, currency?: string): string {
+    if (!isNumber(value) || value === 0) {
+        return '';
+    }
+
+    const textualNumber = formatAmountToWesternArabicNumeralsWithoutDigitGrouping(value, currency);
+    const decimalSeparatorPos = textualNumber.indexOf(decimalSeparator.value);
+
+    if (decimalSeparatorPos < 0) {
+        return textualNumber;
+    }
+
+    let trimmedValue = textualNumber;
+
+    while (trimmedValue.endsWith('0')) {
+        trimmedValue = trimmedValue.substring(0, trimmedValue.length - 1);
+    }
+
+    if (trimmedValue.endsWith(decimalSeparator.value)) {
+        trimmedValue = trimmedValue.substring(0, trimmedValue.length - decimalSeparator.value.length);
+    }
+
+    return trimmedValue;
+}
+
+function getCurrentKeypadValue(): string {
+    return activeAmountField.value === 'destination' ? destinationAmountKeypadValue.value : sourceAmountKeypadValue.value;
+}
+
+function setCurrentKeypadValue(keypadValue: string, amount: number): void {
+    if (activeAmountField.value === 'destination') {
+        destinationAmountKeypadValue.value = keypadValue;
+        transaction.value.destinationAmount = amount;
+    } else {
+        sourceAmountKeypadValue.value = keypadValue;
+        transaction.value.sourceAmount = amount;
+    }
+}
+
+function inputDigit(digit: number): void {
+    const zeroDigit = keypadDigits.value[0];
+    let base = getCurrentKeypadValue();
+
+    if (base === zeroDigit || base === `-${zeroDigit}`) {
+        base = '';
+    }
+
+    const separatorPos = base.indexOf(decimalSeparator.value);
+
+    if (separatorPos >= 0 && base.length - separatorPos - decimalSeparator.value.length >= amountFractionDigits.value) {
+        return;
+    }
+
+    const newValue = base + digit.toString();
+    const parsedAmount = parseAmountFromWesternArabicNumerals(newValue);
+
+    if (parsedAmount > TRANSACTION_MAX_AMOUNT) {
+        showToast('Numeric Overflow');
+        return;
+    }
+
+    setCurrentKeypadValue(newValue, parsedAmount);
+}
+
+function inputDecimalSeparator(): void {
+    if (amountFractionDigits.value <= 0) {
+        return;
+    }
+
+    const current = getCurrentKeypadValue();
+
+    if (current.indexOf(decimalSeparator.value) >= 0) {
+        return;
+    }
+
+    const newValue = (current || '0') + decimalSeparator.value;
+    setCurrentKeypadValue(newValue, parseAmountFromWesternArabicNumerals(newValue));
+}
+
+function backspaceAmount(): void {
+    const current = getCurrentKeypadValue();
+
+    if (!current) {
+        return;
+    }
+
+    const newValue = current.substring(0, current.length - 1);
+    setCurrentKeypadValue(newValue, newValue ? parseAmountFromWesternArabicNumerals(newValue) : 0);
+}
+
+function clearAmountInput(): void {
+    setCurrentKeypadValue('', 0);
+}
+
+function onMinusKey(): void {
+    if (transaction.value.type === TransactionType.Transfer) {
+        activeAmountField.value = 'source';
+        return;
+    }
+
+    switchTransactionType(TransactionType.Expense);
+}
+
+function onPlusKey(): void {
+    if (transaction.value.type === TransactionType.Transfer) {
+        activeAmountField.value = 'destination';
+        return;
+    }
+
+    switchTransactionType(TransactionType.Income);
+}
+
+function switchTransactionType(type: TransactionType): void {
+    if (loading.value) {
+        return;
+    }
+
+    transaction.value.type = type;
+    activeAmountField.value = 'source';
+}
+
+function selectPrimaryCategory(category: TransactionCategory): void {
+    const subCategories = (category.subCategories ?? []).filter(subCategory => !subCategory.hidden);
+
+    if (subCategories.length && subCategories[0]) {
+        transaction.value.setCategoryId(subCategories[0].id);
+    } else {
+        transaction.value.setCategoryId(category.id);
+    }
+}
+
+function selectSubCategory(subCategory: TransactionCategory): void {
+    transaction.value.setCategoryId(subCategory.id);
+}
+
+function getCategoryCircleStyle(category: TransactionCategory): Record<string, string> {
+    if (category.id !== selectedPrimaryCategoryId.value) {
+        return {};
+    }
+
+    const color = category.color && category.color !== DEFAULT_CATEGORY_COLOR ? `#${category.color}` : 'var(--f7-theme-color)';
+
+    return {
+        'background-color': color,
+        'border-color': color
+    };
+}
+
+function goBack(): void {
+    if (loading.value) {
+        return;
+    }
+
+    props.f7router.back();
+}
+
 function updateSourceAmount(value: string): void {
     if (mode.value === TransactionEditPageMode.View) {
         return;
@@ -1640,5 +2094,316 @@ init();
     height: calc(var(--ebk-transaction-picture-size) - 4px);
     border: 2px dashed #ccc;
     border-radius: 8px;
+}
+
+/* Quick edit layout (add/edit transaction) */
+.quick-edit-layout {
+    overflow: hidden;
+}
+
+.quick-edit-layout > .page-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: var(--f7-safe-area-top);
+}
+
+.quick-edit-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 52px;
+    padding: 0 8px;
+    background: var(--f7-navbar-bg-color);
+}
+
+.quick-edit-header-side {
+    display: flex;
+    flex: 0 0 44px;
+    justify-content: center;
+}
+
+.quick-edit-header-side-right {
+    flex-basis: 44px;
+}
+
+.quick-edit-header-icon {
+    font-size: 22px;
+    color: var(--f7-theme-color);
+}
+
+.quick-edit-type-segmented {
+    flex: 1;
+    min-width: 0;
+    margin: 0 6px;
+}
+
+.quick-edit-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.quick-edit-category-area {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 10px 4px;
+}
+
+.quick-edit-category-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    row-gap: 14px;
+    column-gap: 4px;
+}
+
+.quick-edit-category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.quick-edit-category-icon {
+    display: flex;
+    width: 46px;
+    height: 46px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: rgba(var(--f7-color-black-rgb), 0.05);
+    box-sizing: border-box;
+    transition: background-color var(--ebk-transition-fast);
+}
+
+.dark .quick-edit-category-icon {
+    background: rgba(var(--f7-color-white-rgb), 0.10);
+}
+
+.quick-edit-category-icon.active {
+    background-color: var(--f7-theme-color);
+}
+
+.quick-edit-category-icon .icon {
+    font-size: 22px;
+    color: var(--ebk-secondary-text-color);
+}
+
+.quick-edit-category-icon.active .icon {
+    color: #ffffff;
+}
+
+.quick-edit-category-name {
+    max-width: 100%;
+    margin-top: 5px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--f7-color-black);
+    text-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.dark .quick-edit-category-name {
+    color: var(--f7-color-white);
+}
+
+.quick-edit-category-name.active {
+    color: var(--f7-theme-color);
+    font-weight: 600;
+}
+
+.quick-edit-subcategory-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.quick-edit-subcategory-chip {
+    --f7-chip-bg-color: rgba(var(--f7-color-black-rgb), 0.05);
+    --f7-chip-text-color: var(--ebk-secondary-text-color);
+    cursor: pointer;
+}
+
+.dark .quick-edit-subcategory-chip {
+    --f7-chip-bg-color: rgba(var(--f7-color-white-rgb), 0.10);
+}
+
+.quick-edit-subcategory-chip.active {
+    --f7-chip-bg-color: var(--f7-theme-color);
+    --f7-chip-text-color: #ffffff;
+}
+
+.quick-edit-pictures {
+    margin-top: 12px;
+}
+
+.quick-edit-chips-bar {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 12px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.quick-edit-chips-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.quick-edit-chip {
+    --f7-chip-bg-color: #ffffff;
+    --f7-chip-text-color: var(--f7-color-black);
+    --f7-chip-height: 32px;
+    flex-shrink: 0;
+    border: 1px solid var(--ebk-divider-color);
+    font-weight: normal;
+}
+
+.dark .quick-edit-chip {
+    --f7-chip-bg-color: rgba(var(--f7-color-white-rgb), 0.08);
+    --f7-chip-text-color: var(--f7-color-white);
+}
+
+.quick-edit-chip .icon {
+    font-size: 15px;
+    color: var(--ebk-secondary-text-color);
+}
+
+.quick-edit-input-bar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    margin: 0 10px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #ffffff;
+    min-height: 52px;
+}
+
+.dark .quick-edit-input-bar {
+    background: rgba(var(--f7-color-white-rgb), 0.08);
+}
+
+.quick-edit-input-bar-second {
+    margin-top: 8px;
+    min-height: 44px;
+}
+
+.quick-edit-input-bar-label {
+    flex-shrink: 0;
+    font-size: 14px;
+    color: var(--ebk-secondary-text-color);
+}
+
+.quick-edit-note-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 15px;
+    color: var(--f7-color-black);
+}
+
+.dark .quick-edit-note-input {
+    color: var(--f7-color-white);
+}
+
+.quick-edit-note-input::placeholder {
+    color: var(--ebk-secondary-text-color);
+    opacity: 0.7;
+}
+
+.quick-edit-amount {
+    flex-shrink: 0;
+    padding-inline-start: 10px;
+    border-inline-start: 1px solid var(--ebk-divider-color);
+    user-select: none;
+}
+
+.quick-edit-amount-text {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.quick-edit-amount.inactive .quick-edit-amount-text {
+    color: var(--ebk-secondary-text-color);
+    font-weight: 500;
+}
+
+.quick-edit-keypad {
+    display: grid;
+    flex-shrink: 0;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 7px;
+    margin-top: 10px;
+    padding: 7px 7px calc(7px + var(--f7-safe-area-bottom));
+}
+
+.quick-edit-key {
+    height: 52px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: none;
+}
+
+.dark .quick-edit-key {
+    background: rgba(var(--f7-color-white-rgb), 0.08);
+}
+
+.quick-edit-key.active-state {
+    background: rgba(var(--f7-color-black-rgb), 0.08);
+}
+
+.dark .quick-edit-key.active-state {
+    background: rgba(var(--f7-color-white-rgb), 0.16);
+}
+
+.quick-edit-key-text {
+    display: block;
+    font-size: 21px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--f7-color-black);
+}
+
+.dark .quick-edit-key-text {
+    color: var(--f7-color-white);
+}
+
+.quick-edit-key-text .icon {
+    font-size: 22px;
+}
+
+.quick-edit-key-action .quick-edit-key-text {
+    font-size: 16px;
+}
+
+.quick-edit-key-save .quick-edit-key-text {
+    color: var(--f7-theme-color);
+    font-weight: 700;
+}
+
+.quick-edit-key-span-2 {
+    grid-column: span 2;
+}
+
+.quick-edit-key-active-side {
+    background: var(--ebk-primary-50);
+}
+
+.dark .quick-edit-key-active-side {
+    background: rgba(var(--ebk-primary-color), 0.20);
 }
 </style>
