@@ -299,12 +299,10 @@ i.icon.la, i.icon.las, i.icon.lab {
 }
 
 /* Inset lists behave like cards */
-.page-content .ios .list.inset,
 .ios .page-content .list.inset {
     box-shadow: var(--ebk-card-shadow);
 }
 
-.dark .page-content .ios .list.inset,
 .dark .ios .page-content .list.inset {
     box-shadow: var(--ebk-card-shadow-dark);
 }

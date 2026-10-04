@@ -1491,7 +1491,7 @@ function changeKeywordFilter(keyword: string): void {
 
 function toggleAmountSort(): void {
     // Toggle between ascending and descending sort order for amount
-    let newSortBy: string = 'amount';
+    const newSortBy: string = 'amount';
     let newSortOrder: string = 'desc'; // Default to descending
 
     if (query.value.sortBy === 'amount') {

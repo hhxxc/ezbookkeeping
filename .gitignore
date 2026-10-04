@@ -161,3 +161,7 @@ package/
 data/
 storage/
 log/
+
+# Local dev artifacts (secrets / session files)
+tmp/
+conf/api_key.txt
