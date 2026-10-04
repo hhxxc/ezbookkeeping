@@ -34,11 +34,18 @@
 
 ### 移动端
 
-![NestKeep Mobile](./docs/screenshots/mobile.png)
+<table>
+  <tr>
+    <td align="center"><img src="./docs/screenshots/mobile.png" width="280" alt="移动端首页" /><br/><sub>首页概览</sub></td>
+    <td align="center"><img src="./docs/screenshots/mobile_transactions.png" width="280" alt="移动端交易流水" /><br/><sub>交易流水</sub></td>
+  </tr>
+</table>
 
 ### 桌面端
 
-![NestKeep Desktop](./docs/screenshots/desktop.png)
+![桌面端总览](./docs/screenshots/desktop.png)
+
+![桌面端交易流水](./docs/screenshots/desktop_transactions.png)
 
 ## 快速开始
 
