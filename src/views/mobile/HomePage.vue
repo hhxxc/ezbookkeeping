@@ -42,7 +42,7 @@
         <f7-list strong inset dividers class="margin-top overview-transaction-list" :class="{ 'skeleton-text': loading }">
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.Today.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="calendar_today"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-today"><f7-icon f7="sun_min"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -72,7 +72,7 @@
 
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.Yesterday.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="calendar"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-yesterday"><f7-icon f7="moon"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -102,7 +102,7 @@
 
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.ThisWeek.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="calendar"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-week"><f7-icon f7="square_grid_2x2"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -135,7 +135,7 @@
 
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.ThisMonth.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="calendar"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-month"><f7-icon f7="calendar"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -168,7 +168,7 @@
 
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.LastMonth.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="calendar"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-last-month"><f7-icon f7="arrow_counterclockwise_circle"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -201,7 +201,7 @@
 
             <f7-list-item :link="`/transaction/list?${overviewStore.getTransactionListPageParams({ dateType: DateRange.ThisYear.type })}`" chevron-center>
                 <template #media>
-                    <f7-icon f7="square_stack_3d_up"></f7-icon>
+                    <div class="overview-period-icon overview-period-icon-year"><f7-icon f7="square_stack_3d_up"></f7-icon></div>
                 </template>
                 <template #title>
                     <div>
@@ -836,6 +836,82 @@ init();
 
 .overview-transaction-list .text-expense {
     color: var(--hp-expense);
+}
+
+/* 日期范围行图标：浅色圆角徽章 + 专属图形（配色取自低饱和图表色板） */
+.overview-period-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.overview-period-icon i.f7-icons {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.overview-period-icon-today {
+    background: rgba(38, 166, 154, 0.13);
+    color: #26a69a;
+}
+
+.overview-period-icon-yesterday {
+    background: rgba(142, 124, 195, 0.14);
+    color: #8e7cc3;
+}
+
+.overview-period-icon-week {
+    background: rgba(91, 141, 184, 0.14);
+    color: #5b8db8;
+}
+
+.overview-period-icon-month {
+    background: rgba(227, 168, 95, 0.16);
+    color: #dd9437;
+}
+
+.overview-period-icon-last-month {
+    background: rgba(135, 155, 171, 0.16);
+    color: #879bab;
+}
+
+.overview-period-icon-year {
+    background: rgba(127, 183, 126, 0.16);
+    color: #5da65c;
+}
+
+.dark .overview-period-icon-today {
+    background: rgba(38, 166, 154, 0.22);
+    color: #4db6ac;
+}
+
+.dark .overview-period-icon-yesterday {
+    background: rgba(142, 124, 195, 0.24);
+    color: #b39ddb;
+}
+
+.dark .overview-period-icon-week {
+    background: rgba(91, 141, 184, 0.24);
+    color: #7fb0d8;
+}
+
+.dark .overview-period-icon-month {
+    background: rgba(227, 168, 95, 0.22);
+    color: #eeb056;
+}
+
+.dark .overview-period-icon-last-month {
+    background: rgba(135, 155, 171, 0.22);
+    color: #a3b7c7;
+}
+
+.dark .overview-period-icon-year {
+    background: rgba(127, 183, 126, 0.22);
+    color: #8ed18c;
 }
 
 /* 底部 Tab 导航 - 无底色无阴影，与页面背景融为一体 */
