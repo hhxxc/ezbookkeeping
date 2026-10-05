@@ -1995,7 +1995,7 @@ init();
     border: none;
     outline: none;
     background: transparent;
-    font-size: 28px;
+    font-size: 29px;
     font-weight: bolder;
     color: inherit;
     text-align: right;
@@ -2129,7 +2129,7 @@ init();
 }
 
 .quick-edit-header-icon {
-    font-size: 22px;
+    font-size: 23px;
     color: var(--f7-theme-color);
 }
 
@@ -2190,7 +2190,7 @@ init();
 }
 
 .quick-edit-category-icon .icon {
-    font-size: 22px;
+    font-size: 23px;
     color: var(--ebk-secondary-text-color);
 }
 
@@ -2202,7 +2202,7 @@ init();
     max-width: 100%;
     margin-top: 5px;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.3;
     color: var(--f7-color-black);
     text-align: center;
@@ -2274,7 +2274,7 @@ init();
 }
 
 .quick-edit-chip .icon {
-    font-size: 15px;
+    font-size: 16px;
     color: var(--ebk-secondary-text-color);
 }
 
@@ -2300,7 +2300,7 @@ init();
 
 .quick-edit-input-bar-label {
     flex-shrink: 0;
-    font-size: 14px;
+    font-size: 15px;
     color: var(--ebk-secondary-text-color);
 }
 
@@ -2310,7 +2310,7 @@ init();
     border: none;
     outline: none;
     background: transparent;
-    font-size: 15px;
+    font-size: 16px;
     color: var(--f7-color-black);
 }
 
@@ -2332,7 +2332,7 @@ init();
 
 .quick-edit-amount-text {
     display: block;
-    font-size: 24px;
+    font-size: 25px;
     font-weight: 700;
     line-height: 1.2;
 }
@@ -2372,7 +2372,7 @@ init();
 
 .quick-edit-key-text {
     display: block;
-    font-size: 21px;
+    font-size: 22px;
     font-weight: 500;
     line-height: 1;
     color: var(--f7-color-black);
@@ -2383,11 +2383,11 @@ init();
 }
 
 .quick-edit-key-text .icon {
-    font-size: 22px;
+    font-size: 23px;
 }
 
 .quick-edit-key-action .quick-edit-key-text {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .quick-edit-key-save .quick-edit-key-text {

@@ -264,7 +264,7 @@ function clickItem(item: CommonPieChartDataItem): void {
 
 .pie-chart-toolbox-info .item-navigate-icon {
     color: rgba(0, 0, 0, 0.2);
-    font-size: 18px;
+    font-size: 19px;
     font-weight: bold;
     padding-inline-start: 4px;
 }

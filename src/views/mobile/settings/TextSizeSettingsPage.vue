@@ -179,17 +179,17 @@ function setFontSize(): void {
 }
 
 .fontsize-minimum {
-    font-size: 15px;
+    font-size: 16px;
     align-self: end;
 }
 
 .fontsize-maximum {
-    font-size: 24px;
+    font-size: 25px;
     align-self: end;
 }
 
 .fontsize-default {
-    font-size: 17px;
+    font-size: 18px;
     position: absolute;
     align-self: end;
 }

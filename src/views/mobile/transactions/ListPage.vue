@@ -1694,7 +1694,7 @@ init();
 }
 
 .list.transaction-info-list .transaction-day-header .transaction-day-header-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     opacity: 0.75;
 }
@@ -1703,7 +1703,7 @@ init();
     margin-inline-start: auto;
     display: flex;
     gap: 12px;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
 }

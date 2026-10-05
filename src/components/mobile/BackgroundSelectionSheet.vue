@@ -26,7 +26,7 @@
                         :class="{ 'gallery-item-selected': !currentValue }"
                         @click="select('')"
                     >
-                        <f7-icon f7="xmark_circle" style="font-size: 24px; opacity: 0.5;"></f7-icon>
+                        <f7-icon f7="xmark_circle" style="font-size: 25px; opacity: 0.5;"></f7-icon>
                         <span class="gallery-item-name">{{ tt('None') }}</span>
                         <f7-icon v-if="!currentValue" class="gallery-check" f7="checkmark_alt_circle_fill"></f7-icon>
                     </div>
@@ -106,7 +106,7 @@ function select(id: string): void {
 }
 
 .gallery-item-name {
-    font-size: 12px;
+    font-size: 13px;
     color: #fff;
     font-weight: 600;
     pointer-events: none;
@@ -131,7 +131,7 @@ function select(id: string): void {
     top: 4px;
     right: 4px;
     color: var(--f7-theme-color);
-    font-size: 20px;
+    font-size: 21px;
     background: #fff;
     border-radius: 50%;
 }

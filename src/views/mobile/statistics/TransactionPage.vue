@@ -1005,7 +1005,7 @@ init();
 .statistics-period-row .statistics-period-shift-button {
     color: var(--f7-text-color);
     opacity: 0.7;
-    --f7-icon-font-size: 20px;
+    --f7-icon-font-size: 21px;
 }
 
 .statistics-period-row .statistics-period-label {
@@ -1013,13 +1013,13 @@ init();
     align-items: center;
     gap: 6px;
     margin: 0 16px;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--f7-text-color);
 }
 
 .statistics-period-row .statistics-period-label .f7-icons {
-    font-size: 17px;
+    font-size: 18px;
     opacity: 0.8;
 }
 
@@ -1034,7 +1034,7 @@ init();
 .period-mode-segmented span {
     padding: 3px 18px;
     border-radius: 13px;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     line-height: 20px;
     color: var(--f7-text-color);
@@ -1059,7 +1059,7 @@ init();
 }
 
 .statistics-card-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
     color: var(--f7-text-color);
     padding: 16px 16px 0;
@@ -1079,7 +1079,7 @@ init();
 .statistics-card-title-row .statistics-chart-type-toggle {
     color: var(--f7-text-color);
     opacity: 0.55;
-    --f7-icon-font-size: 20px;
+    --f7-icon-font-size: 21px;
 }
 
 .statistics-overview-grid {
@@ -1094,13 +1094,13 @@ init();
 }
 
 .statistics-overview-label {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--ebk-secondary-text-color);
     margin-bottom: 4px;
 }
 
 .statistics-overview-value {
-    font-size: 20px;
+    font-size: 21px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: var(--f7-text-color);
@@ -1124,7 +1124,7 @@ init();
 .statistics-chart-mode-segmented span {
     padding: 3px 18px;
     border-radius: 13px;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 18px;
     color: var(--f7-text-color);
     opacity: 0.72;
@@ -1161,7 +1161,7 @@ init();
 .statistics-category-dimension-segmented span {
     padding: 2px 10px;
     border-radius: 10px;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 16px;
     color: var(--f7-text-color);
     opacity: 0.72;
@@ -1183,7 +1183,7 @@ init();
 .statistics-category-header-controls > .f7-link {
     color: var(--f7-text-color);
     opacity: 0.55;
-    --f7-icon-font-size: 17px;
+    --f7-icon-font-size: 18px;
 }
 
 .statistics-pie-chart-container {
@@ -1233,7 +1233,7 @@ init();
     justify-content: center;
     width: 34px;
     margin-inline-end: 10px;
-    --f7-icon-font-size: 22px;
+    --f7-icon-font-size: 23px;
 }
 
 .statistics-category-ranking-main {
@@ -1250,7 +1250,7 @@ init();
 }
 
 .statistics-category-ranking-name {
-    font-size: 14px;
+    font-size: 15px;
     color: var(--f7-text-color);
     white-space: nowrap;
     overflow: hidden;
@@ -1258,7 +1258,7 @@ init();
 }
 
 .statistics-category-ranking-percent {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ebk-secondary-text-color);
     flex-shrink: 0;
 }
@@ -1276,7 +1276,7 @@ init();
 }
 
 .statistics-category-ranking-amount {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 500;
     font-variant-numeric: tabular-nums;
     color: var(--f7-text-color);
@@ -1284,7 +1284,7 @@ init();
 }
 
 .statistics-daily-report-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 600;
     color: var(--f7-text-color);
     text-align: center;
@@ -1300,7 +1300,7 @@ init();
     grid-template-columns: 1.1fr 1fr 1fr 1.2fr;
     align-items: center;
     padding: 9px 0;
-    font-size: 13px;
+    font-size: 14px;
     font-variant-numeric: tabular-nums;
     color: var(--f7-text-color);
 }
@@ -1316,7 +1316,7 @@ init();
 
 .statistics-daily-report-header {
     color: var(--ebk-secondary-text-color);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .statistics-daily-report-average {
@@ -1338,6 +1338,6 @@ init();
 
 .statistics-view-details-link .f7-link {
     color: rgb(var(--ebk-primary-color));
-    font-size: 14px;
+    font-size: 15px;
 }
 </style>

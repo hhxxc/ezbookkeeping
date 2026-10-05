@@ -2,7 +2,7 @@
     <f7-page class="home-page" ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn" :style="pageBackgroundStyle">
         <f7-card class="home-summary-card" :class="{ 'skeleton-text': loading, 'has-bg': !!homeSummaryBackgroundImage }" :style="homeSummaryCardStyle" @taphold="onHomeBgInputClick">
             <f7-link class="home-card-gallery-btn" @click="onHomeBgInputClick">
-                <f7-icon f7="photo_on_rectangle" style="font-size: 16px; color: rgba(0,0,0,0.35);"></f7-icon>
+                <f7-icon f7="photo_on_rectangle" style="font-size: 17px; color: rgba(0,0,0,0.35);"></f7-icon>
             </f7-link>
             <f7-card-header class="display-block" style="padding: 16px 16px 14px;">
                 <div class="home-summary-row">
@@ -666,13 +666,13 @@ init();
 }
 
 .home-summary-label {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
     line-height: 1.4;
 }
 
 .home-summary-badge {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     padding: 2px 10px;
     border-radius: 8px;
@@ -698,7 +698,7 @@ init();
 
 .home-summary-card .ebk-hide-icon {
     color: var(--hp-secondary);
-    font-size: 18px;
+    font-size: 19px;
 }
 
 /* 收入 / 结余 */
@@ -718,12 +718,12 @@ init();
 }
 
 .home-summary-metric-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--hp-secondary);
 }
 
 .home-summary-metric-value {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     line-height: 1.5;
     font-variant-numeric: tabular-nums;
@@ -786,11 +786,11 @@ init();
 }
 
 .overview-transaction-list .item-media i.f7-icons {
-    font-size: 21px;
+    font-size: 22px;
 }
 
 .overview-transaction-list .item-title {
-    font-size: 16px;
+    font-size: 17px;
 }
 
 .overview-transaction-list .item-title > div {
@@ -804,7 +804,7 @@ init();
 
 .overview-transaction-list .overview-transaction-footer {
     padding-top: 4px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--hp-secondary);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -827,7 +827,7 @@ init();
 }
 
 .overview-transaction-list .overview-transaction-amount small {
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .overview-transaction-list .text-income {
@@ -850,7 +850,7 @@ init();
 }
 
 .overview-period-icon i.f7-icons {
-    font-size: 18px;
+    font-size: 19px;
     line-height: 1;
 }
 
@@ -976,7 +976,7 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
 }
 
 .home-add-icon {
-    font-size: 28px;
+    font-size: 29px;
     color: #fff;
 }
 
@@ -991,6 +991,6 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
 }
 
 .ai-image-recognition-fab > a i {
-    font-size: 24px;
+    font-size: 25px;
 }
 </style>

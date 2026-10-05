@@ -314,7 +314,7 @@ function clickItem(item: DailyIncomeExpenseChartDataItem): void {
 
 .daily-income-expense-chart-y-label,
 .daily-income-expense-chart-x-label {
-    font-size: 10px;
+    font-size: 11px;
     fill: var(--f7-text-color);
     opacity: 0.45;
     text-anchor: middle;

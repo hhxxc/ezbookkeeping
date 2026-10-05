@@ -476,7 +476,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 }
 
 .login-brand .login-page-tile {
-    font-size: 28px;
+    font-size: 29px;
     font-weight: 700;
     color: #fff;
     margin: 12px 0 4px;
@@ -484,7 +484,7 @@ oauth2ClientSessionId.value = generateRandomUUID();
 
 .login-page-subtitle {
     color: #fff;
-    font-size: 14px;
+    font-size: 15px;
     margin: 0;
 }
 

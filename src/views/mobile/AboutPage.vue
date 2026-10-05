@@ -374,7 +374,7 @@ init();
     }
 
     .update-progress-status {
-        font-size: 16px;
+        font-size: 17px;
         margin-bottom: 20px;
         color: var(--f7-text-color);
     }
@@ -394,7 +394,7 @@ init();
     }
 
     .update-progress-percent {
-        font-size: 14px;
+        font-size: 15px;
         margin-top: 10px;
         color: var(--f7-text-color);
         opacity: .6;

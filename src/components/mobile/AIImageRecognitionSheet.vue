@@ -450,7 +450,7 @@ defineExpose({
     align-items: center;
     padding: 10px 14px;
     background: var(--f7-list-group-title-bg-color);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--f7-text-color);
 }
@@ -500,7 +500,7 @@ defineExpose({
 }
 
 .recognized-item-amount {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     line-height: 1.3;
 
@@ -522,7 +522,7 @@ defineExpose({
     gap: 8px;
     align-items: center;
     margin-top: 2px;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--f7-text-color-secondary);
     overflow: hidden;
 }
