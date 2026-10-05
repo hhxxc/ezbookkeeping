@@ -609,8 +609,8 @@ init();
     border-radius: var(--ebk-card-border-radius);
     color: var(--hp-ink);
     overflow: hidden;
-    /* 首页没有导航栏，卡片直接从状态栏下方开始 */
-    margin: calc(var(--f7-safe-area-top, 0px) + 8px) 16px 16px !important;
+    /* 首页没有导航栏，卡片从状态栏下方留出一段呼吸空间开始 */
+    margin: calc(var(--f7-safe-area-top, 0px) + 24px) 16px 16px !important;
     border: none;
     outline: none;
     box-shadow: var(--hp-shadow);
@@ -838,15 +838,23 @@ init();
     color: var(--hp-expense);
 }
 
-/* 底部 Tab 导航 - 纯色不透明 */
-.tabbar.main-tabbar {
+/* 底部 Tab 导航 - 无底色无阴影，与页面背景融为一体 */
+.home-page .tabbar.main-tabbar {
     /* 收紧图标行高度，让按钮整体更贴近屏幕底部 */
     --f7-tabbar-icons-height: 52px;
     overflow: visible;
-    background: #ffffff !important;
+    background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-top: 1px solid var(--ebk-divider-color);
+    border-top: none;
+    box-shadow: none !important;
+}
+
+/* F7 iOS 主题会在底栏上方画 16px 渐变+毛玻璃（::before/::after），全部压掉 */
+.home-page .tabbar.main-tabbar::before,
+.home-page .tabbar.main-tabbar::after {
+    display: none !important;
+    content: none !important;
 }
 
 /* 壳模式（页面接管安全区）下按钮行往下探一点，减少底部留白 */
@@ -854,9 +862,9 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
     bottom: calc(var(--f7-safe-area-bottom) - 8px);
 }
 
-.dark .tabbar.main-tabbar {
-    background: #1a1a1e !important;
-    border-top-color: #2a2a35;
+.dark .home-page .tabbar.main-tabbar {
+    background: transparent !important;
+    border-top: none;
 }
 
 .tabbar.main-tabbar .link {
