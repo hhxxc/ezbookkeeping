@@ -230,6 +230,13 @@
             </f7-list-item>
         </f7-list>
 
+        <div class="home-quick-actions" v-if="isTransactionFromAIImageRecognitionEnabled()">
+            <f7-link class="home-quick-action-camera" @click="showAIReceiptImageRecognitionSheet = true">
+                <f7-icon f7="camera_fill"></f7-icon>
+                <span>{{ tt('AI Image Recognition') }}</span>
+            </f7-link>
+        </div>
+
         <f7-toolbar tabbar icons bottom class="main-tabbar">
             <f7-link class="link" href="/transaction/list">
                 <f7-icon f7="square_list"></f7-icon>
@@ -278,15 +285,6 @@
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
-
-        <template #fixed>
-            <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
-                    position="right-bottom"
-                    class="ai-image-recognition-fab"
-                    @click="showAIReceiptImageRecognitionSheet = true">
-                <f7-icon f7="camera"></f7-icon>
-            </f7-fab>
-        </template>
     </f7-page>
 </template>
 
@@ -985,12 +983,41 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
     overflow-y: auto;
 }
 
-.ai-image-recognition-fab {
-    --f7-fab-size: 48px;
-    bottom: calc(var(--f7-toolbar-height) + var(--f7-safe-area-bottom) + 16px) !important;
+/* 列表下方的快捷入口条（替代悬浮识图按钮，避免遮挡列表内容） */
+.home-quick-actions {
+    display: flex;
+    padding: 4px 16px 12px;
 }
 
-.ai-image-recognition-fab > a i {
-    font-size: 25px;
+.home-quick-action-camera {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    height: 46px;
+    border-radius: var(--ebk-button-border-radius);
+    background: rgba(38, 166, 154, 0.12);
+    color: var(--hp-primary);
+    font-size: 15px;
+    font-weight: 500;
+    text-transform: none;
+}
+
+.home-quick-action-camera i.f7-icons {
+    font-size: 20px;
+}
+
+.home-quick-action-camera:active {
+    background: rgba(38, 166, 154, 0.2);
+}
+
+.dark .home-quick-action-camera {
+    background: rgba(77, 182, 172, 0.16);
+    color: #4db6ac;
+}
+
+.dark .home-quick-action-camera:active {
+    background: rgba(77, 182, 172, 0.26);
 }
 </style>
