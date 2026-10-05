@@ -230,11 +230,14 @@
             </f7-list-item>
         </f7-list>
 
-        <div class="home-quick-actions" v-if="isTransactionFromAIImageRecognitionEnabled()">
-            <f7-link class="home-quick-action-camera" @click="showAIReceiptImageRecognitionSheet = true">
-                <f7-icon f7="camera_fill"></f7-icon>
-                <span>{{ tt('AI Image Recognition') }}</span>
-            </f7-link>
+        <div class="home-ai-entry-card" v-if="isTransactionFromAIImageRecognitionEnabled()"
+             @click="showAIReceiptImageRecognitionSheet = true">
+            <div class="home-ai-entry-icon"><f7-icon f7="camera_fill"></f7-icon></div>
+            <div class="home-ai-entry-text">
+                <div class="home-ai-entry-title">{{ tt('AI Image Recognition') }}</div>
+                <div class="home-ai-entry-subtitle">{{ tt('Snap a receipt, let AI record it') }}</div>
+            </div>
+            <f7-icon class="home-ai-entry-chevron" f7="chevron_right"></f7-icon>
         </div>
 
         <f7-toolbar tabbar icons bottom class="main-tabbar">
@@ -983,41 +986,70 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
     overflow-y: auto;
 }
 
-/* 列表下方的快捷入口条（替代悬浮识图按钮，避免遮挡列表内容） */
-.home-quick-actions {
+/* 列表下方的 AI 识图功能入口卡（替代悬浮识图按钮，避免遮挡列表内容） */
+.home-ai-entry-card {
     display: flex;
-    padding: 4px 16px 12px;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 16px 12px;
+    padding: 13px 14px;
+    background: var(--hp-card);
+    border-radius: var(--ebk-card-border-radius);
+    box-shadow: var(--hp-shadow);
+    cursor: pointer;
 }
 
-.home-quick-action-camera {
+.home-ai-entry-card:active {
+    opacity: 0.75;
+}
+
+.home-ai-entry-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    width: 100%;
-    height: 46px;
-    border-radius: var(--ebk-button-border-radius);
-    background: rgba(38, 166, 154, 0.12);
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(38, 166, 154, 0.13);
     color: var(--hp-primary);
-    font-size: 15px;
-    font-weight: 500;
-    text-transform: none;
 }
 
-.home-quick-action-camera i.f7-icons {
+.home-ai-entry-icon i.f7-icons {
     font-size: 20px;
 }
 
-.home-quick-action-camera:active {
-    background: rgba(38, 166, 154, 0.2);
+.home-ai-entry-text {
+    flex: 1;
+    min-width: 0;
 }
 
-.dark .home-quick-action-camera {
+.home-ai-entry-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--hp-ink);
+}
+
+.home-ai-entry-subtitle {
+    margin-top: 2px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--hp-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.home-ai-entry-chevron {
+    flex-shrink: 0;
+    color: var(--hp-secondary);
+    opacity: 0.6;
+    font-size: 16px;
+}
+
+.dark .home-ai-entry-icon {
     background: rgba(77, 182, 172, 0.16);
     color: #4db6ac;
-}
-
-.dark .home-quick-action-camera:active {
-    background: rgba(77, 182, 172, 0.26);
 }
 </style>
