@@ -774,7 +774,8 @@ init();
     border-radius: var(--ebk-card-border-radius);
     box-shadow: var(--hp-shadow);
     overflow: hidden;
-    margin-bottom: 68px;
+    /* 列表与下方 AI 识图入口卡的间距由卡片自身的 margin-top 控制 */
+    margin-bottom: 0;
 }
 
 .overview-transaction-list .item-content,
@@ -986,12 +987,22 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
     overflow-y: auto;
 }
 
-/* 列表下方的 AI 识图功能入口卡（替代悬浮识图按钮，避免遮挡列表内容） */
+/* 列表下方的 AI 识图功能入口卡（替代悬浮识图按钮，避免遮挡列表内容）。
+   sticky-bottom：列表尾部离 tabbar 远时照常跟在列表后；列表尾部进入透明 tabbar
+   覆盖区时自动停靠在底栏上方，保证任何滚动位置入口都不被 tabbar/加号钮盖住。
+   实测停靠点 = 视口底 - page-content 的 padding-bottom - bottom 值，而
+   padding-bottom = --f7-page-toolbar-bottom-offset(66~82,随字号) + 安全区，
+   所以这里用 84px(52px tabbar + 32px 加号钮间隙) 减掉该 offset 抵消滚动容器的
+   padding，得到相对视口固定的停靠线。 */
 .home-ai-entry-card {
+    position: sticky;
+    bottom: calc(84px - var(--f7-page-toolbar-bottom-offset, 0px));
+    /* 概览列表自带 position:relative + z-index:1，停靠时卡片要盖在列表之上 */
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 8px 16px 12px;
+    margin: 16px 16px 12px;
     padding: 13px 14px;
     background: var(--hp-card);
     border-radius: var(--ebk-card-border-radius);
