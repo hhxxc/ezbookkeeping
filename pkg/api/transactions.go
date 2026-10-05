@@ -576,6 +576,75 @@ func (a *TransactionsApi) TransactionStatisticsHandler(c *core.WebContext) (any,
 	return statisticResp, nil
 }
 
+// TransactionStatisticsDailyHandler returns transaction daily statistics of current user
+func (a *TransactionsApi) TransactionStatisticsDailyHandler(c *core.WebContext) (any, *errs.Error) {
+	var statisticReq models.TransactionStatisticRequest
+	err := c.ShouldBindQuery(&statisticReq)
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionStatisticsDailyHandler] parse request failed, because %s", err.Error())
+		return nil, errs.NewIncompleteOrIncorrectSubmissionError(err)
+	}
+
+	clientTimezone, err := c.GetClientTimezone()
+
+	if err != nil {
+		log.Warnf(c, "[transactions.TransactionStatisticsDailyHandler] cannot get client timezone, because %s", err.Error())
+		return nil, errs.ErrClientTimezoneOffsetInvalid
+	}
+
+	noTags := statisticReq.TagFilter == models.TransactionNoTagFilterValue
+	var tagFilters []*models.TransactionTagFilter
+
+	if !noTags {
+		tagFilters, err = models.ParseTransactionTagFilter(statisticReq.TagFilter)
+
+		if err != nil {
+			log.Warnf(c, "[transactions.TransactionStatisticsDailyHandler] parse transaction tag filters error, because %s", err.Error())
+			return nil, errs.Or(err, errs.ErrOperationFailed)
+		}
+	}
+
+	uid := c.GetCurrentUid()
+	allDailyTotalAmounts, err := a.transactions.GetAccountsAndCategoriesDailyInflowAndOutflow(c, uid, statisticReq.StartTime, statisticReq.EndTime, tagFilters, noTags, statisticReq.Keyword, clientTimezone, statisticReq.UseTransactionTimezone)
+
+	if err != nil {
+		log.Errorf(c, "[transactions.TransactionStatisticsDailyHandler] failed to get accounts and categories daily income and expense for user \"uid:%d\", because %s", uid, err.Error())
+		return nil, errs.Or(err, errs.ErrOperationFailed)
+	}
+
+	statisticDailyResp := make(models.TransactionStatisticDailyResponseItemSlice, 0, len(allDailyTotalAmounts))
+
+	for yearMonthDay, dailyTotalAmounts := range allDailyTotalAmounts {
+		dailyStatisticResp := &models.TransactionStatisticDailyResponseItem{
+			Year:  yearMonthDay / 10000,
+			Month: (yearMonthDay % 10000) / 100,
+			Day:   yearMonthDay % 100,
+			Items: make([]*models.TransactionStatisticResponseItem, len(dailyTotalAmounts)),
+		}
+
+		for i := 0; i < len(dailyTotalAmounts); i++ {
+			totalAmountItem := dailyTotalAmounts[i]
+			dailyStatisticResp.Items[i] = &models.TransactionStatisticResponseItem{
+				CategoryId:  totalAmountItem.CategoryId,
+				AccountId:   totalAmountItem.AccountId,
+				TotalAmount: totalAmountItem.Amount,
+			}
+
+			if totalAmountItem.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT || totalAmountItem.Type == models.TRANSACTION_DB_TYPE_TRANSFER_IN {
+				dailyStatisticResp.Items[i].RelatedAccountId = totalAmountItem.RelatedAccountId
+				dailyStatisticResp.Items[i].RelatedAccountType, _ = totalAmountItem.Type.ToTransactionRelatedAccountType()
+			}
+		}
+
+		statisticDailyResp = append(statisticDailyResp, dailyStatisticResp)
+	}
+
+	sort.Sort(statisticDailyResp)
+
+	return statisticDailyResp, nil
+}
+
 // TransactionStatisticsTrendsHandler returns transaction statistics trends of current user
 func (a *TransactionsApi) TransactionStatisticsTrendsHandler(c *core.WebContext) (any, *errs.Error) {
 	var statisticTrendsReq models.TransactionStatisticTrendsRequest

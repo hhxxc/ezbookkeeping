@@ -813,6 +813,13 @@ export interface TransactionStatisticTrendsResponseItem {
     readonly items: TransactionStatisticResponseItem[];
 }
 
+export interface TransactionStatisticDailyResponseItem {
+    readonly year: number;
+    readonly month: number; // 1-based (1 = January, 12 = December)
+    readonly day: number;
+    readonly items: TransactionStatisticResponseItem[];
+}
+
 export interface TransactionStatisticAssetTrendsResponseItem extends YearMonthDay {
     readonly year: number;
     readonly month: number; // 1-based (1 = January, 12 = December)
@@ -929,6 +936,14 @@ export interface TransactionCategoricalOverviewAnalysisDataItemOutflowItem {
 export interface TransactionCategoricalAnalysisData {
     readonly totalAmount: number;
     readonly items: TransactionCategoricalAnalysisDataItem[];
+}
+
+export interface TransactionDailyAnalysisDataItem {
+    readonly year: number;
+    readonly month: number; // 1-based (1 = January, 12 = December)
+    readonly day: number;
+    readonly incomeAmount: number;
+    readonly expenseAmount: number;
 }
 
 export interface TransactionCategoricalAnalysisDataItem extends Record<string, unknown> , TransactionStatisticDataItemBase {

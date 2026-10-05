@@ -1,320 +1,34 @@
 <template>
-    <f7-page ptr @ptr:refresh="reload" @page:afterin="onPageAfterIn">
+    <f7-page class="statistics-page" ptr with-subnavbar @ptr:refresh="reload" @page:afterin="onPageAfterIn">
         <f7-navbar>
             <f7-nav-left :class="{ 'disabled': loading }" :back-link="tt('Back')"></f7-nav-left>
             <f7-nav-title>
-                <f7-link popover-open=".chart-data-type-popover-menu" :class="{ 'disabled': loading }">
-                    <span class="statistics-page-title">{{ queryChartDataTypeName }}</span>
-                    <f7-icon class="page-title-bar-icon" color="gray" style="opacity: 0.5" f7="chevron_down_circle_fill"></f7-icon>
-                </f7-link>
+                <div class="period-mode-segmented" :class="{ 'disabled': loading || reloading }">
+                    <span :class="{ 'active': !isYearLikePeriod }" @click="setPeriodMode(false)">{{ tt('Month') }}</span>
+                    <span :class="{ 'active': isYearLikePeriod }" @click="setPeriodMode(true)">{{ tt('Year') }}</span>
+                </div>
             </f7-nav-title>
             <f7-nav-right :class="{ 'disabled': loading }">
-                <f7-link icon-f7="ellipsis" @click="showMoreActionSheet = true"></f7-link>
+                <f7-link icon-f7="line_horizontal_3_decrease" @click="showMoreActionSheet = true"></f7-link>
             </f7-nav-right>
+
+            <f7-subnavbar :inner="false" class="statistics-period-subnavbar">
+                <div class="statistics-period-row" :class="{ 'disabled': loading || reloading }">
+                    <f7-link class="statistics-period-shift-button" :class="{ 'disabled': reloading || !canShiftDateRange }" @click="shiftDateRange(-1)">
+                        <f7-icon f7="chevron_left"></f7-icon>
+                    </f7-link>
+                    <f7-link class="statistics-period-label" popover-open=".date-popover-menu" :class="{ 'disabled': reloading || !canChangeDateRange }">
+                        <f7-icon f7="calendar"></f7-icon>
+                        <span>{{ periodDisplayName }}</span>
+                    </f7-link>
+                    <f7-link class="statistics-period-shift-button" :class="{ 'disabled': reloading || !canShiftDateRange }" @click="shiftDateRange(1)">
+                        <f7-icon f7="chevron_right"></f7-icon>
+                    </f7-link>
+                </div>
+            </f7-subnavbar>
         </f7-navbar>
 
-        <f7-popover class="chart-data-type-popover-menu"
-                    @popover:open="scrollPopoverToSelectedItem">
-            <f7-list dividers>
-                <f7-list-item group-title>
-                    <small>{{ tt('Categorical Analysis') }}</small>
-                </f7-list-item>
-                <f7-list-item link="#" no-chevron popover-close
-                              :title="tt(dataType.name)"
-                              :class="{ 'list-item-selected': analysisType === StatisticsAnalysisType.CategoricalAnalysis && query.chartDataType === dataType.type }"
-                              :key="dataType.type"
-                              v-for="dataType in ChartDataType.values(StatisticsAnalysisType.CategoricalAnalysis)"
-                              @click="setChartDataType(StatisticsAnalysisType.CategoricalAnalysis, dataType.type)">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="analysisType === StatisticsAnalysisType.CategoricalAnalysis && query.chartDataType === dataType.type"></f7-icon>
-                    </template>
-                </f7-list-item>
-                <f7-list-item group-title>
-                    <small>{{ tt('Trend Analysis') }}</small>
-                </f7-list-item>
-                <f7-list-item link="#" no-chevron popover-close
-                              :title="tt(dataType.name)"
-                              :class="{ 'list-item-selected': analysisType === StatisticsAnalysisType.TrendAnalysis && query.chartDataType === dataType.type }"
-                              :key="dataType.type"
-                              v-for="dataType in ChartDataType.values(StatisticsAnalysisType.TrendAnalysis)"
-                              @click="setChartDataType(StatisticsAnalysisType.TrendAnalysis, dataType.type)">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="analysisType === StatisticsAnalysisType.TrendAnalysis && query.chartDataType === dataType.type"></f7-icon>
-                    </template>
-                </f7-list-item>
-                <f7-list-item group-title>
-                    <small>{{ tt('Asset Trends') }}</small>
-                </f7-list-item>
-                <f7-list-item link="#" no-chevron popover-close
-                              :title="tt(dataType.name)"
-                              :class="{ 'list-item-selected': analysisType === StatisticsAnalysisType.AssetTrends && query.chartDataType === dataType.type }"
-                              :key="dataType.type"
-                              v-for="dataType in ChartDataType.values(StatisticsAnalysisType.AssetTrends)"
-                              @click="setChartDataType(StatisticsAnalysisType.AssetTrends, dataType.type)">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="analysisType === StatisticsAnalysisType.AssetTrends && query.chartDataType === dataType.type"></f7-icon>
-                    </template>
-                </f7-list-item>
-            </f7-list>
-        </f7-popover>
-
-        <f7-card v-if="analysisType === StatisticsAnalysisType.CategoricalAnalysis && query.categoricalChartType === CategoricalChartType.Pie.type">
-            <f7-card-header class="no-border display-block">
-                <div :class="{ 'statistics-chart-header': true, 'full-line': true, 'text-align-right': textDirection === TextDirection.LTR, 'text-align-left': textDirection === TextDirection.RTL}">
-                    <span style="margin-inline-end: 4px;">{{ tt('Sort by') }}</span>
-                    <f7-link href="#" popover-open=".sorting-type-popover-menu" :class="{ 'disabled': loading }">{{ querySortingTypeName }}</f7-link>
-                </div>
-            </f7-card-header>
-            <f7-card-content class="pie-chart-container" style="margin-top: -6px" :padding="false">
-                <pie-chart
-                    :items="[{value: 60, color: '7c7c7f'}, {value: 20, color: 'a5a5aa'}, {value: 20, color: 'c5c5c9'}]"
-                    :skeleton="true"
-                    :show-center-text="true"
-                    :show-selected-item-info="true"
-                    class="statistics-pie-chart"
-                    name-field="name"
-                    value-field="value"
-                    color-field="color"
-                    center-text-background="#cccccc"
-                    v-if="loading"
-                ></pie-chart>
-                <pie-chart
-                    :items="categoricalAnalysisData.items"
-                    :show-value="showAmountInChart"
-                    :show-percent="showPercentInCategoricalChart"
-                    :show-center-text="true"
-                    :show-selected-item-info="true"
-                    :enable-click-item="true"
-                    :amount-value="true"
-                    :default-currency="defaultCurrency"
-                    class="statistics-pie-chart"
-                    name-field="name"
-                    value-field="totalAmount"
-                    percent-field="percent"
-                    hidden-field="hidden"
-                    v-else-if="!loading"
-                    @click="onClickPieChartItem"
-                >
-                    <text class="statistics-pie-chart-total-amount-title" v-if="categoricalAnalysisData.items && categoricalAnalysisData.items.length">
-                        {{ totalAmountName }}
-                    </text>
-                    <text class="statistics-pie-chart-total-amount-value" v-if="categoricalAnalysisData.items && categoricalAnalysisData.items.length">
-                        {{ getDisplayAmount(categoricalAnalysisData.totalAmount, defaultCurrency, 16) }}
-                    </text>
-                    <text class="statistics-pie-chart-total-no-data" cy="50%" v-if="!categoricalAnalysisData.items || !categoricalAnalysisData.items.length">
-                        {{ tt('No data') }}
-                    </text>
-                </pie-chart>
-            </f7-card-content>
-        </f7-card>
-
-        <f7-card v-else-if="analysisType === StatisticsAnalysisType.CategoricalAnalysis && query.categoricalChartType === CategoricalChartType.Bar.type">
-            <f7-card-header class="no-border display-block">
-                <div class="statistics-chart-header display-flex full-line justify-content-space-between">
-                    <div>
-                        {{ totalAmountName }}
-                    </div>
-                    <div class="align-self-flex-end">
-                        <span style="margin-inline-end: 4px;">{{ tt('Sort by') }}</span>
-                        <f7-link href="#" popover-open=".sorting-type-popover-menu">{{ querySortingTypeName }}</f7-link>
-                    </div>
-                </div>
-                <div class="display-flex full-line">
-                    <div :class="{ 'statistics-list-item-overview-amount': true, 'text-expense': query.chartDataType === ChartDataType.OutflowsByAccount.type || query.chartDataType === ChartDataType.ExpenseByAccount.type || query.chartDataType === ChartDataType.ExpenseByPrimaryCategory.type || query.chartDataType === ChartDataType.ExpenseBySecondaryCategory.type, 'text-income': query.chartDataType === ChartDataType.InflowsByAccount.type || query.chartDataType === ChartDataType.IncomeByAccount.type || query.chartDataType === ChartDataType.IncomeByPrimaryCategory.type || query.chartDataType === ChartDataType.IncomeBySecondaryCategory.type }">
-                        <span v-if="!loading && categoricalAnalysisData && categoricalAnalysisData.items && categoricalAnalysisData.items.length">
-                            {{ getDisplayAmount(categoricalAnalysisData.totalAmount, defaultCurrency) }}
-                        </span>
-                        <span :class="{ 'skeleton-text': loading }" v-else-if="loading || !categoricalAnalysisData || !categoricalAnalysisData.items || !categoricalAnalysisData.items.length">
-                            {{ loading ? '***.**' : '---' }}
-                        </span>
-                    </div>
-                </div>
-            </f7-card-header>
-            <f7-card-content style="margin-top: -14px" :padding="false">
-                <f7-list class="statistics-list-item skeleton-text" v-if="loading">
-                    <f7-list-item link="#" :key="itemIdx" v-for="itemIdx in [ 1, 2, 3 ]">
-                        <template #media>
-                            <div class="display-flex no-padding-horizontal">
-                                <div class="display-flex align-items-center statistics-icon">
-                                    <f7-icon f7="app_fill"></f7-icon>
-                                </div>
-                            </div>
-                        </template>
-                        <template #title>
-                            <div class="statistics-list-item-text">
-                                <span>Category Name</span>
-                                <small class="statistics-percent">33.33</small>
-                            </div>
-                        </template>
-                        <template #after>
-                            <span>0.00 USD</span>
-                        </template>
-                        <template #inner-end>
-                            <div class="statistics-item-end">
-                                <div class="statistics-percent-line">
-                                    <f7-progressbar></f7-progressbar>
-                                </div>
-                            </div>
-                        </template>
-                    </f7-list-item>
-                </f7-list>
-
-                <f7-list v-else-if="!loading && (!categoricalAnalysisData || !categoricalAnalysisData.items || !categoricalAnalysisData.items.length)">
-                    <f7-list-item :title="tt('No transaction data')"></f7-list-item>
-                </f7-list>
-
-                <f7-list v-else-if="!loading && categoricalAnalysisData && categoricalAnalysisData.items && categoricalAnalysisData.items.length">
-                    <f7-list-item class="statistics-list-item"
-                                  :link="getTransactionItemLinkUrl(item.id)"
-                                  :key="idx"
-                                  v-for="(item, idx) in categoricalAnalysisData.items"
-                                  v-show="!item.hidden"
-                    >
-                        <template #media>
-                            <div class="display-flex no-padding-horizontal">
-                                <div class="display-flex align-items-center statistics-icon">
-                                    <ItemIcon :icon-type="queryChartDataCategory" :icon-id="item.icon" :color="item.color" v-if="item.icon"></ItemIcon>
-                                    <f7-icon f7="pencil_ellipsis_rectangle" v-else-if="!item.icon"></f7-icon>
-                                </div>
-                            </div>
-                        </template>
-
-                        <template #title>
-                            <div class="statistics-list-item-text">
-                                <span>{{ item.name }}</span>
-                                <small class="statistics-percent" v-if="showPercentInCategoricalChart && item.percent >= 0 && item.totalAmount >= 0">{{ formatPercentToLocalizedNumerals(item.percent, 2, '<0.01') }}</small>
-                            </div>
-                        </template>
-
-                        <template #after>
-                            <span>{{ getDisplayAmount(item.totalAmount, defaultCurrency) }}</span>
-                        </template>
-
-                        <template #inner-end>
-                            <div class="statistics-item-end">
-                                <div class="statistics-percent-line">
-                                    <f7-progressbar :progress="item.percent >= 0 ? item.percent : 0" :style="{ '--f7-progressbar-progress-color': (item.color ? getTransactionCategoricalAnalysisDataItemDisplayColor(item) : '') } "></f7-progressbar>
-                                </div>
-                            </div>
-                        </template>
-                    </f7-list-item>
-                </f7-list>
-            </f7-card-content>
-        </f7-card>
-
-        <f7-card v-else-if="analysisType === StatisticsAnalysisType.TrendAnalysis">
-            <f7-card-header class="no-border display-block">
-                <div class="statistics-chart-header display-flex full-line justify-content-space-between">
-                    <div></div>
-                    <div class="align-self-flex-end">
-                        <span style="margin-inline-end: 4px;">{{ tt('Sort by') }}</span>
-                        <f7-link href="#" popover-open=".sorting-type-popover-menu">{{ querySortingTypeName }}</f7-link>
-                    </div>
-                </div>
-            </f7-card-header>
-            <f7-card-content style="margin-top: -14px" :padding="false">
-                <trends-bar-chart
-                    chart-mode="monthly"
-                    :loading="loading || reloading"
-                    :start-time="undefined"
-                    :end-time="undefined"
-                    :start-year-month="query.trendChartStartYearMonth"
-                    :end-year-month="query.trendChartEndYearMonth"
-                    :sorting-type="query.sortingType"
-                    :data-aggregation-type="ChartDataAggregationType.Sum"
-                    :date-aggregation-type="trendDateAggregationType"
-                    :fiscal-year-start="fiscalYearStart"
-                    :items="trendsAnalysisData && trendsAnalysisData.items && trendsAnalysisData.items.length ? trendsAnalysisData.items : []"
-                    :stacked="showStackedInTrendsChart"
-                    :translate-name="translateNameInTrendsChart"
-                    :default-currency="defaultCurrency"
-                    id-field="id"
-                    name-field="name"
-                    value-field="totalAmount"
-                    hidden-field="hidden"
-                    display-orders-field="displayOrders"
-                    @click="onClickTrendChartItem"
-                />
-            </f7-card-content>
-        </f7-card>
-
-        <f7-card v-else-if="analysisType === StatisticsAnalysisType.AssetTrends">
-            <f7-card-header class="no-border display-block">
-                <div class="statistics-chart-header display-flex full-line justify-content-space-between">
-                    <div></div>
-                    <div class="align-self-flex-end">
-                        <span style="margin-inline-end: 4px;">{{ tt('Sort by') }}</span>
-                        <f7-link href="#" popover-open=".sorting-type-popover-menu">{{ querySortingTypeName }}</f7-link>
-                    </div>
-                </div>
-            </f7-card-header>
-            <f7-card-content style="margin-top: -14px" :padding="false">
-                <trends-bar-chart
-                    chart-mode="daily"
-                    :loading="loading || reloading"
-                    :start-time="query.assetTrendsChartStartTime"
-                    :end-time="query.assetTrendsChartEndTime"
-                    :start-year-month="undefined"
-                    :end-year-month="undefined"
-                    :sorting-type="query.sortingType"
-                    :data-aggregation-type="ChartDataAggregationType.Last"
-                    :date-aggregation-type="assetTrendsDateAggregationType"
-                    :fiscal-year-start="fiscalYearStart"
-                    :items="assetTrendsData && assetTrendsData.items && assetTrendsData.items.length ? assetTrendsData.items : []"
-                    :stacked="showStackedInTrendsChart"
-                    :translate-name="translateNameInTrendsChart"
-                    :default-currency="defaultCurrency"
-                    id-field="id"
-                    name-field="name"
-                    value-field="totalAmount"
-                    hidden-field="hidden"
-                    display-orders-field="displayOrders"
-                    @click="onClickTrendChartItem"
-                />
-            </f7-card-content>
-        </f7-card>
-
-        <f7-popover class="sorting-type-popover-menu">
-            <f7-list dividers>
-                <f7-list-item link="#" no-chevron popover-close
-                              :title="sortingType.displayName"
-                              :class="{ 'list-item-selected': query.sortingType === sortingType.type }"
-                              :key="sortingType.type"
-                              v-for="sortingType in allSortingTypes"
-                              @click="setSortingType(sortingType.type)">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="query.sortingType === sortingType.type"></f7-icon>
-                    </template>
-                </f7-list-item>
-            </f7-list>
-        </f7-popover>
-
-        <f7-toolbar tabbar bottom :class="{ 'compact-tabbar': true, 'toolbar-item-auto-size': true, 'disabled': loading }">
-            <f7-link :class="{ 'disabled': reloading || !canShiftDateRange }" @click="shiftDateRange(-1)">
-                <f7-icon class="icon-with-direction" f7="arrow_left_square"></f7-icon>
-            </f7-link>
-            <f7-link :class="{ 'tabbar-text-with-ellipsis': true, 'disabled': reloading || !canChangeDateRange }" popover-open=".date-popover-menu">
-                <span :class="{ 'tabbar-item-changed': isQueryDateRangeChanged }">{{ queryDateRangeName }}</span>
-            </f7-link>
-            <f7-link :class="{ 'disabled': reloading || !canShiftDateRange }" @click="shiftDateRange(1)">
-                <f7-icon class="icon-with-direction" f7="arrow_right_square"></f7-icon>
-            </f7-link>
-            <f7-link :class="{ 'tabbar-text-with-ellipsis': true, 'disabled': reloading }" popover-open=".date-aggregation-popover-menu"
-                     v-if="analysisType === StatisticsAnalysisType.TrendAnalysis">
-                <span :class="{ 'tabbar-item-changed': trendDateAggregationType !== ChartDateAggregationType.Default.type }">{{ queryTrendDateAggregationTypeName }}</span>
-            </f7-link>
-            <f7-link :class="{ 'tabbar-text-with-ellipsis': true, 'disabled': reloading }" popover-open=".date-aggregation-popover-menu"
-                     v-if="analysisType === StatisticsAnalysisType.AssetTrends">
-                <span :class="{ 'tabbar-item-changed': assetTrendsDateAggregationType !== ChartDateAggregationType.Default.type }">{{ queryAssetTrendsDateAggregationTypeName }}</span>
-            </f7-link>
-            <f7-link class="tabbar-text-with-ellipsis" :key="chartType.type"
-                     v-for="chartType in allChartTypes" @click="setChartType(chartType.type)">
-                <span :class="{ 'tabbar-item-changed': queryChartType === chartType.type }">{{ chartType.displayName }}</span>
-            </f7-link>
-        </f7-toolbar>
-
-        <f7-popover class="date-popover-menu"
-                    @popover:open="scrollPopoverToSelectedItem">
+        <f7-popover class="date-popover-menu" @popover:open="scrollPopoverToSelectedItem">
             <f7-list dividers>
                 <f7-list-item link="#" no-chevron popover-close
                               :title="dateRange.displayName"
@@ -337,29 +51,185 @@
             </f7-list>
         </f7-popover>
 
-        <f7-popover class="date-aggregation-popover-menu"
-                    @popover:open="scrollPopoverToSelectedItem">
-            <f7-list dividers v-if="analysisType === StatisticsAnalysisType.TrendAnalysis">
+        <f7-card>
+            <div class="statistics-card-title">{{ tt('Income and Expense Overview') }}</div>
+            <div class="statistics-overview-grid">
+                <div class="statistics-overview-item">
+                    <div class="statistics-overview-label">{{ tt('Expense') }}</div>
+                    <div class="statistics-overview-value" :class="{ 'skeleton-text': loading }">
+                        <span v-if="!loading">{{ getDisplayAmount(overviewExpenseAmount) }}</span>
+                        <span v-else>***.**</span>
+                    </div>
+                </div>
+                <div class="statistics-overview-item">
+                    <div class="statistics-overview-label">{{ tt('Income') }}</div>
+                    <div class="statistics-overview-value" :class="{ 'skeleton-text': loading }">
+                        <span v-if="!loading">{{ getDisplayAmount(overviewIncomeAmount) }}</span>
+                        <span v-else>***.**</span>
+                    </div>
+                </div>
+                <div class="statistics-overview-item">
+                    <div class="statistics-overview-label">{{ tt('Balance') }}</div>
+                    <div class="statistics-overview-value" :class="{ 'skeleton-text': loading }">
+                        <span v-if="!loading">{{ getDisplayAmount(overviewBalanceAmount) }}</span>
+                        <span v-else>***.**</span>
+                    </div>
+                </div>
+                <div class="statistics-overview-item">
+                    <div class="statistics-overview-label">{{ tt('Daily Average Expense') }}</div>
+                    <div class="statistics-overview-value" :class="{ 'skeleton-text': loading }">
+                        <span v-if="!loading">{{ getDisplayAmount(dailyAverageExpenseAmount) }}</span>
+                        <span v-else>***.**</span>
+                    </div>
+                </div>
+            </div>
+        </f7-card>
+
+        <f7-card>
+            <div class="statistics-card-title-row">
+                <div class="statistics-card-title">{{ tt('Daily Income and Expense Statistics') }}</div>
+                <f7-link class="statistics-chart-type-toggle" :class="{ 'disabled': loading || reloading }" @click="toggleDailyChartType">
+                    <f7-icon :f7="dailyChartType === 'bar' ? 'chart_bar_fill' : 'chart_bar'"></f7-icon>
+                </f7-link>
+            </div>
+            <div class="statistics-daily-chart-container">
+                <daily-income-expense-bar-chart
+                    :items="dailyChartItems"
+                    :mode="dailyChartMode"
+                    :chart-type="dailyChartType"
+                    :loading="loading || reloading"
+                    :expense-color="expenseDisplayColor"
+                    :income-color="incomeDisplayColor"
+                    @click="onClickDailyChartItem"
+                ></daily-income-expense-bar-chart>
+            </div>
+            <div class="statistics-chart-mode-segmented" :class="{ 'disabled': loading || reloading }">
+                <span :class="{ 'active': dailyChartMode === 'expense' }" @click="dailyChartMode = 'expense'">{{ tt('Expense') }}</span>
+                <span :class="{ 'active': dailyChartMode === 'income' }" @click="dailyChartMode = 'income'">{{ tt('Income') }}</span>
+                <span :class="{ 'active': dailyChartMode === 'all' }" @click="dailyChartMode = 'all'">{{ tt('All') }}</span>
+            </div>
+        </f7-card>
+
+        <f7-card>
+            <div class="statistics-card-title-row">
+                <div class="statistics-card-title">{{ tt('Categorical Analysis') }}</div>
+                <div class="statistics-category-header-controls">
+                    <div class="statistics-category-dimension-segmented" :class="{ 'disabled': loading || reloading }">
+                        <span :class="{ 'active': categoryDimension === 'expense' }" @click="setCategoryDimension('expense')">{{ tt('Expense') }}</span>
+                        <span :class="{ 'active': categoryDimension === 'income' }" @click="setCategoryDimension('income')">{{ tt('Income') }}</span>
+                    </div>
+                    <f7-link href="#" popover-open=".sorting-type-popover-menu" :class="{ 'disabled': loading }">
+                        <f7-icon f7="arrow_up_arrow_down"></f7-icon>
+                    </f7-link>
+                </div>
+            </div>
+            <div class="statistics-pie-chart-container">
+                <pie-chart
+                    :items="[{value: 60, color: '7c7c7f'}, {value: 20, color: 'a5a5aa'}, {value: 20, color: 'c5c5c9'}]"
+                    :skeleton="true"
+                    :show-center-text="true"
+                    class="statistics-pie-chart"
+                    name-field="name"
+                    value-field="value"
+                    color-field="color"
+                    v-if="loading"
+                ></pie-chart>
+                <pie-chart
+                    :items="categoricalAnalysisData.items"
+                    :show-percent="true"
+                    :show-value="true"
+                    :show-center-text="true"
+                    :enable-click-item="true"
+                    :amount-value="true"
+                    :default-currency="defaultCurrency"
+                    class="statistics-pie-chart"
+                    name-field="name"
+                    value-field="totalAmount"
+                    percent-field="percent"
+                    hidden-field="hidden"
+                    v-else-if="!loading"
+                    @click="onClickPieChartItem"
+                >
+                    <text class="statistics-pie-chart-total-amount-title" v-if="categoricalAnalysisData.items && categoricalAnalysisData.items.length">
+                        {{ categoryTotalAmountName }}
+                    </text>
+                    <text class="statistics-pie-chart-total-amount-value" v-if="categoricalAnalysisData.items && categoricalAnalysisData.items.length">
+                        {{ getDisplayAmount(categoricalAnalysisData.totalAmount, defaultCurrency, 16) }}
+                    </text>
+                    <text class="statistics-pie-chart-total-no-data" cy="50%" v-if="!categoricalAnalysisData.items || !categoricalAnalysisData.items.length">
+                        {{ tt('No data') }}
+                    </text>
+                </pie-chart>
+            </div>
+            <div class="statistics-category-ranking-list" v-if="!loading && categoricalAnalysisData.items && categoricalAnalysisData.items.length">
+                <div class="statistics-category-ranking-item"
+                     :key="idx"
+                     v-for="(item, idx) in categoricalAnalysisData.items"
+                     v-show="!item.hidden"
+                     @click="onClickCategoryItem(item)"
+                >
+                    <div class="statistics-category-ranking-icon">
+                        <ItemIcon icon-type="category" :icon-id="item.icon" :color="item.color" v-if="item.icon"></ItemIcon>
+                        <f7-icon f7="pencil_ellipsis_rectangle" v-else></f7-icon>
+                    </div>
+                    <div class="statistics-category-ranking-main">
+                        <div class="statistics-category-ranking-first-row">
+                            <span class="statistics-category-ranking-name">{{ item.name }}</span>
+                            <small class="statistics-category-ranking-percent" v-if="showPercentInCategoricalChart && item.percent >= 0 && item.totalAmount >= 0">{{ formatPercentToLocalizedNumerals(item.percent, 2, '<0.01') }}</small>
+                        </div>
+                        <div class="statistics-category-ranking-bar">
+                            <div class="statistics-category-ranking-bar-fill" :style="{ 'width': (item.percent >= 0 ? item.percent : 0) + '%', 'background-color': getCategoryItemDisplayColor(item) }"></div>
+                        </div>
+                    </div>
+                    <div class="statistics-category-ranking-amount">{{ getDisplayAmount(item.totalAmount, defaultCurrency) }}</div>
+                </div>
+            </div>
+        </f7-card>
+
+        <f7-card>
+            <div class="statistics-daily-report-title">{{ tt('Daily Report') }}</div>
+            <div class="statistics-daily-report-table" v-if="dailyReportRows.length">
+                <div class="statistics-daily-report-row statistics-daily-report-header">
+                    <span>{{ tt('Date') }}</span>
+                    <span>{{ tt('Income') }}</span>
+                    <span>{{ tt('Expense') }}</span>
+                    <span>{{ tt('Balance') }}</span>
+                </div>
+                <div class="statistics-daily-report-row" :key="row.label" v-for="row in dailyReportRows">
+                    <span>{{ row.label }}</span>
+                    <span>{{ formatDisplayAmount(row.incomeAmount) }}</span>
+                    <span>{{ formatDisplayAmount(row.expenseAmount) }}</span>
+                    <span :class="{ 'text-expense': row.balanceAmount < 0 }">{{ formatDisplayAmount(row.balanceAmount) }}</span>
+                </div>
+                <div class="statistics-daily-report-row statistics-daily-report-average" v-if="elapsedDaysInRange > 0">
+                    <span>{{ tt('Average') }}</span>
+                    <span>{{ formatDisplayAmount(reportTotalIncomeAmount / elapsedDaysInRange) }}</span>
+                    <span>{{ formatDisplayAmount(reportTotalExpenseAmount / elapsedDaysInRange) }}</span>
+                    <span :class="{ 'text-expense': reportTotalBalanceAmount < 0 }">{{ formatDisplayAmount(reportTotalBalanceAmount / elapsedDaysInRange) }}</span>
+                </div>
+            </div>
+            <div class="statistics-daily-report-empty" v-else-if="!loading">
+                {{ tt('No transaction data') }}
+            </div>
+            <div class="statistics-daily-report-empty skeleton-text" v-else>
+                ********
+            </div>
+        </f7-card>
+
+        <div class="statistics-view-details-link" v-if="!loading">
+            <f7-link @click="viewTransactionDetails">{{ tt('View transaction details') }}</f7-link>
+        </div>
+
+        <f7-popover class="sorting-type-popover-menu" @popover:open="scrollPopoverToSelectedItem">
+            <f7-list dividers>
                 <f7-list-item link="#" no-chevron popover-close
-                              :title="aggregationType.displayName"
-                              :class="{ 'list-item-selected': trendDateAggregationType === aggregationType.type }"
-                              :key="aggregationType.type"
-                              v-for="aggregationType in allTrendAnalysisDateAggregationTypes"
-                              @click="setTrendDateAggregationType(aggregationType.type)">
+                              :title="sortingType.displayName"
+                              :class="{ 'list-item-selected': query.sortingType === sortingType.type }"
+                              :key="sortingType.type"
+                              v-for="sortingType in allSortingTypes"
+                              @click="setSortingType(sortingType.type)">
                     <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="trendDateAggregationType === aggregationType.type"></f7-icon>
-                    </template>
-                </f7-list-item>
-            </f7-list>
-            <f7-list dividers v-else-if="analysisType === StatisticsAnalysisType.AssetTrends">
-                <f7-list-item link="#" no-chevron popover-close
-                              :title="aggregationType.displayName"
-                              :class="{ 'list-item-selected': assetTrendsDateAggregationType === aggregationType.type }"
-                              :key="aggregationType.type"
-                              v-for="aggregationType in allAssetTrendsDateAggregationTypes"
-                              @click="setAssetTrendsDateAggregationType(aggregationType.type)">
-                    <template #after>
-                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="assetTrendsDateAggregationType === aggregationType.type"></f7-icon>
+                        <f7-icon class="list-item-checked-icon" f7="checkmark_alt" v-if="query.sortingType === sortingType.type"></f7-icon>
                     </template>
                 </f7-list-item>
             </f7-list>
@@ -372,20 +242,13 @@
                                     @dateRange:change="setCustomDateFilter">
         </date-range-selection-sheet>
 
-        <month-range-selection-sheet :title="tt('Custom Date Range')"
-                                     :min-time="query.trendChartStartYearMonth"
-                                     :max-time="query.trendChartEndYearMonth"
-                                     v-model:show="showCustomMonthRangeSheet"
-                                     @dateRange:change="setCustomDateFilter">
-        </month-range-selection-sheet>
-
         <f7-actions close-by-outside-click close-on-escape :opened="showMoreActionSheet" @actions:closed="showMoreActionSheet = false">
             <f7-actions-group>
                 <f7-actions-button :class="{ 'disabled': reloading }" @click="filterAccounts">{{ tt('Filter Accounts') }}</f7-actions-button>
-                <f7-actions-button :class="{ 'disabled': reloading }" @click="filterCategories" v-if="canUseCategoryFilter">{{ tt('Filter Transaction Categories') }}</f7-actions-button>
-                <f7-actions-button :class="{ 'disabled': reloading }" @click="filterTags" v-if="canUseTagFilter">{{ tt('Filter Transaction Tags') }}</f7-actions-button>
+                <f7-actions-button :class="{ 'disabled': reloading }" @click="filterCategories">{{ tt('Filter Transaction Categories') }}</f7-actions-button>
+                <f7-actions-button :class="{ 'disabled': reloading }" @click="filterTags">{{ tt('Filter Transaction Tags') }}</f7-actions-button>
             </f7-actions-group>
-            <f7-actions-group v-if="canUseKeywordFilter">
+            <f7-actions-group>
                 <f7-actions-label v-if="query.keyword">{{ query.keyword }}</f7-actions-label>
                 <f7-actions-button :class="{ 'disabled': reloading }" @click="filterDescription">{{ tt('Filter transaction description') }}</f7-actions-button>
             </f7-actions-group>
@@ -404,35 +267,42 @@ import { ref, computed } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
-import { useStatisticsTransactionPageBase } from '@/views/base/statistics/StatisticsTransactionPageBase.ts';
+import { useEnvironmentsStore } from '@/stores/environment.ts';
 
 import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
-import { useStatisticsStore } from '@/stores/statistics.ts';
+import { type TransactionStatisticsFilter, useStatisticsStore } from '@/stores/statistics.ts';
+import { useUserStore } from '@/stores/user.ts';
 
+import { type LocalizedDateRange, type WeekDayValue, type YearMonthDay, DateRangeScene, DateRange } from '@/core/datetime.ts';
 import type { TypeAndDisplayName } from '@/core/base.ts';
-import { TextDirection } from '@/core/text.ts';
-import { type TextualYearMonth, type TimeRangeAndDateType, DateRangeScene, DateRange } from '@/core/datetime.ts';
-import {
-    ChartDataAggregationType,
-    StatisticsAnalysisType,
-    CategoricalChartType,
-    ChartDataType,
-    ChartSortingType,
-    ChartDateAggregationType
-} from '@/core/statistics.ts';
+import { PresetAmountColor } from '@/core/color.ts';
+import { StatisticsAnalysisType, ChartDataType, ChartSortingType } from '@/core/statistics.ts';
 
-import { isString, isNumber } from '@/lib/common.ts';
+import type { TransactionCategoricalAnalysisDataItem, TransactionDailyAnalysisDataItem } from '@/models/transaction.ts';
+
 import {
+    limitText,
+    isObjectEmpty
+} from '@/lib/common.ts';
+import {
+    parseDateTimeFromUnixTime,
     getGregorianCalendarYearAndMonthFromUnixTime,
     getYearMonthFirstUnixTime,
     getYearMonthLastUnixTime,
+    getYearMonthDayDateTime,
+    getGregorianCalendarYearMonthDays,
+    getDayDifference,
+    getTodayFirstUnixTime,
     getShiftedDateRangeAndDateType,
     getDateTypeByDateRange,
     getDateRangeByDateType
 } from '@/lib/datetime.ts';
+import { getCategoryDisplayColor, getAccountDisplayColor } from '@/lib/color.ts';
 import { scrollToSelectedItem } from '@/lib/ui/common.ts';
 import { type Framework7Dom, useI18nUIComponents } from '@/lib/ui/mobile.ts';
+import { getFinalAccountIdsByFilteredAccountIds } from '@/lib/account.ts';
+import { getFinalCategoryIdsByFilteredCategoryIds } from '@/lib/category.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -440,237 +310,417 @@ const props = defineProps<{
 
 const {
     tt,
-    getCurrentLanguageTextDirection,
-    getAllCategoricalChartTypes,
+    getAllDateRanges,
+    getAllStatisticsSortingTypes,
+    formatDateTimeToLongDateTime,
+    formatDateTimeToGregorianLikeShortYearMonth,
+    formatDateTimeToGregorianLikeShortYear,
+    formatDateTimeToShortMonthDay,
+    formatDateRange,
+    formatAmountToLocalizedNumeralsWithCurrency,
+    formatAmountToLocalizedNumerals,
+    formatNumberToLocalizedNumerals,
     formatPercentToLocalizedNumerals
 } = useI18n();
 
 const { showPrompt, showToast, routeBackOnError } = useI18nUIComponents();
 
-const {
-    loading,
-    analysisType,
-    trendDateAggregationType,
-    assetTrendsDateAggregationType,
-    defaultCurrency,
-    firstDayOfWeek,
-    fiscalYearStart,
-    allDateRanges,
-    allSortingTypes,
-    allTrendAnalysisDateAggregationTypes,
-    allAssetTrendsDateAggregationTypes,
-    query,
-    queryChartDataCategory,
-    queryDateType,
-    queryStartTime,
-    queryEndTime,
-    queryDateRangeName,
-    queryChartDataTypeName,
-    querySortingTypeName,
-    queryTrendDateAggregationTypeName,
-    queryAssetTrendsDateAggregationTypeName,
-    isQueryDateRangeChanged,
-    canChangeDateRange,
-    canShiftDateRange,
-    canUseCategoryFilter,
-    canUseTagFilter,
-    canUseKeywordFilter,
-    showAmountInChart,
-    totalAmountName,
-    showPercentInCategoricalChart,
-    showStackedInTrendsChart,
-    translateNameInTrendsChart,
-    categoricalAnalysisData,
-    trendsAnalysisData,
-    assetTrendsData,
-    canShowCustomDateRange,
-    getTransactionCategoricalAnalysisDataItemDisplayColor,
-    getDisplayAmount
-} = useStatisticsTransactionPageBase();
-
+const environmentsStore = useEnvironmentsStore();
 const accountsStore = useAccountsStore();
 const transactionCategoriesStore = useTransactionCategoriesStore();
 const statisticsStore = useStatisticsStore();
+const userStore = useUserStore();
 
+const loading = ref<boolean>(true);
 const loadingError = ref<unknown | null>(null);
 const reloading = ref<boolean>(false);
 const showCustomDateRangeSheet = ref<boolean>(false);
-const showCustomMonthRangeSheet = ref<boolean>(false);
 const showMoreActionSheet = ref<boolean>(false);
+const dailyChartMode = ref<'expense' | 'income' | 'all'>('expense');
+const dailyChartType = ref<'bar' | 'line'>('bar');
+const categoryDimension = ref<'expense' | 'income'>('expense');
 
-const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
+const defaultCurrency = computed<string>(() => userStore.currentUserDefaultCurrency);
+const firstDayOfWeek = computed<WeekDayValue>(() => userStore.currentUserFirstDayOfWeek);
+const fiscalYearStart = computed<number>(() => userStore.currentUserFiscalYearStart);
 
-const allChartTypes = computed<TypeAndDisplayName[]>(() => {
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-        return getAllCategoricalChartTypes();
-    } else {
+const query = computed<TransactionStatisticsFilter>(() => statisticsStore.transactionStatisticsFilter);
+
+const allDateRanges = computed<LocalizedDateRange[]>(() => getAllDateRanges(DateRangeScene.Normal, true));
+const allSortingTypes = computed<TypeAndDisplayName[]>(() => getAllStatisticsSortingTypes());
+
+const queryDateType = computed<number | null>(() => query.value.categoricalChartDateType);
+const queryStartTime = computed<string>(() => formatDateTimeToLongDateTime(parseDateTimeFromUnixTime(query.value.categoricalChartStartTime)));
+const queryEndTime = computed<string>(() => formatDateTimeToLongDateTime(parseDateTimeFromUnixTime(query.value.categoricalChartEndTime)));
+
+const canChangeDateRange = computed<boolean>(() => true);
+const canShiftDateRange = computed<boolean>(() => query.value.categoricalChartDateType !== DateRange.All.type);
+
+const isYearLikePeriod = computed<boolean>(() => {
+    return queryDateType.value === DateRange.ThisYear.type || queryDateType.value === DateRange.LastYear.type;
+});
+
+const periodDisplayName = computed<string>(() => {
+    const startTime = query.value.categoricalChartStartTime;
+    const endTime = query.value.categoricalChartEndTime;
+
+    if (!startTime || !endTime) {
+        return tt(DateRange.All.name);
+    }
+
+    const startYearMonth = getGregorianCalendarYearAndMonthFromUnixTime(startTime);
+    const endYearMonth = getGregorianCalendarYearAndMonthFromUnixTime(endTime);
+
+    if (startYearMonth && startYearMonth === endYearMonth) {
+        return formatDateTimeToGregorianLikeShortYearMonth(parseDateTimeFromUnixTime(startTime));
+    }
+
+    const startYear = parseDateTimeFromUnixTime(startTime).getGregorianCalendarYear();
+    const endYear = parseDateTimeFromUnixTime(endTime).getGregorianCalendarYear();
+    const startMonth = parseDateTimeFromUnixTime(startTime).getGregorianCalendarMonth();
+    const endMonth = parseDateTimeFromUnixTime(endTime).getGregorianCalendarMonth();
+
+    if (startYear === endYear && startMonth === 1 && endMonth === 12) {
+        return formatDateTimeToGregorianLikeShortYear(parseDateTimeFromUnixTime(startTime));
+    }
+
+    return formatDateRange(query.value.categoricalChartDateType, startTime, endTime);
+});
+
+const overviewIncomeAmount = computed<number>(() => {
+    return statisticsStore.categoricalOverviewAnalysisData?.totalIncome || 0;
+});
+
+const overviewExpenseAmount = computed<number>(() => {
+    return statisticsStore.categoricalOverviewAnalysisData?.totalExpense || 0;
+});
+
+const overviewBalanceAmount = computed<number>(() => {
+    return overviewIncomeAmount.value - overviewExpenseAmount.value;
+});
+
+function getYearMonthDayOfUnixTime(unixTime: number): YearMonthDay {
+    const dateTime = parseDateTimeFromUnixTime(unixTime);
+
+    return {
+        year: dateTime.getGregorianCalendarYear(),
+        month: dateTime.getGregorianCalendarMonth(),
+        day: dateTime.getGregorianCalendarDay()
+    };
+}
+
+function getDaysInRange(startTime: number, endTime: number): number {
+    if (!startTime || !endTime) {
+        return 0;
+    }
+
+    const days = getDayDifference(getYearMonthDayOfUnixTime(startTime), getYearMonthDayOfUnixTime(endTime)) + 1;
+
+    return days > 0 ? days : 0;
+}
+
+const elapsedDaysInRange = computed<number>(() => {
+    const startTime = query.value.categoricalChartStartTime;
+    const endTime = query.value.categoricalChartEndTime;
+
+    if (!startTime || !endTime) {
+        return 0;
+    }
+
+    const todayFirstUnixTime = getTodayFirstUnixTime();
+    const effectiveEndTime = endTime < todayFirstUnixTime ? endTime : todayFirstUnixTime;
+
+    return getDaysInRange(startTime, effectiveEndTime);
+});
+
+const dailyAverageExpenseAmount = computed<number>(() => {
+    if (elapsedDaysInRange.value <= 0) {
+        return 0;
+    }
+
+    return Math.round(overviewExpenseAmount.value / elapsedDaysInRange.value);
+});
+
+const dailyAnalysisData = computed<TransactionDailyAnalysisDataItem[]>(() => statisticsStore.dailyAnalysisData);
+
+interface DailyReportRow {
+    label: string;
+    incomeAmount: number;
+    expenseAmount: number;
+    balanceAmount: number;
+}
+
+interface DailyChartDataItem {
+    label: string;
+    minTime: number;
+    maxTime: number;
+    expenseAmount: number;
+    incomeAmount: number;
+}
+
+const useDailySlots = computed<boolean>(() => {
+    const startTime = query.value.categoricalChartStartTime;
+    const endTime = query.value.categoricalChartEndTime;
+
+    if (!startTime || !endTime) {
+        return false;
+    }
+
+    const days = getDaysInRange(startTime, endTime);
+
+    return days > 0 && days <= 62;
+});
+
+interface ChartSlotRange {
+    label: string;
+    minTime: number;
+    maxTime: number;
+}
+
+const chartSlotRanges = computed<ChartSlotRange[]>(() => {
+    const startTime = query.value.categoricalChartStartTime;
+    const endTime = query.value.categoricalChartEndTime;
+
+    if (!startTime || !endTime) {
         return [];
     }
+
+    const slots: ChartSlotRange[] = [];
+    const startDateTime = parseDateTimeFromUnixTime(startTime);
+    const endDateTime = parseDateTimeFromUnixTime(endTime);
+    const startYear = startDateTime.getGregorianCalendarYear();
+    const endYear = endDateTime.getGregorianCalendarYear();
+    const startMonth = startDateTime.getGregorianCalendarMonth();
+    const endMonth = endDateTime.getGregorianCalendarMonth();
+
+    let cursorYear = startYear;
+    let cursorMonth = startMonth;
+
+    while (cursorYear < endYear || (cursorYear === endYear && cursorMonth <= endMonth)) {
+        const firstDay = (cursorYear === startYear && cursorMonth === startMonth) ? startDateTime.getGregorianCalendarDay() : 1;
+        const lastDay = (cursorYear === endYear && cursorMonth === endMonth) ? endDateTime.getGregorianCalendarDay() : getGregorianCalendarYearMonthDays({ year: cursorYear, month1base: cursorMonth });
+
+        if (useDailySlots.value) {
+            for (let day = firstDay; day <= lastDay; day++) {
+                const dayUnixTime = getYearMonthDayDateTime(cursorYear, cursorMonth, day).getUnixTime();
+
+                if (dayUnixTime < startTime) {
+                    continue;
+                }
+
+                if (dayUnixTime > endTime) {
+                    break;
+                }
+
+                let label = '';
+
+                if (startYear === endYear && startMonth === endMonth) {
+                    label = formatNumberToLocalizedNumerals(day, 0);
+                } else {
+                    label = formatDateTimeToShortMonthDay(parseDateTimeFromUnixTime(dayUnixTime));
+                }
+
+                slots.push({
+                    label: label,
+                    minTime: dayUnixTime,
+                    maxTime: dayUnixTime + 86399
+                });
+            }
+        } else {
+            const minTime = getYearMonthFirstUnixTime({ year: cursorYear, month1base: cursorMonth });
+            const maxTime = getYearMonthLastUnixTime({ year: cursorYear, month1base: cursorMonth });
+            let label = '';
+
+            if (startYear === endYear) {
+                label = formatNumberToLocalizedNumerals(cursorMonth, 0);
+            } else {
+                label = formatDateTimeToGregorianLikeShortYearMonth(parseDateTimeFromUnixTime(minTime));
+            }
+
+            slots.push({
+                label: label,
+                minTime: minTime,
+                maxTime: maxTime
+            });
+        }
+
+        cursorMonth++;
+
+        if (cursorMonth > 12) {
+            cursorMonth = 1;
+            cursorYear++;
+        }
+    }
+
+    return slots;
 });
 
-const queryChartType = computed<number | undefined>({
-    get: () => {
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-            return query.value.categoricalChartType;
-        } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-            return query.value.trendChartType;
-        } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-            return query.value.assetTrendsChartType;
-        } else {
-            return undefined;
-        }
-    },
-    set: (value: number | undefined) => {
-        setChartType(value);
+const dailyChartItems = computed<DailyChartDataItem[]>(() => {
+    const items: DailyChartDataItem[] = [];
+
+    for (const slot of chartSlotRanges.value) {
+        items.push({
+            label: slot.label,
+            minTime: slot.minTime,
+            maxTime: slot.maxTime,
+            expenseAmount: 0,
+            incomeAmount: 0
+        });
     }
+
+    if (!items.length) {
+        return items;
+    }
+
+    for (const dailyItem of dailyAnalysisData.value) {
+        const dayUnixTime = getYearMonthDayDateTime(dailyItem.year, dailyItem.month, dailyItem.day).getUnixTime();
+
+        for (const item of items) {
+            if (dayUnixTime >= item.minTime && dayUnixTime <= item.maxTime) {
+                item.expenseAmount += dailyItem.expenseAmount;
+                item.incomeAmount += dailyItem.incomeAmount;
+                break;
+            }
+        }
+    }
+
+    return items;
 });
 
-function getTransactionItemLinkUrl(itemId: string, dateRange?: TimeRangeAndDateType): string {
-    return `/transaction/list?${statisticsStore.getTransactionListPageParams(analysisType.value, itemId, dateRange)}`;
-}
+const dailyReportRows = computed<DailyReportRow[]>(() => {
+    const rows: DailyReportRow[] = [];
 
-function init(): void {
-    statisticsStore.initTransactionStatisticsFilter(analysisType.value);
+    for (const slot of chartSlotRanges.value) {
+        let incomeAmount = 0;
+        let expenseAmount = 0;
 
-    Promise.all([
-        accountsStore.loadAllAccounts({ force: false }),
-        transactionCategoriesStore.loadAllCategories({ force: false })
-    ]).then(() => {
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-            return statisticsStore.loadCategoricalAnalysis({
-                force: false
-            }) as Promise<unknown>;
-        } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-            return statisticsStore.loadTrendAnalysis({
-                force: false
-            }) as Promise<unknown>;
-        } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-            return statisticsStore.loadAssetTrends({
-                force: false
-            }) as Promise<unknown>;
-        } else {
-            return Promise.reject('An error occurred');
-        }
-    }).then(() => {
-        loading.value = false;
-    }).catch(error => {
-        if (error.processed) {
-            loading.value = false;
-        } else {
-            loadingError.value = error;
-            showToast(error.message || error);
-        }
-    });
-}
+        for (const dailyItem of dailyAnalysisData.value) {
+            const dayUnixTime = getYearMonthDayDateTime(dailyItem.year, dailyItem.month, dailyItem.day).getUnixTime();
 
-function reload(done?: () => void): void {
-    const force = !!done;
-    let dispatchPromise: Promise<unknown> | null = null;
-
-    reloading.value = true;
-
-    if (query.value.chartDataType === ChartDataType.OutflowsByAccount.type ||
-        query.value.chartDataType === ChartDataType.ExpenseByAccount.type ||
-        query.value.chartDataType === ChartDataType.ExpenseByPrimaryCategory.type ||
-        query.value.chartDataType === ChartDataType.ExpenseBySecondaryCategory.type ||
-        query.value.chartDataType === ChartDataType.InflowsByAccount.type ||
-        query.value.chartDataType === ChartDataType.IncomeByAccount.type ||
-        query.value.chartDataType === ChartDataType.IncomeByPrimaryCategory.type ||
-        query.value.chartDataType === ChartDataType.IncomeBySecondaryCategory.type ||
-        query.value.chartDataType === ChartDataType.TotalOutflows.type ||
-        query.value.chartDataType === ChartDataType.TotalExpense.type ||
-        query.value.chartDataType === ChartDataType.TotalInflows.type ||
-        query.value.chartDataType === ChartDataType.TotalIncome.type ||
-        query.value.chartDataType === ChartDataType.NetCashFlow.type ||
-        query.value.chartDataType === ChartDataType.NetIncome.type ||
-        query.value.chartDataType === ChartDataType.NetWorth.type) {
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-            dispatchPromise = statisticsStore.loadCategoricalAnalysis({
-                force: force
-            });
-        } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-            dispatchPromise = statisticsStore.loadTrendAnalysis({
-                force: force
-            });
-        } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-            dispatchPromise = statisticsStore.loadAssetTrends({
-                force: force
-            });
-        }
-    } else if (query.value.chartDataType === ChartDataType.AccountTotalAssets.type ||
-        query.value.chartDataType === ChartDataType.AccountTotalLiabilities.type) {
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-            dispatchPromise = accountsStore.loadAllAccounts({
-                force: force
-            });
-        } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-            dispatchPromise = statisticsStore.loadAssetTrends({
-                force: force
-            });
-        }
-    }
-
-    if (dispatchPromise) {
-        dispatchPromise.then(() => {
-            reloading.value = false;
-
-            done?.();
-
-            if (force) {
-                showToast('Data has been updated');
+            if (dayUnixTime >= slot.minTime && dayUnixTime <= slot.maxTime) {
+                incomeAmount += dailyItem.incomeAmount;
+                expenseAmount += dailyItem.expenseAmount;
             }
-        }).catch(error => {
-            reloading.value = false;
-
-            done?.();
-
-            if (!error.processed) {
-                showToast(error.message || error);
-            }
-        });
-    } else {
-        reloading.value = false;
-    }
-}
-
-function setChartType(type?: number): void {
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-        statisticsStore.updateTransactionStatisticsFilter({
-            categoricalChartType: type
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-        statisticsStore.updateTransactionStatisticsFilter({
-            trendChartType: type
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-        statisticsStore.updateTransactionStatisticsFilter({
-            assetTrendsChartType: type
-        });
-    }
-}
-
-function setChartDataType(type: number, chartDataType: number): void {
-    let analysisTypeChanged = false;
-
-    if (analysisType.value !== type) {
-        if (!ChartDataType.isAvailableForAnalysisType(query.value.chartDataType, type)) {
-            statisticsStore.updateTransactionStatisticsFilter({
-                chartDataType: ChartDataType.Default.type
-            });
         }
 
-        analysisType.value = type;
-        statisticsStore.updateTransactionStatisticsInvalidState(true);
-        analysisTypeChanged = true;
+        if (incomeAmount === 0 && expenseAmount === 0) {
+            continue;
+        }
+
+        rows.push({
+            label: slot.label,
+            incomeAmount: incomeAmount,
+            expenseAmount: expenseAmount,
+            balanceAmount: incomeAmount - expenseAmount
+        });
     }
 
+    return rows;
+});
+
+const reportTotalIncomeAmount = computed<number>(() => {
+    let total = 0;
+
+    for (const row of dailyReportRows.value) {
+        total += row.incomeAmount;
+    }
+
+    return total;
+});
+
+const reportTotalExpenseAmount = computed<number>(() => {
+    let total = 0;
+
+    for (const row of dailyReportRows.value) {
+        total += row.expenseAmount;
+    }
+
+    return total;
+});
+
+const reportTotalBalanceAmount = computed<number>(() => {
+    return reportTotalIncomeAmount.value - reportTotalExpenseAmount.value;
+});
+
+const categoricalAnalysisData = computed<{ totalAmount: number, items: TransactionCategoricalAnalysisDataItem[] }>(() => statisticsStore.categoricalAnalysisData);
+
+const categoryTotalAmountName = computed<string>(() => {
+    if (categoryDimension.value === 'income') {
+        return tt('Total Income');
+    }
+
+    return tt('Total Expense');
+});
+
+const showPercentInCategoricalChart = computed<boolean>(() => true);
+
+const expenseDisplayColor = computed<string>(() => {
+    const preset = PresetAmountColor.valueOf(userStore.currentUserExpenseAmountColor);
+
+    if (!preset) {
+        return PresetAmountColor.DefaultExpenseColor.lightThemeColor;
+    }
+
+    return environmentsStore.framework7DarkMode ? preset.darkThemeColor : preset.lightThemeColor;
+});
+
+const incomeDisplayColor = computed<string>(() => {
+    const preset = PresetAmountColor.valueOf(userStore.currentUserIncomeAmountColor);
+
+    if (!preset) {
+        return PresetAmountColor.DefaultIncomeColor.lightThemeColor;
+    }
+
+    return environmentsStore.framework7DarkMode ? preset.darkThemeColor : preset.lightThemeColor;
+});
+
+function getDisplayAmount(amount: number, currency?: string, textLimit?: number): string {
+    const finalAmount = formatAmountToLocalizedNumeralsWithCurrency(Math.round(amount), currency || defaultCurrency.value);
+
+    if (textLimit) {
+        return limitText(finalAmount, textLimit);
+    }
+
+    return finalAmount;
+}
+
+function formatDisplayAmount(amount: number): string {
+    return formatAmountToLocalizedNumerals(Math.round(amount));
+}
+
+function getCategoryItemDisplayColor(item: TransactionCategoricalAnalysisDataItem): string {
+    if (item.type === 'account') {
+        return getAccountDisplayColor(item.color);
+    }
+
+    return getCategoryDisplayColor(item.color);
+}
+
+function canShowCustomDateRange(dateRangeType: number): boolean {
+    return query.value.categoricalChartDateType === dateRangeType && !!query.value.categoricalChartStartTime && !!query.value.categoricalChartEndTime;
+}
+
+function setPeriodMode(yearMode: boolean): void {
+    if (yearMode === isYearLikePeriod.value) {
+        return;
+    }
+
+    setDateFilter(yearMode ? DateRange.ThisYear.type : DateRange.ThisMonth.type);
+}
+
+function setCategoryDimension(dimension: 'expense' | 'income'): void {
+    if (categoryDimension.value === dimension) {
+        return;
+    }
+
+    categoryDimension.value = dimension;
     statisticsStore.updateTransactionStatisticsFilter({
-        chartDataType: chartDataType
+        chartDataType: dimension === 'income' ? ChartDataType.IncomeByPrimaryCategory.type : ChartDataType.ExpenseByPrimaryCategory.type
     });
+}
 
-    if (analysisTypeChanged) {
-        reload();
-    }
+function toggleDailyChartType(): void {
+    dailyChartType.value = dailyChartType.value === 'bar' ? 'line' : 'bar';
 }
 
 function setSortingType(type: number): void {
@@ -683,36 +733,12 @@ function setSortingType(type: number): void {
     });
 }
 
-function setTrendDateAggregationType(type: number): void {
-    trendDateAggregationType.value = type;
-}
-
-function setAssetTrendsDateAggregationType(type: number): void {
-    assetTrendsDateAggregationType.value = type;
-}
-
 function setDateFilter(dateType: number): void {
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-        if (dateType === DateRange.Custom.type) { // Custom
-            showCustomDateRangeSheet.value = true;
-            return;
-        } else if (query.value.categoricalChartDateType === dateType) {
-            return;
-        }
-    } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-        if (dateType === DateRange.Custom.type) { // Custom
-            showCustomMonthRangeSheet.value = true;
-            return;
-        } else if (query.value.trendChartDateType === dateType) {
-            return;
-        }
-    } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-        if (dateType === DateRange.Custom.type) { // Custom
-            showCustomDateRangeSheet.value = true;
-            return;
-        } else if (query.value.assetTrendsChartDateType === dateType) {
-            return;
-        }
+    if (dateType === DateRange.Custom.type) {
+        showCustomDateRangeSheet.value = true;
+        return;
+    } else if (query.value.categoricalChartDateType === dateType) {
+        return;
     }
 
     const dateRange = getDateRangeByDateType(dateType, firstDayOfWeek.value, fiscalYearStart.value);
@@ -721,71 +747,31 @@ function setDateFilter(dateType: number): void {
         return;
     }
 
-    let changed = false;
-
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            categoricalChartDateType: dateRange.dateType,
-            categoricalChartStartTime: dateRange.minTime,
-            categoricalChartEndTime: dateRange.maxTime
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            trendChartDateType: dateRange.dateType,
-            trendChartStartYearMonth: getGregorianCalendarYearAndMonthFromUnixTime(dateRange.minTime),
-            trendChartEndYearMonth: getGregorianCalendarYearAndMonthFromUnixTime(dateRange.maxTime)
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            assetTrendsChartDateType: dateRange.dateType,
-            assetTrendsChartStartTime: dateRange.minTime,
-            assetTrendsChartEndTime: dateRange.maxTime
-        });
-    }
+    const changed = statisticsStore.updateTransactionStatisticsFilter({
+        categoricalChartDateType: dateRange.dateType,
+        categoricalChartStartTime: dateRange.minTime,
+        categoricalChartEndTime: dateRange.maxTime
+    });
 
     if (changed) {
         reload();
     }
 }
 
-function setCustomDateFilter(startTime: number | TextualYearMonth, endTime: number | TextualYearMonth): void {
+function setCustomDateFilter(startTime: number, endTime: number): void {
     if (!startTime || !endTime) {
         return;
     }
 
-    let changed = false;
+    const chartDateType = getDateTypeByDateRange(startTime, endTime, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
 
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis && isNumber(startTime) && isNumber(endTime)) {
-        const chartDateType = getDateTypeByDateRange(startTime, endTime, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
+    const changed = statisticsStore.updateTransactionStatisticsFilter({
+        categoricalChartDateType: chartDateType,
+        categoricalChartStartTime: startTime,
+        categoricalChartEndTime: endTime
+    });
 
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            categoricalChartDateType: chartDateType,
-            categoricalChartStartTime: startTime,
-            categoricalChartEndTime: endTime
-        });
-
-        showCustomDateRangeSheet.value = false;
-    } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis && isString(startTime) && isString(endTime)) {
-        const chartDateType = getDateTypeByDateRange(getYearMonthFirstUnixTime(startTime), getYearMonthLastUnixTime(endTime), firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.TrendAnalysis);
-
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            trendChartDateType: chartDateType,
-            trendChartStartYearMonth: startTime,
-            trendChartEndYearMonth: endTime
-        });
-
-        showCustomMonthRangeSheet.value = false;
-    } else if (analysisType.value === StatisticsAnalysisType.AssetTrends && isNumber(startTime) && isNumber(endTime)) {
-        const chartDateType = getDateTypeByDateRange(startTime, endTime, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.AssetTrends);
-
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            assetTrendsChartDateType: chartDateType,
-            assetTrendsChartStartTime: startTime,
-            assetTrendsChartEndTime: endTime
-        });
-
-        showCustomDateRangeSheet.value = false;
-    }
+    showCustomDateRangeSheet.value = false;
 
     if (changed) {
         reload();
@@ -793,41 +779,17 @@ function setCustomDateFilter(startTime: number | TextualYearMonth, endTime: numb
 }
 
 function shiftDateRange(scale: number): void {
-    let changed = false;
-
-    if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-        if (query.value.categoricalChartDateType === DateRange.All.type) {
-            return;
-        }
-
-        const newDateRange = getShiftedDateRangeAndDateType(query.value.categoricalChartStartTime, query.value.categoricalChartEndTime, scale, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
-
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            categoricalChartDateType: newDateRange.dateType,
-            categoricalChartStartTime: newDateRange.minTime,
-            categoricalChartEndTime: newDateRange.maxTime
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-        const newDateRange = getShiftedDateRangeAndDateType(getYearMonthFirstUnixTime(query.value.trendChartStartYearMonth), getYearMonthLastUnixTime(query.value.trendChartEndYearMonth), scale, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.TrendAnalysis);
-
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            trendChartDateType: newDateRange.dateType,
-            trendChartStartYearMonth: getGregorianCalendarYearAndMonthFromUnixTime(newDateRange.minTime),
-            trendChartEndYearMonth: getGregorianCalendarYearAndMonthFromUnixTime(newDateRange.maxTime)
-        });
-    } else if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-        if (query.value.assetTrendsChartDateType === DateRange.All.type) {
-            return;
-        }
-
-        const newDateRange = getShiftedDateRangeAndDateType(query.value.assetTrendsChartStartTime, query.value.assetTrendsChartEndTime, scale, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.AssetTrends);
-
-        changed = statisticsStore.updateTransactionStatisticsFilter({
-            assetTrendsChartDateType: newDateRange.dateType,
-            assetTrendsChartStartTime: newDateRange.minTime,
-            assetTrendsChartEndTime: newDateRange.maxTime
-        });
+    if (query.value.categoricalChartDateType === DateRange.All.type) {
+        return;
     }
+
+    const newDateRange = getShiftedDateRangeAndDateType(query.value.categoricalChartStartTime, query.value.categoricalChartEndTime, scale, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
+
+    const changed = statisticsStore.updateTransactionStatisticsFilter({
+        categoricalChartDateType: newDateRange.dateType,
+        categoricalChartStartTime: newDateRange.minTime,
+        categoricalChartEndTime: newDateRange.maxTime
+    });
 
     if (changed) {
         reload();
@@ -847,26 +809,14 @@ function filterTags(): void {
 }
 
 function filterDescription(): void {
-    if (analysisType.value === StatisticsAnalysisType.AssetTrends) {
-        return;
-    }
-
     showPrompt('Filter transaction description', query.value.keyword, value => {
         if (query.value.keyword === value) {
             return;
         }
 
-        let changed = false;
-
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
-            changed = statisticsStore.updateTransactionStatisticsFilter({
-                keyword: value
-            });
-        } else if (analysisType.value === StatisticsAnalysisType.TrendAnalysis) {
-            changed = statisticsStore.updateTransactionStatisticsFilter({
-                keyword: value
-            });
-        }
+        const changed = statisticsStore.updateTransactionStatisticsFilter({
+            keyword: value
+        });
 
         if (changed) {
             reload();
@@ -882,12 +832,150 @@ function scrollPopoverToSelectedItem(event: { $el: Framework7Dom }): void {
     scrollToSelectedItem(event.$el[0], '.popover-inner', '.popover-inner', 'li.list-item-selected');
 }
 
-function onClickPieChartItem(item: Record<string, unknown>): void {
-    props.f7router.navigate(getTransactionItemLinkUrl(item['id'] as string));
+function getCategoryItemLinkUrl(itemId: string): string {
+    return '/transaction/list?' + statisticsStore.getTransactionListPageParams(StatisticsAnalysisType.CategoricalAnalysis, itemId);
 }
 
-function onClickTrendChartItem(item: { itemId: string, dateRange: TimeRangeAndDateType }): void {
-    props.f7router.navigate(getTransactionItemLinkUrl(item.itemId, item.dateRange));
+function getDailyChartItemLinkUrl(minTime: number, maxTime: number): string {
+    const querys: string[] = [];
+
+    if (dailyChartMode.value === 'income') {
+        querys.push('type=2');
+    } else if (dailyChartMode.value === 'expense') {
+        querys.push('type=3');
+    }
+
+    if (!isObjectEmpty(query.value.filterAccountIds)) {
+        querys.push('accountIds=' + getFinalAccountIdsByFilteredAccountIds(accountsStore.allAccountsMap, query.value.filterAccountIds));
+    }
+
+    if (!isObjectEmpty(query.value.filterCategoryIds)) {
+        querys.push('categoryIds=' + getFinalCategoryIdsByFilteredCategoryIds(transactionCategoriesStore.allTransactionCategoriesMap, query.value.filterCategoryIds));
+    }
+
+    if (query.value.tagFilter) {
+        querys.push('tagFilter=' + query.value.tagFilter);
+    }
+
+    if (query.value.keyword) {
+        querys.push('keyword=' + encodeURIComponent(query.value.keyword));
+    }
+
+    const dateType = getDateTypeByDateRange(minTime, maxTime, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
+    querys.push('dateType=' + dateType);
+
+    if (dateType === DateRange.Custom.type) {
+        querys.push('minTime=' + minTime);
+        querys.push('maxTime=' + maxTime);
+    }
+
+    return '/transaction/list?' + querys.join('&');
+}
+
+function viewTransactionDetails(): void {
+    const querys: string[] = [];
+
+    if (!isObjectEmpty(query.value.filterAccountIds)) {
+        querys.push('accountIds=' + getFinalAccountIdsByFilteredAccountIds(accountsStore.allAccountsMap, query.value.filterAccountIds));
+    }
+
+    if (!isObjectEmpty(query.value.filterCategoryIds)) {
+        querys.push('categoryIds=' + getFinalCategoryIdsByFilteredCategoryIds(transactionCategoriesStore.allTransactionCategoriesMap, query.value.filterCategoryIds));
+    }
+
+    if (query.value.tagFilter) {
+        querys.push('tagFilter=' + query.value.tagFilter);
+    }
+
+    if (query.value.keyword) {
+        querys.push('keyword=' + encodeURIComponent(query.value.keyword));
+    }
+
+    querys.push('dateType=' + query.value.categoricalChartDateType);
+
+    if (query.value.categoricalChartDateType === DateRange.Custom.type) {
+        querys.push('minTime=' + query.value.categoricalChartStartTime);
+        querys.push('maxTime=' + query.value.categoricalChartEndTime);
+    }
+
+    props.f7router.navigate('/transaction/list?' + querys.join('&'));
+}
+
+function onClickPieChartItem(item: Record<string, unknown>): void {
+    props.f7router.navigate(getCategoryItemLinkUrl(item['id'] as string));
+}
+
+function onClickCategoryItem(item: TransactionCategoricalAnalysisDataItem): void {
+    props.f7router.navigate(getCategoryItemLinkUrl(item.id));
+}
+
+function onClickDailyChartItem(value: { minTime: number, maxTime: number }): void {
+    props.f7router.navigate(getDailyChartItemLinkUrl(value.minTime, value.maxTime));
+}
+
+function loadStatisticsData({ force }: { force: boolean }): Promise<unknown> {
+    const promises: Promise<unknown>[] = [];
+
+    if (query.value.categoricalChartDateType === DateRange.All.type) {
+        statisticsStore.resetDailyAnalysisData();
+    } else {
+        promises.push(statisticsStore.loadDailyAnalysis({
+            force: force,
+            startTime: query.value.categoricalChartStartTime,
+            endTime: query.value.categoricalChartEndTime
+        }));
+    }
+
+    promises.push(statisticsStore.loadCategoricalAnalysis({
+        force: force
+    }));
+
+    return Promise.all(promises);
+}
+
+function init(): void {
+    statisticsStore.initTransactionStatisticsFilter(StatisticsAnalysisType.CategoricalAnalysis);
+    statisticsStore.updateTransactionStatisticsFilter({
+        chartDataType: categoryDimension.value === 'income' ? ChartDataType.IncomeByPrimaryCategory.type : ChartDataType.ExpenseByPrimaryCategory.type
+    });
+
+    Promise.all([
+        accountsStore.loadAllAccounts({ force: false }),
+        transactionCategoriesStore.loadAllCategories({ force: false })
+    ]).then(() => {
+        return loadStatisticsData({ force: false });
+    }).then(() => {
+        loading.value = false;
+    }).catch(error => {
+        if (error.processed) {
+            loading.value = false;
+        } else {
+            loadingError.value = error;
+            showToast(error.message || error);
+        }
+    });
+}
+
+function reload(done?: () => void): void {
+    const force = !!done;
+
+    reloading.value = true;
+
+    loadStatisticsData({ force: force }).then(() => {
+        reloading.value = false;
+        done?.();
+
+        if (force) {
+            showToast('Data has been updated');
+        }
+    }).catch(error => {
+        reloading.value = false;
+        done?.();
+
+        if (!error.processed) {
+            showToast(error.message || error);
+        }
+    });
 }
 
 function onPageAfterIn(): void {
@@ -902,32 +990,204 @@ init();
 </script>
 
 <style>
-.statistics-page-title {
-    overflow: hidden;
-    text-overflow: ellipsis;
+.statistics-period-subnavbar .subnavbar-inner {
+    justify-content: center;
+}
+
+.statistics-period-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 4px 12px;
+}
+
+.statistics-period-row .statistics-period-shift-button {
+    color: var(--f7-text-color);
+    opacity: 0.7;
+    --f7-icon-font-size: 20px;
+}
+
+.statistics-period-row .statistics-period-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 16px;
+    font-size: 17px;
+    font-weight: 600;
     color: var(--f7-text-color);
 }
 
-.statistics-page f7-card,
-.statistics-page .card {
-    border-radius: 16px;
+.statistics-period-row .statistics-period-label .f7-icons {
+    font-size: 17px;
+    opacity: 0.8;
 }
 
-.statistics-list-item .item-after {
+.period-mode-segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 15px;
+    background: rgba(128, 128, 128, 0.14);
+}
+
+.period-mode-segmented span {
+    padding: 3px 18px;
+    border-radius: 13px;
+    font-size: 14px;
     font-weight: 500;
+    line-height: 20px;
+    color: var(--f7-text-color);
+    opacity: 0.72;
+    cursor: pointer;
+}
+
+.period-mode-segmented span.active {
+    background: var(--f7-card-bg-color);
+    opacity: 1;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.statistics-page .card {
+    border-radius: var(--ebk-card-border-radius);
+    box-shadow: var(--ebk-card-shadow);
+}
+
+.dark .statistics-page .card {
+    box-shadow: var(--ebk-card-shadow-dark);
+}
+
+.statistics-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--f7-text-color);
+    padding: 16px 16px 0;
+}
+
+.statistics-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 16px 0;
+}
+
+.statistics-card-title-row .statistics-card-title {
+    padding: 0;
+}
+
+.statistics-card-title-row .statistics-chart-type-toggle {
+    color: var(--f7-text-color);
+    opacity: 0.55;
+    --f7-icon-font-size: 20px;
+}
+
+.statistics-overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 12px;
+    padding: 16px;
+}
+
+.statistics-overview-item {
+    text-align: center;
+}
+
+.statistics-overview-label {
+    font-size: 13px;
+    color: var(--ebk-secondary-text-color);
+    margin-bottom: 4px;
+}
+
+.statistics-overview-value {
+    font-size: 20px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
+    color: var(--f7-text-color);
 }
 
-.statistics-list-item-overview-amount {
-    font-variant-numeric: tabular-nums;
+.statistics-daily-chart-container {
+    margin-top: 4px;
 }
 
-.card-header.no-border:after {
-    display: none;
+.statistics-chart-mode-segmented {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    margin: 4px auto 14px;
+    padding: 2px;
+    border-radius: 15px;
+    background: rgba(128, 128, 128, 0.14);
 }
 
-.statistics-chart-header {
-    font-size: var(--f7-list-item-header-font-size);
+.statistics-chart-mode-segmented span {
+    padding: 3px 18px;
+    border-radius: 13px;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--f7-text-color);
+    opacity: 0.72;
+    cursor: pointer;
+}
+
+.statistics-chart-mode-segmented span.active {
+    background: var(--f7-card-bg-color);
+    opacity: 1;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.dark .period-mode-segmented span.active,
+.dark .statistics-chart-mode-segmented span.active {
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+}
+
+.statistics-category-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.statistics-category-dimension-segmented {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 12px;
+    background: rgba(128, 128, 128, 0.14);
+}
+
+.statistics-category-dimension-segmented span {
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--f7-text-color);
+    opacity: 0.72;
+    cursor: pointer;
+}
+
+.statistics-category-dimension-segmented span.active {
+    background: var(--f7-card-bg-color);
+    opacity: 1;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.dark .statistics-category-dimension-segmented span.active {
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+}
+
+.statistics-category-header-controls > .f7-link {
+    color: var(--f7-text-color);
+    opacity: 0.55;
+    --f7-icon-font-size: 17px;
+}
+
+.statistics-pie-chart-container {
+    margin-top: 4px;
 }
 
 .statistics-pie-chart .pie-chart-text-group {
@@ -956,8 +1216,128 @@ init();
     transform: translateY(1.5em);
 }
 
-.chart-data-type-popover-menu .popover-inner {
-    max-height: 440px;
-    overflow-y: auto;
+.statistics-category-ranking-list {
+    padding: 8px 16px 16px;
+}
+
+.statistics-category-ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+.statistics-category-ranking-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    margin-inline-end: 10px;
+    --f7-icon-font-size: 22px;
+}
+
+.statistics-category-ranking-main {
+    flex: 1;
+    min-width: 0;
+    margin-inline-end: 10px;
+}
+
+.statistics-category-ranking-first-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.statistics-category-ranking-name {
+    font-size: 14px;
+    color: var(--f7-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.statistics-category-ranking-percent {
+    font-size: 12px;
+    color: var(--ebk-secondary-text-color);
+    flex-shrink: 0;
+}
+
+.statistics-category-ranking-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(128, 128, 128, 0.15);
+    overflow: hidden;
+}
+
+.statistics-category-ranking-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+}
+
+.statistics-category-ranking-amount {
+    font-size: 14px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--f7-text-color);
+    white-space: nowrap;
+}
+
+.statistics-daily-report-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--f7-text-color);
+    text-align: center;
+    padding: 16px 16px 4px;
+}
+
+.statistics-daily-report-table {
+    padding: 4px 16px 16px;
+}
+
+.statistics-daily-report-row {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr 1fr 1.2fr;
+    align-items: center;
+    padding: 9px 0;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--f7-text-color);
+}
+
+.statistics-daily-report-row > span:nth-child(2),
+.statistics-daily-report-row > span:nth-child(3) {
+    text-align: end;
+}
+
+.statistics-daily-report-row > span:nth-child(4) {
+    text-align: end;
+}
+
+.statistics-daily-report-header {
+    color: var(--ebk-secondary-text-color);
+    font-size: 12px;
+}
+
+.statistics-daily-report-average {
+    color: var(--ebk-secondary-text-color);
+}
+
+.statistics-daily-report-empty {
+    padding: 8px 16px 20px;
+    text-align: center;
+    color: var(--f7-text-color);
+    opacity: 0.65;
+}
+
+.statistics-view-details-link {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0 24px;
+}
+
+.statistics-view-details-link .f7-link {
+    color: rgb(var(--ebk-primary-color));
+    font-size: 14px;
 }
 </style>

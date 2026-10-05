@@ -31,6 +31,7 @@ import { DEFAULT_ACCOUNT_COLOR, DEFAULT_CATEGORY_COLOR } from '@/consts/color.ts
 import {
     type TransactionStatisticResponse,
     type TransactionStatisticResponseItem,
+    type TransactionStatisticDailyResponseItem,
     type TransactionStatisticTrendsResponseItem,
     type TransactionStatisticAssetTrendsResponseItem,
     type TransactionStatisticAssetTrendsResponseDataItem,
@@ -44,6 +45,7 @@ import {
     type TransactionCategoricalOverviewAnalysisDataItem,
     type TransactionCategoricalAnalysisData,
     type TransactionCategoricalAnalysisDataItem,
+    type TransactionDailyAnalysisDataItem,
     type TransactionTrendsAnalysisData,
     type TransactionTrendsAnalysisDataItem,
     type TransactionTrendsAnalysisDataAmount,
@@ -189,6 +191,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
     });
 
     const transactionCategoryStatisticsData = ref<TransactionStatisticResponse | null>(null);
+    const transactionDailyStatisticsData = ref<TransactionStatisticDailyResponseItem[]>([]);
     const transactionCategoryTrendsData = ref<TransactionStatisticTrendsResponseItem[]>([]);
     const transactionAssetTrendsData = ref<TransactionStatisticAssetTrendsResponseItem[]>([]);
     const transactionStatisticsStateInvalid = ref<boolean>(true);
@@ -513,6 +516,58 @@ export const useStatisticsStore = defineStore('statistics', () => {
             totalExpense: totalExpense,
             items: allDataItems
         };
+    });
+
+    const dailyAnalysisData = computed<TransactionDailyAnalysisDataItem[]>(() => {
+        const dailyStatisticsData = transactionDailyStatisticsData.value;
+        const finalItems: TransactionDailyAnalysisDataItem[] = [];
+
+        if (!dailyStatisticsData || !dailyStatisticsData.length) {
+            return finalItems;
+        }
+
+        for (const dailyStatisticItem of dailyStatisticsData) {
+            let incomeAmount: number = 0;
+            let expenseAmount: number = 0;
+
+            for (const item of assembleAccountAndCategoryInfo(dailyStatisticItem.items)) {
+                if (!item.primaryAccount || !item.account || !item.primaryCategory || !item.category) {
+                    continue;
+                }
+
+                if (item.category.type === CategoryType.Transfer) {
+                    continue;
+                }
+
+                if (!isNumber(item.amountInDefaultCurrency)) {
+                    continue;
+                }
+
+                if (transactionStatisticsFilter.value.filterAccountIds && transactionStatisticsFilter.value.filterAccountIds[item.account.id]) {
+                    continue;
+                }
+
+                if (transactionStatisticsFilter.value.filterCategoryIds && transactionStatisticsFilter.value.filterCategoryIds[item.category.id]) {
+                    continue;
+                }
+
+                if (item.category.type === CategoryType.Income) {
+                    incomeAmount += item.amountInDefaultCurrency;
+                } else if (item.category.type === CategoryType.Expense) {
+                    expenseAmount += item.amountInDefaultCurrency;
+                }
+            }
+
+            finalItems.push({
+                year: dailyStatisticItem.year,
+                month: dailyStatisticItem.month,
+                day: dailyStatisticItem.day,
+                incomeAmount: incomeAmount,
+                expenseAmount: expenseAmount
+            });
+        }
+
+        return finalItems;
     });
 
     const accountTotalAmountAnalysisData = computed<WritableTransactionCategoricalAnalysisData | null>(() => {
@@ -1333,6 +1388,7 @@ export const useStatisticsStore = defineStore('statistics', () => {
         transactionStatisticsFilter.value.tagFilter = '';
         transactionStatisticsFilter.value.keyword = '';
         transactionCategoryStatisticsData.value = null;
+        transactionDailyStatisticsData.value = [];
         transactionCategoryTrendsData.value = [];
         transactionStatisticsStateInvalid.value = true;
     }
@@ -1855,6 +1911,48 @@ export const useStatisticsStore = defineStore('statistics', () => {
         });
     }
 
+    function loadDailyAnalysis({ force, startTime, endTime }: { force: boolean, startTime: number, endTime: number }): Promise<TransactionStatisticDailyResponseItem[]> {
+        return new Promise((resolve, reject) => {
+            services.getTransactionStatisticsDaily({
+                startTime: startTime,
+                endTime: endTime,
+                tagFilter: transactionStatisticsFilter.value.tagFilter,
+                keyword: transactionStatisticsFilter.value.keyword,
+                useTransactionTimezone: settingsStore.appSettings.statistics.defaultTimezoneType === TimezoneTypeForStatistics.TransactionTimezone.type
+            }).then(response => {
+                const data = response.data;
+
+                if (!data || !data.success || !data.result) {
+                    reject({ message: 'Unable to retrieve transaction statistics' });
+                    return;
+                }
+
+                if (force && data.result && isEquals(transactionDailyStatisticsData.value, data.result)) {
+                    reject({ message: 'Data is up to date', isUpToDate: true });
+                    return;
+                }
+
+                transactionDailyStatisticsData.value = data.result;
+
+                resolve(data.result);
+            }).catch(error => {
+                logger.error('failed to retrieve transaction daily statistics', error);
+
+                if (error.response && error.response.data && error.response.data.errorMessage) {
+                    reject({ error: error.response.data });
+                } else if (!error.processed) {
+                    reject({ message: 'Unable to retrieve transaction statistics' });
+                } else {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    function resetDailyAnalysisData(): void {
+        transactionDailyStatisticsData.value = [];
+    }
+
     function loadTrendAnalysis({ force }: { force: boolean }): Promise<TransactionStatisticTrendsResponseItem[]> {
         return new Promise((resolve, reject) => {
             services.getTransactionStatisticsTrends({
@@ -1940,12 +2038,14 @@ export const useStatisticsStore = defineStore('statistics', () => {
         // states
         transactionStatisticsFilter,
         transactionCategoryStatisticsData,
+        transactionDailyStatisticsData,
         transactionCategoryTrendsData,
         transactionStatisticsStateInvalid,
         // computed states
         categoricalAnalysisChartDataCategory,
         categoricalOverviewAnalysisData,
         categoricalAnalysisData,
+        dailyAnalysisData,
         trendsAnalysisData,
         assetTrendsData,
         // functions
@@ -1956,6 +2056,8 @@ export const useStatisticsStore = defineStore('statistics', () => {
         getTransactionStatisticsPageParams,
         getTransactionListPageParams,
         loadCategoricalAnalysis,
+        loadDailyAnalysis,
+        resetDailyAnalysisData,
         loadTrendAnalysis,
         loadAssetTrends
     };

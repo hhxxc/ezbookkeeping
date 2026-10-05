@@ -78,6 +78,7 @@ import type {
     TransactionReconciliationStatementResponse,
     TransactionStatisticRequest,
     TransactionStatisticResponse,
+    TransactionStatisticDailyResponseItem,
     TransactionStatisticTrendsRequest,
     TransactionStatisticTrendsResponseItem,
     TransactionStatisticAssetTrendsRequest,
@@ -568,6 +569,27 @@ export default {
         }
 
         return axios.get<ApiResponse<TransactionStatisticResponse>>(`v1/transactions/statistics.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
+    },
+    getTransactionStatisticsDaily: (req: TransactionStatisticRequest): ApiResponsePromise<TransactionStatisticDailyResponseItem[]> => {
+        const queryParams: string[] = [];
+
+        if (req.startTime) {
+            queryParams.push(`start_time=${req.startTime}`);
+        }
+
+        if (req.endTime) {
+            queryParams.push(`end_time=${req.endTime}`);
+        }
+
+        if (req.tagFilter) {
+            queryParams.push(`tag_filter=${encodeURIComponent(req.tagFilter)}`);
+        }
+
+        if (req.keyword) {
+            queryParams.push(`keyword=${encodeURIComponent(req.keyword)}`);
+        }
+
+        return axios.get<ApiResponse<TransactionStatisticDailyResponseItem[]>>(`v1/transactions/statistics/daily.json?use_transaction_timezone=${req.useTransactionTimezone}` + (queryParams.length ? '&' + queryParams.join('&') : ''));
     },
     getTransactionStatisticsTrends: (req: TransactionStatisticTrendsRequest): ApiResponsePromise<TransactionStatisticTrendsResponseItem[]> => {
         const queryParams: string[] = [];
