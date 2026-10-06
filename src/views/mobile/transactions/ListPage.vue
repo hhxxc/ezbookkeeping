@@ -598,7 +598,7 @@
             </f7-actions-group>
         </f7-actions>
 
-        <input ref="aiImageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="onAIImagePicked($event)" />
+        <input ref="aiImageInput" type="file" style="display: none" multiple :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="onAIImagePicked($event)" />
 
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
@@ -660,7 +660,7 @@ import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts'
 import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
-import { isNativePhotoLibraryPickerAvailable, pickImageFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
+import { isNativePhotoLibraryPickerAvailable, pickImagesFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 
 import {
     isDefined,
@@ -778,15 +778,15 @@ const aiImageInput = useTemplateRef<HTMLInputElement>('aiImageInput');
 async function pickAIImage(): Promise<void> {
     if (isNativePhotoLibraryPickerAvailable()) {
         try {
-            const image = await pickImageFromPhotoLibrary();
+            const images = await pickImagesFromPhotoLibrary();
 
-            if (!image) {
+            if (!images) {
                 return;
             }
 
             // 先加载图片再打开 Sheet（压缩是异步的，会在 Sheet 打开重置状态后完成），
             // 选中即识别，跳过 Sheet 内"点击选图"这一步
-            aiImageRecognitionSheet.value?.loadImage(image);
+            aiImageRecognitionSheet.value?.loadImages(images);
             showAIReceiptImageRecognitionSheet.value = true;
         } catch (error) {
             showToast(error instanceof Error && error.message ? error.message : 'Unable to open photo library');
@@ -801,17 +801,17 @@ async function pickAIImage(): Promise<void> {
 function onAIImagePicked(event: Event): void {
     const el = event.target as HTMLInputElement;
 
-    if (!el.files || !el.files.length || !el.files[0]) {
+    if (!el.files || !el.files.length) {
         return;
     }
 
-    const image = el.files[0] as File;
+    const images = Array.from(el.files) as File[];
 
     el.value = '';
 
     // 先加载图片再打开 Sheet（压缩是异步的，会在 Sheet 打开重置状态后完成），
     // 选中即识别，跳过 Sheet 内"点击选图"这一步
-    aiImageRecognitionSheet.value?.loadImage(image);
+    aiImageRecognitionSheet.value?.loadImages(images);
     showAIReceiptImageRecognitionSheet.value = true;
 }
 

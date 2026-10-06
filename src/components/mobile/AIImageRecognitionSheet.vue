@@ -12,7 +12,7 @@
                            :class="{ 'disabled': loading || recognizing || selectedResults.length === 0 }"
                            @click="confirmSelection">{{ tt('Add Selected') }} ({{ selectedResults.length }})</f7-button>
                 <f7-button v-else round fill icon-f7="checkmark_alt"
-                           :class="{ 'disabled': loading || recognizing || !imageFile }"
+                           :class="{ 'disabled': loading || recognizing || imageFiles.length === 0 }"
                            @click="confirm"></f7-button>
             </div>
         </f7-toolbar>
@@ -36,7 +36,7 @@
                     <f7-preloader size="32"></f7-preloader>
                     <span class="placeholder-title margin-top-half">{{ tt('Loading image...') }}</span>
                 </div>
-                <input ref="imageInput" type="file" class="file-input-overlay" :accept="SUPPORTED_IMAGE_MIME_TYPES" :disabled="loading || recognizing" @change="openImage($event)" />
+                <input ref="imageInput" type="file" class="file-input-overlay" multiple :accept="SUPPORTED_IMAGE_MIME_TYPES" :disabled="loading || recognizing" @change="openImage($event)" />
             </div>
 
             <!-- Recognized transactions list -->
@@ -92,7 +92,7 @@ import type { RecognizedReceiptImageResponse, RecognizedReceiptImageResponses } 
 
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
-import { isNativePhotoLibraryPickerAvailable, pickImageFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
+import { isNativePhotoLibraryPickerAvailable, pickImagesFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 import { findPotentialDuplicateTransactions, buildDuplicateConfirmMessage } from '@/lib/ai_recognition.ts';
 import logger from '@/lib/logger.ts';
 
@@ -118,8 +118,8 @@ const imageInput = useTemplateRef<HTMLInputElement>('imageInput');
 
 const loading = ref<boolean>(false);
 const recognizing = ref<boolean>(false);
-const cancelRecognizingUuid = ref<string | undefined>(undefined);
-const imageFile = ref<File | null>(null);
+const cancelRecognizingUuids = ref<string[]>([]);
+const imageFiles = ref<File[]>([]);
 const imageSrc = ref<string | undefined>(undefined);
 
 // Multi-result state
@@ -137,20 +137,35 @@ const selectedResults = computed(() => {
 });
 
 function loadImage(image: Blob): void {
+    loadImages([image]);
+}
+
+function loadImages(images: Blob[]): void {
+    if (!images || !images.length) {
+        return;
+    }
+
     loading.value = true;
-    imageFile.value = null;
+    imageFiles.value = [];
     imageSrc.value = undefined;
     recognizedResults.value = [];
     selectedFlags.value = [];
 
-    compressJpgImage(image, 1280, 1280, 0.8).then(blob => {
-        imageFile.value = KnownFileType.JPG.createFileFromBlob(blob, "image");
-        imageSrc.value = URL.createObjectURL(blob);
+    Promise.all(images.map(image => compressJpgImage(image, 1280, 1280, 0.8))).then(blobs => {
+        const preview = blobs[0];
+
+        if (!preview) {
+            loading.value = false;
+            return;
+        }
+
+        imageFiles.value = blobs.map(blob => KnownFileType.JPG.createFileFromBlob(blob, "image"));
+        imageSrc.value = URL.createObjectURL(preview);
         loading.value = false;
         // Auto-recognize after compression completes
         confirm();
     }).catch(error => {
-        imageFile.value = null;
+        imageFiles.value = [];
         imageSrc.value = undefined;
         loading.value = false;
         logger.error('failed to compress image', error);
@@ -165,23 +180,23 @@ function openImage(event: Event): void {
 
     const el = event.target as HTMLInputElement;
 
-    if (!el.files || !el.files.length || !el.files[0]) {
+    if (!el.files || !el.files.length) {
         return;
     }
 
-    const image = el.files[0] as File;
+    const images = Array.from(el.files) as File[];
 
     el.value = '';
 
-    loadImage(image);
+    loadImages(images);
 }
 
 async function pickFromNativePhotoLibrary(): Promise<void> {
     try {
-        const image = await pickImageFromPhotoLibrary();
+        const images = await pickImagesFromPhotoLibrary();
 
-        if (image) {
-            loadImage(image);
+        if (images) {
+            loadImages(images);
         }
     } catch (error) {
         showToast(error instanceof Error && error.message ? error.message : 'Unable to open photo library');
@@ -204,39 +219,55 @@ function onPickerAreaClick(event: Event): void {
 }
 
 function confirm(): void {
-    if (recognizing.value || !imageFile.value) {
+    if (recognizing.value || imageFiles.value.length === 0) {
         return;
     }
 
-    cancelRecognizingUuid.value = generateRandomUUID();
     recognizing.value = true;
+    cancelRecognizingUuids.value = imageFiles.value.map(() => generateRandomUUID());
     showCancelableLoading('Recognizing', 'AI can make mistakes. Check important info.', 'Cancel Recognition', cancelRecognize);
 
-    transactionsStore.recognizeReceiptImage({
-        imageFile: imageFile.value,
-        cancelableUuid: cancelRecognizingUuid.value
-    }).then(response => {
+    Promise.allSettled(imageFiles.value.map((file, index) =>
+        transactionsStore.recognizeReceiptImage({ imageFile: file, cancelableUuid: cancelRecognizingUuids.value[index] })
+    )).then(settled => {
         recognizing.value = false;
-        cancelRecognizingUuid.value = undefined;
+        cancelRecognizingUuids.value = [];
         closeAllDialog();
 
-        // response is now an array
-        const results = Array.isArray(response) ? response : [response];
-        recognizedResults.value = results;
-        // Select all by default
-        selectedFlags.value = results.map(() => true);
-    }).catch(error => {
-        if (error.canceled) {
+        const canceled = settled.some(s => s.status === 'rejected' && (s.reason as { canceled?: boolean }).canceled);
+        if (canceled) {
             return;
         }
 
-        recognizing.value = false;
-        cancelRecognizingUuid.value = undefined;
-        closeAllDialog();
+        const results: RecognizedReceiptImageResponses = [];
+        let failures = 0;
+        let firstErrorMessage = '';
 
-        if (!error.processed) {
-            showToast(error.message || error);
+        for (const s of settled) {
+            if (s.status === 'fulfilled') {
+                const response = Array.isArray(s.value) ? s.value : [s.value];
+                results.push(...response);
+            } else {
+                failures++;
+
+                if (!firstErrorMessage && s.reason && s.reason.message) {
+                    firstErrorMessage = s.reason.message;
+                }
+            }
         }
+
+        if (results.length === 0) {
+            showToast(firstErrorMessage || 'Unable to recognize image');
+            return;
+        }
+
+        if (failures > 0) {
+            showToast(failures + (failures > 1 ? ' images failed to recognize' : ' image failed to recognize'));
+        }
+
+        recognizedResults.value = results;
+        // Select all by default
+        selectedFlags.value = results.map(() => true);
     });
 }
 
@@ -321,13 +352,16 @@ function formatTime(unixTime: number): string {
 }
 
 function cancelRecognize(): void {
-    if (!cancelRecognizingUuid.value) {
+    if (!cancelRecognizingUuids.value.length) {
         return;
     }
 
-    transactionsStore.cancelRecognizeReceiptImage(cancelRecognizingUuid.value);
+    for (const uuid of cancelRecognizingUuids.value) {
+        transactionsStore.cancelRecognizeReceiptImage(uuid);
+    }
+
+    cancelRecognizingUuids.value = [];
     recognizing.value = false;
-    cancelRecognizingUuid.value = undefined;
     closeAllDialog();
 
     showToast('User Canceled');
@@ -341,8 +375,8 @@ function close(): void {
     emit('update:show', false);
     loading.value = false;
     recognizing.value = false;
-    cancelRecognizingUuid.value = undefined;
-    imageFile.value = null;
+    cancelRecognizingUuids.value = [];
+    imageFiles.value = [];
     imageSrc.value = undefined;
     recognizedResults.value = [];
     selectedFlags.value = [];
@@ -355,8 +389,8 @@ function onSheetOpen(): void {
 
     loading.value = false;
     recognizing.value = false;
-    cancelRecognizingUuid.value = undefined;
-    imageFile.value = null;
+    cancelRecognizingUuids.value = [];
+    imageFiles.value = [];
     imageSrc.value = undefined;
     recognizedResults.value = [];
     selectedFlags.value = [];
@@ -367,7 +401,8 @@ function onSheetClosed(): void {
 }
 
 defineExpose({
-    loadImage
+    loadImage,
+    loadImages
 });
 </script>
 
