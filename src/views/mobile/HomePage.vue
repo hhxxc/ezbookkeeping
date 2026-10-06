@@ -987,18 +987,19 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
     overflow-y: auto;
 }
 
+/* page-content 自带 padding-bottom = --f7-page-toolbar-bottom-offset(66~82,随字号)
+   + 安全区，但透明 tabbar 上的加号圆钮上探 28px（顶到 80px 线），余量不够；
+   再垫 16px 让列表和识图卡滚到底时稳定避开加号钮。 */
+.home-page .page-content {
+    --f7-page-content-extra-padding-bottom: 16px;
+}
+
 /* 列表下方的 AI 识图功能入口卡（替代悬浮识图按钮，避免遮挡列表内容）。
-   sticky-bottom：列表尾部离 tabbar 远时照常跟在列表后；列表尾部进入透明 tabbar
-   覆盖区时自动停靠在底栏上方，保证任何滚动位置入口都不被 tabbar/加号钮盖住。
-   实测停靠点 = 视口底 - page-content 的 padding-bottom - bottom 值，而
-   padding-bottom = --f7-page-toolbar-bottom-offset(66~82,随字号) + 安全区，
-   所以这里用 84px(52px tabbar + 32px 加号钮间隙) 减掉该 offset 抵消滚动容器的
-   padding，得到相对视口固定的停靠线。 */
+   勿加 position:sticky 停靠：tabbar 是 absolute 浮层，sticky-bottom 会把卡片
+   钉在视口底部上方，任何滚动位置都悬在列表行上面（盖住"今年"一行）。
+   让它随列表正常滚动，滚动到底的避让由上面 .page-content 的
+   --f7-page-content-extra-padding-bottom 负责。 */
 .home-ai-entry-card {
-    position: sticky;
-    bottom: calc(84px - var(--f7-page-toolbar-bottom-offset, 0px));
-    /* 概览列表自带 position:relative + z-index:1，停靠时卡片要盖在列表之上 */
-    z-index: 2;
     display: flex;
     align-items: center;
     gap: 12px;
