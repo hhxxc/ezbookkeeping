@@ -220,6 +220,12 @@ export default defineConfig(() => {
                             return 'leaflet';
                         } else if (/[\\/]node_modules[\\/](moment|moment-timezone)[\\/]/i.test(id)) {
                             return 'moment';
+                        } else if (/[\\/]node_modules[\\/](@capacitor|@capgo)[\\/]/i.test(id)) {
+                            // capacitor 运行时独立成 chunk：插件包里的动态 import('./web') 会用到
+                            // vite 的 preload 助手函数，若留在 vendor-common，助手函数会被挪进
+                            // common（locales 懒加载也在用），vendor-common 反向 import common
+                            // 形成 chunk 循环，顶层 axios 配置触发 TDZ 白屏（2026-10-06 事故）
+                            return 'capacitor';
                         } else if (/[\\/]node_modules[\\/](dom7|framework7.*|skeleton-elements|swiper)[\\/]/i.test(id)) {
                             return 'vendor-mobile';
                         } else if (/[\\/]node_modules[\\/](vuetify|vue-router|vue3-perfect-scrollbar|perfect-scrollbar|vuedraggable|sortablejs|@mdi.*)[\\/]/i.test(id)) {
