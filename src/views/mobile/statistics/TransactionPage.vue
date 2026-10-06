@@ -1197,20 +1197,20 @@ init();
 .statistics-pie-chart-total-amount-title {
     fill: var(--ebk-secondary-text-color, #78909c);
     font-size: 12px;
-    -moz-transform: translateY(0.5em);
-    -ms-transform: translateY(0.5em);
-    -webkit-transform: translateY(0.5em);
-    transform: translateY(0.5em);
+    -moz-transform: translateY(-0.15em);
+    -ms-transform: translateY(-0.15em);
+    -webkit-transform: translateY(-0.15em);
+    transform: translateY(-0.15em);
 }
 
 .statistics-pie-chart-total-amount-value {
     fill: #1f2937;
     font-size: 19px;
     font-weight: 600;
-    -moz-transform: translateY(0.9em);
-    -ms-transform: translateY(0.9em);
-    -webkit-transform: translateY(0.9em);
-    transform: translateY(0.9em);
+    -moz-transform: translateY(1.22em);
+    -ms-transform: translateY(1.22em);
+    -webkit-transform: translateY(1.22em);
+    transform: translateY(1.22em);
 }
 
 .dark .statistics-pie-chart-total-amount-value {
