@@ -231,7 +231,7 @@
         </f7-list>
 
         <div class="home-ai-entry-card" v-if="isTransactionFromAIImageRecognitionEnabled()"
-             @click="showAIReceiptImageRecognitionSheet = true">
+             @click="pickAIImage">
             <div class="home-ai-entry-icon"><f7-icon f7="camera_fill"></f7-icon></div>
             <div class="home-ai-entry-text">
                 <div class="home-ai-entry-title">{{ tt('AI Image Recognition') }}</div>
@@ -267,7 +267,7 @@
                     v-model:opened="showTransactionTemplatePopover">
             <f7-list dividers v-if="allTransactionTemplates">
                 <f7-list-item key="AIImageRecognition" :title="tt('AI Image Recognition')"
-                              @click="showAIReceiptImageRecognitionSheet = true; showTransactionTemplatePopover = false"
+                              @click="pickAIImage(); showTransactionTemplatePopover = false"
                               v-if="isTransactionFromAIImageRecognitionEnabled()">
                     <template #media>
                         <f7-icon f7="wand_stars"></f7-icon>
@@ -284,6 +284,7 @@
         </f7-popover>
 
         <input ref="homeBgInput" type="file" style="display: none" accept="image/*" @change="uploadHomeBackgroundImage($event)" />
+        <input ref="aiImageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="onAIImagePicked($event)" />
 
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
@@ -307,6 +308,7 @@ import { useTransactionTemplatesStore } from '@/stores/transactionTemplate.ts';
 import { useOverviewStore } from '@/stores/overview.ts';
 
 import { DateRange } from '@/core/datetime.ts';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@/consts/file.ts';
 import { TemplateType } from '@/core/template.ts';
 import { TransactionTemplate } from '@/models/transaction_template.ts';
 import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
@@ -394,6 +396,7 @@ const transactionTemplatesStore = useTransactionTemplatesStore();
 const overviewStore = useOverviewStore();
 
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
+const aiImageInput = useTemplateRef<HTMLInputElement>('aiImageInput');
 
 const loading = ref<boolean>(true);
 const showTransactionTemplatePopover = ref<boolean>(false);
@@ -408,6 +411,27 @@ function openTransactionTemplatePopover(): void {
     if (isTransactionFromAIImageRecognitionEnabled() || (allTransactionTemplates.value && allTransactionTemplates.value.length)) {
         showTransactionTemplatePopover.value = true;
     }
+}
+
+function pickAIImage(): void {
+    aiImageInput.value?.click();
+}
+
+function onAIImagePicked(event: Event): void {
+    const el = event.target as HTMLInputElement;
+
+    if (!el.files || !el.files.length || !el.files[0]) {
+        return;
+    }
+
+    const image = el.files[0] as File;
+
+    el.value = '';
+
+    // 先加载图片再打开 Sheet（压缩是异步的，会在 Sheet 打开重置状态后完成），
+    // 选中即识别，跳过 Sheet 内"点击选图"这一步
+    aiImageRecognitionSheet.value?.loadImage(image);
+    showAIReceiptImageRecognitionSheet.value = true;
 }
 
 function init(): void {

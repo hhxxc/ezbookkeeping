@@ -598,6 +598,8 @@
             </f7-actions-group>
         </f7-actions>
 
+        <input ref="aiImageInput" type="file" style="display: none" :accept="SUPPORTED_IMAGE_MIME_TYPES" @change="onAIImagePicked($event)" />
+
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
@@ -606,7 +608,7 @@
             <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
-                    @click="showAIReceiptImageRecognitionSheet = true">
+                    @click="pickAIImage">
                 <f7-icon f7="camera"></f7-icon>
             </f7-fab>
         </template>
@@ -651,6 +653,7 @@ import {
 
 import { TransactionType } from '@/core/transaction.ts';
 import { TemplateType } from '@/core/template.ts';
+import { SUPPORTED_IMAGE_MIME_TYPES } from '@/consts/file.ts';
 import type { TransactionCategory } from '@/models/transaction_category.ts';
 import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts';
 
@@ -769,6 +772,28 @@ const showDeleteActionSheet = ref<boolean>(false);
 const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
 
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
+const aiImageInput = useTemplateRef<HTMLInputElement>('aiImageInput');
+
+function pickAIImage(): void {
+    aiImageInput.value?.click();
+}
+
+function onAIImagePicked(event: Event): void {
+    const el = event.target as HTMLInputElement;
+
+    if (!el.files || !el.files.length || !el.files[0]) {
+        return;
+    }
+
+    const image = el.files[0] as File;
+
+    el.value = '';
+
+    // 先加载图片再打开 Sheet（压缩是异步的，会在 Sheet 打开重置状态后完成），
+    // 选中即识别，跳过 Sheet 内"点击选图"这一步
+    aiImageRecognitionSheet.value?.loadImage(image);
+    showAIReceiptImageRecognitionSheet.value = true;
+}
 
 const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
 const isDarkMode = computed<boolean>(() => environmentsStore.framework7DarkMode || false);
