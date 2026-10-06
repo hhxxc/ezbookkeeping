@@ -752,7 +752,6 @@ init();
     align-items: stretch;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px solid var(--hp-divider);
 }
 
 .home-summary-metric {
@@ -790,10 +789,6 @@ init();
 .home-summary-card.has-bg .home-summary-metric-label {
     color: rgba(255, 255, 255, 0.9);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-}
-
-.home-summary-card.has-bg .home-summary-metrics {
-    border-top-color: rgba(255, 255, 255, 0.28);
 }
 
 .home-summary-card.has-bg .home-summary-metric-divider {
