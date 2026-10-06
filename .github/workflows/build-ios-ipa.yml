@@ -7,6 +7,8 @@ on:
     paths:
       - 'ios-shell/**'
       - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/build-ios-ipa.yml'
       - 'public/nestkeep-logo.svg'
   workflow_dispatch:
@@ -134,7 +136,17 @@ jobs:
           $PB -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent bool true" "$PLIST"
           $PB -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST"
 
+          $PB -c "Delete :NSCameraUsageDescription" "$PLIST" >/dev/null 2>&1 || true
+          $PB -c "Add :NSCameraUsageDescription string 巢记需要使用相机拍摄小票照片用于记账" "$PLIST"
+          $PB -c "Delete :NSPhotoLibraryUsageDescription" "$PLIST" >/dev/null 2>&1 || true
+          $PB -c "Add :NSPhotoLibraryUsageDescription string 巢记需要访问照片图库以选择小票图片用于 AI 识别记账" "$PLIST"
+          $PB -c "Delete :NSPhotoLibraryAddUsageDescription" "$PLIST" >/dev/null 2>&1 || true
+          $PB -c "Add :NSPhotoLibraryAddUsageDescription string 巢记需要将识别相关图片保存到照片图库" "$PLIST"
+
           $PB -c "Print :NSAppTransportSecurity" "$PLIST"
+          $PB -c "Print :NSCameraUsageDescription" "$PLIST"
+          $PB -c "Print :NSPhotoLibraryUsageDescription" "$PLIST"
+          $PB -c "Print :NSPhotoLibraryAddUsageDescription" "$PLIST"
 
       - name: Generate iOS App Icons
         run: |

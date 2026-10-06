@@ -316,6 +316,7 @@ import type { RecognizedReceiptImageResponses } from '@/models/large_language_mo
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
 import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { isNativePhotoLibraryPickerAvailable, pickImageFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import services from '@/lib/services.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
@@ -413,7 +414,26 @@ function openTransactionTemplatePopover(): void {
     }
 }
 
-function pickAIImage(): void {
+async function pickAIImage(): Promise<void> {
+    if (isNativePhotoLibraryPickerAvailable()) {
+        try {
+            const image = await pickImageFromPhotoLibrary();
+
+            if (!image) {
+                return;
+            }
+
+            // 先加载图片再打开 Sheet（压缩是异步的，会在 Sheet 打开重置状态后完成），
+            // 选中即识别，跳过 Sheet 内"点击选图"这一步
+            aiImageRecognitionSheet.value?.loadImage(image);
+            showAIReceiptImageRecognitionSheet.value = true;
+        } catch (error) {
+            showToast(error instanceof Error && error.message ? error.message : 'Unable to open photo library');
+        }
+
+        return;
+    }
+
     aiImageInput.value?.click();
 }
 

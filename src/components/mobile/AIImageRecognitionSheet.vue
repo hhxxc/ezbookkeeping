@@ -17,7 +17,7 @@
             </div>
         </f7-toolbar>
         <f7-page-content class="no-margin-vertical no-padding-vertical">
-            <div class="image-picker-area">
+            <div class="image-picker-area" @click="onPickerAreaClick">
                 <div class="image-preview" v-if="imageSrc">
                     <img :src="imageSrc" />
                     <div class="image-preview-overlay">
@@ -92,6 +92,7 @@ import type { RecognizedReceiptImageResponse, RecognizedReceiptImageResponses } 
 
 import { generateRandomUUID } from '@/lib/misc.ts';
 import { compressJpgImage } from '@/lib/ui/common.ts';
+import { isNativePhotoLibraryPickerAvailable, pickImageFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 import { findPotentialDuplicateTransactions, buildDuplicateConfirmMessage } from '@/lib/ai_recognition.ts';
 import logger from '@/lib/logger.ts';
 
@@ -173,6 +174,33 @@ function openImage(event: Event): void {
     el.value = '';
 
     loadImage(image);
+}
+
+async function pickFromNativePhotoLibrary(): Promise<void> {
+    try {
+        const image = await pickImageFromPhotoLibrary();
+
+        if (image) {
+            loadImage(image);
+        }
+    } catch (error) {
+        showToast(error instanceof Error && error.message ? error.message : 'Unable to open photo library');
+    }
+}
+
+function onPickerAreaClick(event: Event): void {
+    if (loading.value || recognizing.value) {
+        return;
+    }
+
+    if (!isNativePhotoLibraryPickerAvailable()) {
+        // 无原生相册选择器时交给 input 覆盖层，走系统选图面板
+        return;
+    }
+
+    // 阻止 input 覆盖层打开系统"照片图库/拍照/选择文件"面板，直接进原生相册
+    event.preventDefault();
+    pickFromNativePhotoLibrary();
 }
 
 function confirm(): void {
