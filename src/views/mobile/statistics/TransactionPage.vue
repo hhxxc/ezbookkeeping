@@ -1191,11 +1191,12 @@ init();
 }
 
 .statistics-pie-chart .pie-chart-text-group {
-    fill: #fff;
     text-anchor: middle;
 }
 
 .statistics-pie-chart-total-amount-title {
+    fill: var(--ebk-secondary-text-color, #78909c);
+    font-size: 12px;
     -moz-transform: translateY(0.5em);
     -ms-transform: translateY(0.5em);
     -webkit-transform: translateY(0.5em);
@@ -1203,17 +1204,26 @@ init();
 }
 
 .statistics-pie-chart-total-amount-value {
-    -moz-transform: translateY(2em);
-    -ms-transform: translateY(2em);
-    -webkit-transform: translateY(2em);
-    transform: translateY(2em);
+    fill: #1f2937;
+    font-size: 19px;
+    font-weight: 600;
+    -moz-transform: translateY(0.9em);
+    -ms-transform: translateY(0.9em);
+    -webkit-transform: translateY(0.9em);
+    transform: translateY(0.9em);
+}
+
+.dark .statistics-pie-chart-total-amount-value {
+    fill: #eceff3;
 }
 
 .statistics-pie-chart-total-no-data {
-    -moz-transform: translateY(1.5em);
-    -ms-transform: translateY(1.5em);
-    -webkit-transform: translateY(1.5em);
-    transform: translateY(1.5em);
+    fill: var(--ebk-secondary-text-color, #78909c);
+    font-size: 12px;
+    -moz-transform: translateY(0.35em);
+    -ms-transform: translateY(0.35em);
+    -webkit-transform: translateY(0.35em);
+    transform: translateY(0.35em);
 }
 
 .statistics-category-ranking-list {

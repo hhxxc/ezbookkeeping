@@ -1,34 +1,22 @@
 <template>
     <div class="pie-chart-container">
         <svg class="pie-chart" :viewBox="`${-diameter} ${-diameter} ${diameter * 2} ${diameter * 2}`">
-            <circle class="pie-chart-background" cx="0" cy="0" :r="diameter"></circle>
+            <circle class="pie-chart-track" cx="0" cy="0" fill="none" :r="ringRadius" :stroke-width="ringWidth"></circle>
 
             <template :key="idx" v-for="(item, idx) in validItems">
                 <circle class="pie-chart-item"
-                        fill="transparent"
+                        fill="none"
                         cx="0" cy="0"
-                        :r="diameter / 2"
+                        :r="ringRadius"
                         :stroke="item.color"
-                        :stroke-width="diameter"
-                        :stroke-dasharray="getItemStrokeDash(item)"
+                        :stroke-width="ringWidth"
+                        :stroke-linecap="validItems.length > 1 ? 'round' : 'butt'"
+                        :stroke-dasharray="getItemStrokeDash(item, idx)"
                         :stroke-dashoffset="getItemDashOffset(item, validItems, itemCommonDashOffset)"
                         @click="switchSelectedIndex(idx)"
                         v-if="item.actualValue > 0 && item.paintPercent > minPaintPercent">
                 </circle>
             </template>
-
-            <circle class="pie-chart-text-background"
-                    cx="0" cy="0"
-                    stroke="#ddd"
-                    :style="{ '--pie-chart-text-background': centerTextBackground ? centerTextBackground : '#37474f' }"
-                    :r="diameter / 2.5"
-                    v-if="showCenterText"/>
-
-            <circle cx="0" cy="0"
-                    stroke="#ddd"
-                    fill="transparent"
-                    :r="diameter / 2.5"
-                    v-if="showCenterText"/>
 
             <clipPath id="pie-chart-text-clip">
                 <rect :x="-diameter / 2.5 + 2" :y="-diameter / 2.5 + 2" :width="diameter / 1.25 - 4" :height="diameter / 1.25 -4 "/>
@@ -88,7 +76,6 @@ import type { ColorStyleValue } from '@/core/color.ts';
 interface MobilePieChartProps extends CommonPieChartProps {
     showCenterText?: boolean;
     showSelectedItemInfo?: boolean;
-    centerTextBackground?: ColorStyleValue;
 }
 
 const props = defineProps<MobilePieChartProps>();
@@ -102,7 +89,11 @@ const { selectedIndex, validItems } = usePieChartBase(props);
 
 const minPaintPercent = 0.0001; // 0.01%
 const diameter: number = 100;
-const circumference: number = diameter * Math.PI;
+// 细环 + 圆头分段 + 分段间隙的现代环形图：分段间隙 = 2*margin - ringWidth（圆头各占 ringWidth/2）
+const ringRadius: number = 78;
+const ringWidth: number = 20;
+const segmentMargin: number = (ringWidth + 6) / 2;
+const circumference: number = 2 * Math.PI * ringRadius;
 
 const totalValidValue = computed<number>(() => {
     let totalValidValue = 0;
@@ -156,8 +147,14 @@ function getColorStyle(color: ColorStyleValue, additionalFieldName?: string): Re
     return ret;
 }
 
-function getItemStrokeDash(item: CommonPieChartDataItem): string {
-    const length = item.paintPercent * circumference;
+function getItemStrokeDash(item: CommonPieChartDataItem, index: number): string {
+    let length = item.paintPercent * circumference;
+
+    if (validItems.value.length > 1) {
+        // 两端各收缩 margin，配合圆头端点形成分段间隙；过小的分段保底成圆点
+        length = Math.max(length - segmentMargin * 2, 1.5);
+    }
+
     return `${length} ${circumference - length}`;
 }
 
@@ -179,11 +176,11 @@ function getItemDashOffset(item: CommonPieChartDataItem, items: CommonPieChartDa
     }
 
     if (allPreviousPercent <= 0) {
-        return offset;
+        return offset - segmentMargin;
     }
 
     const allPreviousLength = allPreviousPercent * circumference;
-    return circumference - allPreviousLength + offset;
+    return circumference - allPreviousLength + offset - segmentMargin;
 }
 
 const selectedItem = computed<CommonPieChartDataItem | null>(() => {
@@ -278,17 +275,12 @@ function clickItem(item: CommonPieChartDataItem): void {
     text-align: center;
 }
 
-.pie-chart-background {
-    fill: #f0f0f0;
+.pie-chart-track {
+    stroke: #eef1f4;
 }
 
-.dark .pie-chart-background {
-    fill: #181818;
-}
-
-.pie-chart-text-background {
-    --pie-chart-text-background: #7f2020;
-    fill: var(--pie-chart-text-background);
+.dark .pie-chart-track {
+    stroke: rgba(255, 255, 255, 0.08);
 }
 
 .pie-chart-text-group {
