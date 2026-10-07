@@ -10,7 +10,7 @@
                         :r="ringRadius"
                         :stroke="item.color"
                         :stroke-width="ringWidth"
-                        :stroke-linecap="validItems.length > 1 ? 'round' : 'butt'"
+                        :stroke-linecap="getItemStrokeLinecap(item)"
                         :stroke-dasharray="getItemStrokeDash(item, idx)"
                         :stroke-dashoffset="getItemDashOffset(item, validItems, itemCommonDashOffset)"
                         @click="switchSelectedIndex(idx)"
@@ -93,6 +93,9 @@ const diameter: number = 100;
 const ringRadius: number = 78;
 const ringWidth: number = 20;
 const segmentMargin: number = (ringWidth + 6) / 2;
+const segmentGap: number = 6;
+// 圆头分段的最小弧位：dash 保底 1.5 + 两端圆头各 ringWidth/2 + 一端间隙
+const roundCapMinSlot: number = 1.5 + ringWidth + segmentGap;
 const circumference: number = 2 * Math.PI * ringRadius;
 // 中心文字裁切到环形内孔（旧设计裁到中心圆盘 ±38，金额两端会被削出毛边）
 const textClipBound: number = ringRadius - ringWidth / 2 - 2;
@@ -149,12 +152,39 @@ function getColorStyle(color: ColorStyleValue, additionalFieldName?: string): Re
     return ret;
 }
 
+function isRoundCapItem(item: CommonPieChartDataItem): boolean {
+    if (validItems.value.length <= 1) {
+        return false;
+    }
+
+    return item.paintPercent * circumference >= roundCapMinSlot;
+}
+
+function getItemStrokeLinecap(item: CommonPieChartDataItem): string {
+    return isRoundCapItem(item) ? 'round' : 'butt';
+}
+
+function getItemStartInset(item: CommonPieChartDataItem): number {
+    if (validItems.value.length <= 1) {
+        return 0;
+    }
+
+    return isRoundCapItem(item) ? segmentMargin : segmentGap / 2;
+}
+
 function getItemStrokeDash(item: CommonPieChartDataItem, index: number): string {
     let length = item.paintPercent * circumference;
 
     if (validItems.value.length > 1) {
-        // 两端各收缩 margin，配合圆头端点形成分段间隙；过小的分段保底成圆点
-        length = Math.max(length - segmentMargin * 2, 1.5);
+        if (isRoundCapItem(item)) {
+            // 两端各收缩 margin，配合圆头端点形成分段间隙
+            length -= segmentMargin * 2;
+        } else {
+            // 弧位装不下圆头圆点（会溢出占位与相邻分段重叠），回退平头短弧
+            length -= segmentGap;
+        }
+
+        length = Math.max(length, 0.5);
     }
 
     return `${length} ${circumference - length}`;
@@ -178,11 +208,11 @@ function getItemDashOffset(item: CommonPieChartDataItem, items: CommonPieChartDa
     }
 
     if (allPreviousPercent <= 0) {
-        return offset - segmentMargin;
+        return offset - getItemStartInset(item);
     }
 
     const allPreviousLength = allPreviousPercent * circumference;
-    return circumference - allPreviousLength + offset - segmentMargin;
+    return circumference - allPreviousLength + offset - getItemStartInset(item);
 }
 
 const selectedItem = computed<CommonPieChartDataItem | null>(() => {
