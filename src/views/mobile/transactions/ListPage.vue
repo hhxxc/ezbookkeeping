@@ -1,5 +1,5 @@
 <template>
-    <f7-page ptr
+    <f7-page ptr class="page-with-search-subnavbar"
              infinite
              :infinite-preloader="loadingMore"
              :infinite-distance="600"
@@ -1732,8 +1732,22 @@ init();
     margin-top: 14px;
 }
 
-.transaction-search-subnavbar {
-    padding-top: 8px;
+/* 搜索框 subnavbar 自包含样式：不依赖 F7 的 :has() 玻璃规则（iOS 15.x 不支持 :has，
+   会落回半透明胶囊+固定 44px 高度，搜索框被裁切/遮挡）。高度用页级变量覆盖，
+   page-content 的 subnavbar 偏移随同一变量保持对齐。 */
+.page-with-search-subnavbar {
+    --f7-subnavbar-height: 60px;
+}
+
+.ios .transaction-search-subnavbar {
+    height: calc(var(--f7-subnavbar-height) + 1px);
+    margin-top: -1px;
+    padding: 8px 12px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .transaction-list-toolbar .toolbar-inner {
