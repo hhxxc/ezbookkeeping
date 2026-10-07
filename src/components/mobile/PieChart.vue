@@ -19,7 +19,7 @@
             </template>
 
             <clipPath id="pie-chart-text-clip">
-                <rect :x="-diameter / 2.5 + 2" :y="-diameter / 2.5 + 2" :width="diameter / 1.25 - 4" :height="diameter / 1.25 -4 "/>
+                <rect :x="-textClipBound" :y="-textClipBound" :width="textClipBound * 2" :height="textClipBound * 2"/>
             </clipPath>
 
             <g class="pie-chart-text-group" clip-path="url(#pie-chart-text-clip)" v-if="showCenterText">
@@ -94,6 +94,8 @@ const ringRadius: number = 78;
 const ringWidth: number = 20;
 const segmentMargin: number = (ringWidth + 6) / 2;
 const circumference: number = 2 * Math.PI * ringRadius;
+// 中心文字裁切到环形内孔（旧设计裁到中心圆盘 ±38，金额两端会被削出毛边）
+const textClipBound: number = ringRadius - ringWidth / 2 - 2;
 
 const totalValidValue = computed<number>(() => {
     let totalValidValue = 0;
