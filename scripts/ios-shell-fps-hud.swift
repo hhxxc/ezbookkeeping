@@ -154,7 +154,7 @@ class ShellFpsHud: UIView {
         removeFromSuperview()
     }
 
-    private func onTick(_ link: CADisplayLink) {
+    @objc private func onTick(_ link: CADisplayLink) {
         if windowStart == 0 {
             windowStart = link.timestamp
             frameCount = 0
