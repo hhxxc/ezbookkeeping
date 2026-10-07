@@ -283,12 +283,38 @@ class ShellFpsHud: UIView {
             return
         }
         probing = true
-        let js = "(new Promise(function(res){var n=0,t0=performance.now();(function f(){n++;if(performance.now()-t0<1000){requestAnimationFrame(f)}else{res(n)}})()}))"
-        webView.evaluateJavaScript(js) { [weak self] result, error in
+        // iOS 15.x 的 evaluateJavaScript 不支持 Promise 返回值（报 "result of an unexpected type"），
+        // 改两段式：先启动 rAF 计数器写入 window 全局，1.2s 后直接读数值
+        let startJs = "window.__ebkRafN=0;var __ebkT0=performance.now();(function f(){window.__ebkRafN++;if(performance.now()-__ebkT0<1000){requestAnimationFrame(f)}})()"
+        webView.evaluateJavaScript(startJs) { [weak self] _, error in
+            DispatchQueue.main.async {
+                guard let self = self, self.displayLink != nil else { return }
+                if let error = error {
+                    self.probing = false
+                    self.rafFailCount += 1
+                    self.rafErrorText = String(error.localizedDescription.prefix(36))
+                    self.updateText()
+                    self.rafTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in self?.scheduleRafProbe() }
+                    return
+                }
+                self.rafTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: false) { [weak self] _ in
+                    self?.readRafCount()
+                }
+            }
+        }
+    }
+
+    private func readRafCount() {
+        guard displayLink != nil else { return }
+        guard let webView = findWebView() else {
+            probing = false
+            return
+        }
+        webView.evaluateJavaScript("+(window.__ebkRafN||0)") { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self, self.displayLink != nil else { return }
                 self.probing = false
-                if let n = result as? Int {
+                if let n = result as? Int, n > 0 {
                     self.rafFps = n
                     self.rafErrorText = ""
                 } else {
