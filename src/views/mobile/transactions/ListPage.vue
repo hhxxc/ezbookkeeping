@@ -763,6 +763,10 @@ const transactionsStore = useTransactionsStore();
 
 const loadingError = ref<unknown | null>(null);
 const loadingMore = ref<boolean>(false);
+// 入场过渡期间不把数据渲染进 DOM：page:afterin（推入动画结束）后才把骨架屏换成列表，
+// 避免列表首渲染 + DOM 测量在动画进行中打断主线程导致过渡掉帧
+const pageReady = ref(false);
+let pendingDataRender = false;
 const transactionToDelete = ref<Transaction | null>(null);
 const transactionInvisibleYearMonths = ref<Record<TextualYearMonth, boolean>>({});
 const transactionYearMonthListHeights = ref<Record<TextualYearMonth, number>>({});
@@ -1108,6 +1112,12 @@ function reload(done?: () => void): void {
 
         if (force) {
             showToast('Data has been updated');
+        }
+
+        if (!done && !pageReady.value) {
+            // 首次进入还在入场过渡中：数据先扣住不渲染（保持骨架屏），过渡结束后由 page:afterin 放行
+            pendingDataRender = true;
+            return;
         }
 
         loading.value = false;
@@ -1651,6 +1661,15 @@ function navigateToNextRecognition(): void {
 }
 
 function onPageAfterIn(): void {
+    pageReady.value = true;
+
+    // 入场过渡已结束，此时才挂载过渡期间已返回的数据
+    if (pendingDataRender) {
+        pendingDataRender = false;
+        loading.value = false;
+        setTransactionMonthListHeights(true);
+    }
+
     // Continue recognition queue if there are pending results
     if (pendingRecognitionQueue.value.length > 0) {
         navigateToNextRecognition();

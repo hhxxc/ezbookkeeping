@@ -163,6 +163,8 @@ class ShellFpsHud: UIView {
     private var rafFps = 0
     private var rafTimer: Timer?
     private var probing = false
+    private var lastFrameTs: CFTimeInterval = 0
+    private var frameIntervals: [Double] = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -219,6 +221,14 @@ class ShellFpsHud: UIView {
     }
 
     @objc private func onTick(_ link: CADisplayLink) {
+        if lastFrameTs > 0 {
+            frameIntervals.append((link.timestamp - lastFrameTs) * 1000.0)
+            if frameIntervals.count > 180 {
+                frameIntervals.removeFirst(frameIntervals.count - 180)
+            }
+        }
+        lastFrameTs = link.timestamp
+
         if windowStart == 0 {
             windowStart = link.timestamp
             frameCount = 0
@@ -269,7 +279,13 @@ class ShellFpsHud: UIView {
         let maxHz = Int(UIScreen.main.maximumFramesPerSecond)
         let caText = caFps > 0 ? String(format: "%.0f", caFps) : "…"
         let rafText = rafFps > 0 ? "\(rafFps)" : (probing ? "测量中" : "…")
-        textLabel.text = "屏幕上限 \(maxHz)Hz\nCA 渲染 \(caText) fps\n网页 rAF \(rafText) fps\n解锁状态：\(ShellFpsInjection.status)\n点我关闭"
+        // 掉帧率：近 180 帧里帧间隔超过最优间隔 1.6 倍的占比，量化"卡不卡"
+        var dropText = "…"
+        if frameIntervals.count >= 30, let best = frameIntervals.min(), best > 0 {
+            let drops = frameIntervals.filter { $0 > best * 1.6 }.count
+            dropText = "\(drops * 100 / frameIntervals.count)%"
+        }
+        textLabel.text = "屏幕上限 \(maxHz)Hz\nCA 渲染 \(caText) fps\n网页 rAF \(rafText) fps\n掉帧 \(dropText)\n解锁状态：\(ShellFpsInjection.status)\n点我关闭"
         invalidateIntrinsicContentSize()
     }
 }
