@@ -32,9 +32,9 @@ class ShellFpsInjection {
             }
             apply()
         }
-        // 首启自动弹一次诊断悬浮窗（12 秒后自动消失），不用摇也能直接确认解锁状态
+        // 首启自动弹一次诊断悬浮窗（5 分钟后自动消失，点按可提前关闭），不用摇也能直接确认解锁状态
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            showHud(autoHideAfter: 12)
+            showHud(autoHideAfter: 300)
         }
     }
 
@@ -179,7 +179,7 @@ class ShellFpsInjection {
     }
 }
 
-/// 高刷诊断悬浮窗（首启自动弹 12 秒，之后摇一摇呼出）：
+/// 高刷诊断悬浮窗（首启自动弹 5 分钟，之后摇一摇呼出）：
 /// - 屏幕上限：设备支持的最高刷新率（13 Pro 应为 120）
 /// - CA 渲染：App 进程 Core Animation 实际帧率（Info.plist key 生效应 ≈120）
 /// - 网页 rAF：WKWebView 里 requestAnimationFrame 实际频率（私有 API 生效应 ≈120）
