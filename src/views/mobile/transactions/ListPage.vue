@@ -1690,8 +1690,18 @@ function onResize(): void {
         });
 }
 
+let scrollRafId = 0;
+
 function onScroll(): void {
-    setTransactionInvisibleYearMonthList();
+    // rAF 合并：每帧最多跑一次月份分组可见性判定（内部对每组读 DOM 布局），
+    // 避免滚动事件密集时重复读布局挤占帧预算
+    if (scrollRafId) {
+        return;
+    }
+    scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = 0;
+        setTransactionInvisibleYearMonthList();
+    });
 }
 
 function onTransactionMonthListCollapseStateChanged(): void {
@@ -1708,6 +1718,10 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('resize', onResize);
+    if (scrollRafId) {
+        cancelAnimationFrame(scrollRafId);
+        scrollRafId = 0;
+    }
 });
 
 init();

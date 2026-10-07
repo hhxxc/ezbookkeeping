@@ -335,6 +335,10 @@ const userStore = useUserStore();
 const loading = ref<boolean>(true);
 const loadingError = ref<unknown | null>(null);
 const reloading = ref<boolean>(false);
+// 入场过渡期间不渲染图表（骨架屏撑场）：SVG 图表与排行列表首渲染成本高，
+// 在推入动画进行中挂载会打断动画主线程导致掉帧，page:afterin 后才放行
+const pageReady = ref(false);
+let pendingDataRender = false;
 const showCustomDateRangeSheet = ref<boolean>(false);
 const showMoreActionSheet = ref<boolean>(false);
 const dailyChartMode = ref<'expense' | 'income' | 'all'>('expense');
@@ -964,6 +968,10 @@ function init(): void {
     ]).then(() => {
         return loadStatisticsData({ force: false });
     }).then(() => {
+        if (!pageReady.value) {
+            pendingDataRender = true;
+            return;
+        }
         loading.value = false;
     }).catch(error => {
         if (error.processed) {
@@ -998,6 +1006,13 @@ function reload(done?: () => void): void {
 }
 
 function onPageAfterIn(): void {
+    pageReady.value = true;
+
+    if (pendingDataRender) {
+        pendingDataRender = false;
+        loading.value = false;
+    }
+
     if (statisticsStore.transactionStatisticsStateInvalid && !loading.value) {
         reload();
     }
