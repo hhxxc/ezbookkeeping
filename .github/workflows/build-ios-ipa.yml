@@ -125,7 +125,7 @@ jobs:
             exit 1
           fi
 
-      - name: Patch Info.plist (allow webview to load http/LAN servers)
+      - name: Patch Info.plist (allow webview to load http/LAN servers, enable high refresh rate)
         run: |
           PLIST="ios/App/App/Info.plist"
           PB=/usr/libexec/PlistBuddy
@@ -136,6 +136,11 @@ jobs:
           $PB -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent bool true" "$PLIST"
           $PB -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST"
 
+          # 解锁 ProMotion 高刷：iOS 默认把第三方 App（含 WKWebView）钉在 60fps，
+          # 该 key 允许 App 按设备支持的最高帧率渲染（iPhone 13 Pro 起 120Hz，iOS 15+）
+          $PB -c "Delete :CADisableMinimumFrameDurationOnPhone" "$PLIST" >/dev/null 2>&1 || true
+          $PB -c "Add :CADisableMinimumFrameDurationOnPhone bool true" "$PLIST"
+
           $PB -c "Delete :NSCameraUsageDescription" "$PLIST" >/dev/null 2>&1 || true
           $PB -c "Add :NSCameraUsageDescription string 巢记需要使用相机拍摄小票照片用于记账" "$PLIST"
           $PB -c "Delete :NSPhotoLibraryUsageDescription" "$PLIST" >/dev/null 2>&1 || true
@@ -144,6 +149,7 @@ jobs:
           $PB -c "Add :NSPhotoLibraryAddUsageDescription string 巢记需要将识别相关图片保存到照片图库" "$PLIST"
 
           $PB -c "Print :NSAppTransportSecurity" "$PLIST"
+          $PB -c "Print :CADisableMinimumFrameDurationOnPhone" "$PLIST"
           $PB -c "Print :NSCameraUsageDescription" "$PLIST"
           $PB -c "Print :NSPhotoLibraryUsageDescription" "$PLIST"
           $PB -c "Print :NSPhotoLibraryAddUsageDescription" "$PLIST"
