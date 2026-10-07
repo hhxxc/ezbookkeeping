@@ -13,7 +13,7 @@
             </f7-nav-right>
         </f7-navbar>
 
-        <f7-card class="account-overview-card" :class="{ 'skeleton-text': loading }" :style="accountOverviewCardStyle">
+        <f7-card class="account-overview-card" :class="{ 'skeleton-text': loading, 'has-bg': !!settingsStore.appSettings.homeSummaryBackgroundImage }" :style="accountOverviewCardStyle">
             <f7-card-header class="display-block" style="padding: 20px 20px 16px;">
                 <p class="no-margin">
                     <small class="account-overview-label">{{ tt('Net assets') }}</small>
@@ -661,6 +661,61 @@ init();
 
 .dark .account-overview-divider-vertical {
     color: rgba(255, 255, 255, 0.15);
+}
+
+/* 背景图模式（与首页共用 homeSummaryBackgroundImage）：照片上深浅不定，
+   统一套暗色渐变纱罩 + 浅色文字体系，保证任意照片下都可读（浅色主题尤其） */
+.account-overview-card.has-bg {
+    position: relative;
+    overflow: hidden;
+}
+
+.account-overview-card.has-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.40) 0%, rgba(15, 23, 42, 0.28) 45%, rgba(15, 23, 42, 0.42) 100%);
+    pointer-events: none;
+}
+
+.account-overview-card.has-bg > * {
+    position: relative;
+    z-index: 1;
+}
+
+.account-overview-card.has-bg a {
+    color: #fff;
+}
+
+.account-overview-card.has-bg .account-overview-label {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.account-overview-card.has-bg .net-assets {
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+.account-overview-card.has-bg .account-overview-divider {
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.account-overview-card.has-bg .account-overview-total.positive,
+.dark .account-overview-card.has-bg .account-overview-total.positive {
+    color: #7ff0c0;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+}
+
+.account-overview-card.has-bg .account-overview-total.negative,
+.dark .account-overview-card.has-bg .account-overview-total.negative {
+    color: #ffb4ab;
+    text-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+}
+
+.account-overview-card.has-bg .account-overview-divider-vertical,
+.dark .account-overview-card.has-bg .account-overview-divider-vertical {
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .account-list {
