@@ -154,7 +154,7 @@ jobs:
           $PB -c "Print :NSPhotoLibraryUsageDescription" "$PLIST"
           $PB -c "Print :NSPhotoLibraryAddUsageDescription" "$PLIST"
 
-      - name: Inject 120Hz unlock + FPS diagnostic HUD into AppDelegate
+      - name: Inject 120Hz unlock into AppDelegate
         run: |
           node scripts/ios-shell-fps-inject.js
           grep -n "ShellFpsInjection.start()" ios/App/App/AppDelegate.swift

@@ -1,10 +1,12 @@
 /**
- * CI 里把「120Hz 解锁 + FPS 诊断 HUD」注入 Capacitor 生成的 AppDelegate.swift。
+ * CI 里把「120Hz 解锁」注入 Capacitor 生成的 AppDelegate.swift。
  *
  * ios/App 是每次构建时 `npx cap add ios` 生成的（不入库），原生定制统一走本注入机制：
  * 在 didFinishLaunchingWithOptions 里挂 ShellFpsInjection.start()（尽早尝试关闭 WebKit
- * 的 PreferPageRenderingUpdatesNear60FPSEnabled 60fps 上限），类文件本体追加在文件尾部。
- * 幂等：已注入则跳过。
+ * 的 PreferPageRenderingUpdatesNear60FPSEnabled 60fps 上限），解锁类本体追加在文件尾部
+ * （scripts/ios-shell-unlock.swift）。幂等：已注入则跳过。
+ * 历史说明：曾同时注入 FPS 诊断悬浮窗（v1.6.01.05~.08），2026-10-07 按用户要求移除，
+ * 旧实现见 git 历史（scripts/ios-shell-fps-hud.swift / scripts/ios-shell-fps-appdelegate.swift）。
  */
 const fs = require('fs');
 
@@ -28,10 +30,9 @@ if (!closing) {
     throw new Error('class closing brace not found in AppDelegate.swift');
 }
 
-const insideClass = fs.readFileSync('scripts/ios-shell-fps-appdelegate.swift', 'utf8');
-const tailClasses = fs.readFileSync('scripts/ios-shell-fps-hud.swift', 'utf8');
+const unlockClass = fs.readFileSync('scripts/ios-shell-unlock.swift', 'utf8');
 
-source = source.slice(0, closing.index) + insideClass + '\n}\n\n' + tailClasses + '\n';
+source = source.slice(0, closing.index) + '\n}\n\n' + unlockClass + '\n';
 
 fs.writeFileSync(path, source);
-console.log('Injected 120Hz unlock + FPS HUD into AppDelegate.swift');
+console.log('Injected 120Hz unlock into AppDelegate.swift');
