@@ -169,7 +169,7 @@ function getItemStartInset(item: CommonPieChartDataItem): number {
         return 0;
     }
 
-    return isRoundCapItem(item) ? segmentMargin : segmentGap / 2;
+    return isRoundCapItem(item) ? segmentMargin : 0;
 }
 
 function getItemStrokeDash(item: CommonPieChartDataItem, index: number): string {
@@ -179,11 +179,9 @@ function getItemStrokeDash(item: CommonPieChartDataItem, index: number): string 
         if (isRoundCapItem(item)) {
             // 两端各收缩 margin，配合圆头端点形成分段间隙
             length -= segmentMargin * 2;
-        } else {
-            // 弧位装不下圆头圆点（会溢出占位与相邻分段重叠），回退平头短弧
-            length -= segmentGap;
         }
-
+        // 弧位装不下圆头圆点的分段（圆点会溢出占位与相邻分段重叠）回退为
+        // 占满弧位的平头薄楔，与相邻分段相连，避免悬空短条
         length = Math.max(length, 0.5);
     }
 
