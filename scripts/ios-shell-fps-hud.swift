@@ -13,6 +13,7 @@
 /// 最坏情况只闪退一次。注意 UserDefaults 随 IPA 升级（同 bundle id 覆盖安装）保留，重装才清空。
 class ShellFpsInjection {
     static var status = "等待 WebView…"
+    static var featureSearchNote = ""
     private static var applied = false
     private static var attempts = 0
     private static var timer: Timer?
@@ -77,48 +78,76 @@ class ShellFpsInjection {
         guard let webView = findWebView() else { return }
         let prefs = webView.configuration.preferences
 
-        let setSel = NSSelectorFromString("_setEnabled:forFeature:")
-        guard prefs.responds(to: setSel) else {
-            status = "私有 API 不可用"
-            return
-        }
-        guard let feature = findFeature() else {
-            status = "未找到 120Hz 开关"
-            return
-        }
-
         let defaults = UserDefaults.standard
         if defaults.integer(forKey: gateKey) == gateDisabled {
             status = "已自动禁用（上次触发闪退）"
             applied = true
             return
         }
+
+        let setSel = NSSelectorFromString("_setEnabled:forFeature:")
+        let boolSel = NSSelectorFromString("_setBoolValue:forKey:")
+        let feature = findFeature()
+
+        // 主路径：_features 特性列表 + _setEnabled:forFeature:
+        // 兜底：老版 WebKit 的 _setBoolValue:forKey: 直接写偏好键（iOS 上可能没有 _features API）
+        guard (prefs.responds(to: setSel) && feature != nil) || prefs.responds(to: boolSel) else {
+            status = "无可解锁接口(\(featureSearchNote))"
+            return
+        }
+
+        // 崩溃保险丝：调用前先持久化"禁用"标记，正常返回后改记"已启用"
         defaults.set(gateDisabled, forKey: gateKey)
         defaults.synchronize()
 
-        let imp = prefs.method(for: setSel)
-        typealias SetFn = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
-        let fn = unsafeBitCast(imp, to: SetFn.self)
-        fn(prefs, setSel, false, feature)
+        var okStatus = ""
+        if prefs.responds(to: setSel), let feature = feature {
+            let imp = prefs.method(for: setSel)
+            typealias SetFn = @convention(c) (AnyObject, Selector, Bool, AnyObject) -> Void
+            let fn = unsafeBitCast(imp, to: SetFn.self)
+            fn(prefs, setSel, false, feature)
+            okStatus = "已关闭 60fps 上限"
+        } else {
+            let imp = prefs.method(for: boolSel)
+            typealias SetBoolFn = @convention(c) (AnyObject, Selector, Bool, NSString) -> Void
+            let fn = unsafeBitCast(imp, to: SetBoolFn.self)
+            fn(prefs, boolSel, false, "PreferPageRenderingUpdatesNear60FPSEnabled")
+            okStatus = "已用旧接口关闭 60fps"
+        }
 
         defaults.set(1, forKey: gateKey)
         defaults.synchronize()
         applied = true
-        status = "已关闭 60fps 上限"
+        status = okStatus
     }
 
     private static func findFeature() -> NSObject? {
-        guard let cls = NSClassFromString("WKPreferences") else { return nil }
-        guard let metaClass = object_getClass(cls) else { return nil }
+        guard let cls = NSClassFromString("WKPreferences") else {
+            featureSearchNote = "无 WKPreferences"
+            return nil
+        }
+        guard let metaClass = object_getClass(cls) else {
+            featureSearchNote = "无元类"
+            return nil
+        }
         let featSel = NSSelectorFromString("_features")
         // 注意：class_getMethodImplementation 对不存在的方法返回 forwarding IMP（非 nil），
         // 直接调用会 unrecognized selector 闪退，必须先用 class_getInstanceMethod 判存在
-        guard class_getInstanceMethod(metaClass, featSel) != nil else { return nil }
-        guard let imp = class_getMethodImplementation(metaClass, featSel) as IMP? else { return nil }
+        guard class_getInstanceMethod(metaClass, featSel) != nil else {
+            featureSearchNote = "无 _features API"
+            return nil
+        }
+        guard let imp = class_getMethodImplementation(metaClass, featSel) as IMP? else {
+            featureSearchNote = "无 _features IMP"
+            return nil
+        }
         typealias ClassFn = @convention(c) (AnyObject, Selector) -> Unmanaged<AnyObject>?
         let fn = unsafeBitCast(imp, to: ClassFn.self)
         guard let result = fn(cls, featSel),
-              let items = result.takeUnretainedValue() as? NSArray else { return nil }
+              let items = result.takeUnretainedValue() as? NSArray else {
+            featureSearchNote = "_features 返回空"
+            return nil
+        }
         let keySel = NSSelectorFromString("key")
         for case let feature as NSObject in items {
             guard feature.responds(to: keySel),
@@ -127,6 +156,7 @@ class ShellFpsInjection {
                 return feature
             }
         }
+        featureSearchNote = "开关不在特性列表"
         return nil
     }
 
@@ -165,6 +195,8 @@ class ShellFpsHud: UIView {
     private var probing = false
     private var lastFrameTs: CFTimeInterval = 0
     private var frameIntervals: [Double] = []
+    private var rafFailCount = 0
+    private var rafErrorText = ""
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -252,13 +284,22 @@ class ShellFpsHud: UIView {
         }
         probing = true
         let js = "(new Promise(function(res){var n=0,t0=performance.now();(function f(){n++;if(performance.now()-t0<1000){requestAnimationFrame(f)}else{res(n)}})()}))"
-        webView.evaluateJavaScript(js) { [weak self] result, _ in
+        webView.evaluateJavaScript(js) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self, self.displayLink != nil else { return }
                 self.probing = false
-                if let n = result as? Int { self.rafFps = n }
+                if let n = result as? Int {
+                    self.rafFps = n
+                    self.rafErrorText = ""
+                } else {
+                    self.rafFailCount += 1
+                    let desc = error?.localizedDescription ?? "结果类型异常"
+                    self.rafErrorText = String(desc.prefix(36))
+                }
                 self.updateText()
-                self.rafTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in self?.scheduleRafProbe() }
+                // 首次成功前失败快速重试（1.5s），成功后 3s 周期复测
+                let delay: TimeInterval = self.rafFps > 0 ? 3 : 1.5
+                self.rafTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in self?.scheduleRafProbe() }
             }
         }
     }
@@ -278,7 +319,16 @@ class ShellFpsHud: UIView {
     private func updateText() {
         let maxHz = Int(UIScreen.main.maximumFramesPerSecond)
         let caText = caFps > 0 ? String(format: "%.0f", caFps) : "…"
-        let rafText = rafFps > 0 ? "\(rafFps)" : (probing ? "测量中" : "…")
+        let rafText: String
+        if rafFps > 0 {
+            rafText = "\(rafFps)"
+        } else if probing {
+            rafText = "测量中"
+        } else if rafErrorText.isEmpty {
+            rafText = "…"
+        } else {
+            rafText = "失败×\(rafFailCount): \(rafErrorText)"
+        }
         // 掉帧率：近 180 帧里帧间隔超过最优间隔 1.6 倍的占比，量化"卡不卡"
         var dropText = "…"
         if frameIntervals.count >= 30, let best = frameIntervals.min(), best > 0 {
