@@ -315,6 +315,7 @@ const {
     formatDateTimeToLongDateTime,
     formatDateTimeToGregorianLikeShortYearMonth,
     formatDateTimeToGregorianLikeShortYear,
+    formatDateTimeToGregorianLikeShortMonth,
     formatDateTimeToShortMonthDay,
     formatDateRange,
     formatAmountToLocalizedNumeralsWithCurrency,
@@ -589,6 +590,14 @@ const dailyChartItems = computed<DailyChartDataItem[]>(() => {
 
 const dailyReportRows = computed<DailyReportRow[]>(() => {
     const rows: DailyReportRow[] = [];
+    const startTime = query.value.categoricalChartStartTime;
+    const endTime = query.value.categoricalChartEndTime;
+
+    if (!startTime || !endTime) {
+        return rows;
+    }
+
+    const sameYear = parseDateTimeFromUnixTime(startTime).getGregorianCalendarYear() === parseDateTimeFromUnixTime(endTime).getGregorianCalendarYear();
 
     for (const slot of chartSlotRanges.value) {
         let incomeAmount = 0;
@@ -607,8 +616,18 @@ const dailyReportRows = computed<DailyReportRow[]>(() => {
             continue;
         }
 
+        let label: string;
+
+        if (useDailySlots.value) {
+            label = formatDateTimeToShortMonthDay(parseDateTimeFromUnixTime(slot.minTime));
+        } else if (sameYear) {
+            label = formatDateTimeToGregorianLikeShortMonth(parseDateTimeFromUnixTime(slot.minTime));
+        } else {
+            label = formatDateTimeToGregorianLikeShortYearMonth(parseDateTimeFromUnixTime(slot.minTime));
+        }
+
         rows.push({
-            label: slot.label,
+            label: label,
             incomeAmount: incomeAmount,
             expenseAmount: expenseAmount,
             balanceAmount: incomeAmount - expenseAmount
