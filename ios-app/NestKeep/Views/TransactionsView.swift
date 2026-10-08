@@ -781,10 +781,7 @@ struct TransactionsView: View {
                 ) {
                     showFilter = true
                 }
-
-                iconBarButton(icon: "plus", active: false) {
-                    showAdd = true
-                }
+                // 右上角不再放加号：与底栏中央加号入口重复
             }
         }
         .padding(.horizontal, 16)
