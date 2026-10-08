@@ -178,6 +178,10 @@ func startWebServer(c *core.CliContext) error {
 		router.StaticFile("touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
 		router.StaticFile("manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
 		router.StaticFile("sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
+		// 三个 HTML 入口都用 <link rel="icon" type="image/svg+xml"> 指向它，且它是 iOS 原生壳的
+		// 图标来源。它位于 dist 根目录，而根级静态文件是逐个显式注册的（不像 /js /css /img /fonts
+		// 那样按目录注册），漏注册就会返回 404 —— 曾导致 SW 预缓存它时 install 整体失败。
+		router.StaticFile("nestkeep-logo.svg", filepath.Join(config.StaticRootPath, "nestkeep-logo.svg"))
 		router.GET("/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
 		for i := 0; i < len(workboxFileNames); i++ {
@@ -193,6 +197,7 @@ func startWebServer(c *core.CliContext) error {
 		router.StaticFile("/mobile/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
 		router.StaticFile("/mobile/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
 		router.StaticFile("/mobile/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
+		router.StaticFile("/mobile/nestkeep-logo.svg", filepath.Join(config.StaticRootPath, "nestkeep-logo.svg"))
 		router.StaticFile("/mobile/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
 		router.GET("/mobile/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
@@ -209,6 +214,7 @@ func startWebServer(c *core.CliContext) error {
 		router.StaticFile("/desktop/favicon.png", filepath.Join(config.StaticRootPath, "favicon.png"))
 		router.StaticFile("/desktop/touchicon.png", filepath.Join(config.StaticRootPath, "touchicon.png"))
 		router.StaticFile("/desktop/manifest.json", filepath.Join(config.StaticRootPath, "manifest.json"))
+		router.StaticFile("/desktop/nestkeep-logo.svg", filepath.Join(config.StaticRootPath, "nestkeep-logo.svg"))
 		router.StaticFile("/desktop/sw.js", filepath.Join(config.StaticRootPath, "sw.js"))
 		router.GET("/desktop/server_settings.js", bindCachedJs(api.ServerSettings.ServerSettingsJavascriptHandler, serverSettingsCacheStore))
 
