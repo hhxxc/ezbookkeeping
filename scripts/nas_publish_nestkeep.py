@@ -4,18 +4,22 @@
   1. 把 IPA 产物从 GitHub Release/Artifact 下载到本机
   2. 通过 SSH/SFTP 上传到 NAS 的 /volume2/docker/ezbk/nestkeep/ 目录
      （该目录已挂载进容器 -> /ezbookkeeping/data/nestkeep/，重建容器不丢）
-  3. 写 latest.json 清单（version / ipaUrl / releaseUrl / notes）
+  3. 写 latest-<flavor>.json 清单（version / variant / ipaUrl / releaseUrl / notes）；
+     dev 变体同时更新通用 latest.json（兼容旧客户端）
 
-App 侧更新检测优先读 {serverURL}/api/nestkeep/latest.json；
-点击下载时走 {serverURL}/api/proxy/github/download?url=<github-ipa-url> 反代，
-即「自己的域名中转 GitHub」，全程不需要手机能访问 GitHub。
+双变体并存：dev（巢记+，com.nestkeep.app.dev）与 stable（巢记+ 稳定版，
+com.nestkeep.app.stable）Bundle ID 不同，可同时安装在同台设备上、互不覆盖。
+两者各有独立清单，App 按自身 Bundle ID 读取对应清单，避免跨变体互相提示更新。
+
+App 侧更新检测优先读 {serverURL}/api/nestkeep/latest-<flavor>.json；
+点击下载时走 {serverURL}/api/nestkeep/<ipa 文件名> 或反代 GitHub。
 
 用法：
-    python scripts/nas_publish_nestkeep.py --version 1.6.3 [--ipa 本地IPA路径]
+    python scripts/nas_publish_nestkeep.py --version 1.6.4 --flavor dev [--ipa 本地IPA路径]
         [--github-ipa-url <直链>] [--notes "更新说明"] [--cred 凭据文件]
 
-  - 不给 --ipa 时，脚本会尝试用 gh 从 GitHub Release tag v<version> 下载对应 IPA；
-  - ipaUrl 默认指向 GitHub Release 资产，客户端由后端反代读取。
+  - 不给 --ipa 时，脚本会尝试用 gh 从 Release tag v<version>[-stable] 下载对应 IPA；
+  - ipaUrl 默认指向 NAS 静态文件，最稳、不经 GitHub。
 
 凭据文件默认取用户桌面的「REDACTED nas hhs.txt」，格式：IP 端口 用户 密码。
 凭据不入库；本机无 sshpass，用 paramiko（已装）做非交互 SSH/SFTP。
@@ -176,14 +180,19 @@ def main():
     # 客户端下载地址：
     #   - 若同时把 IPA 上传到 NAS，则 ipaUrl 指向 NAS 静态文件（最稳，不经 GitHub）
     #   - 否则指向后端反代 GitHub 的地址
+    #
+    # 注意：两个变体各自保留自己的 IPA 文件（文件名带变体号），互不覆盖。
+    # TrollStore 安装时会重新签名并以包内 Bundle ID 注册，所以「同变体才覆盖」，
+    # 不同变体可同时安装 —— 这就是双版本并存的实现方式。
     if ipa_path and not args.no_upload_ipa:
-        manifest["ipaUrl"] = f"{PUBLIC_BASE}/api/nestkeep/{os.path.basename(ipa_path)}"
+        ipa_name = os.path.basename(ipa_path)
+        manifest["ipaUrl"] = f"{PUBLIC_BASE}/api/nestkeep/{ipa_name}"
     elif ipa_gh_url:
         manifest["ipaUrl"] = f"{PUBLIC_BASE}/api/proxy/github/download?url={ipa_gh_url}"
     else:
         manifest["ipaUrl"] = f"{PUBLIC_BASE}/api/proxy/github/download"
 
-    print("==> latest.json 内容：")
+    print(f"==> latest-{flavor}.json 内容：")
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 
     # 3) 上传到 NAS
@@ -203,18 +212,30 @@ def main():
     if ipa_path and not args.no_upload_ipa:
         remote_ipa = f"{REMOTE_DIR}/{os.path.basename(ipa_path)}"
         upload_file(cli, ipa_path, remote_ipa)
-        # 只保留最新的 IPA，避免目录膨胀
+        # 只清理**本变体**的旧包，别动另一个变体的（否则并存的两版会被误删）
         keep = os.path.basename(ipa_path)
         out, _ = ssh_exec(cli, f"ls -1 '{REMOTE_DIR}'")
         for name in out.splitlines():
             name = name.strip()
-            if name.lower().endswith(".ipa") and name != keep:
-                print(f"    清理旧包 {name}")
+            if not name.lower().endswith(".ipa") or name == keep:
+                continue
+            # 变体号出现在文件名里（NestKeep-<flavor>-...）；无变体号的旧命名一律视为可清
+            is_same_flavor = f"-{flavor}-" in name or not any(
+                f"-{f}-" in name for f in ("dev", "stable"))
+            if is_same_flavor:
+                print(f"    清理本变体旧包 {name}")
                 ssh_exec(cli, f"rm -f '{REMOTE_DIR}/{name}'")
+            else:
+                print(f"    保留另一变体包 {name}")
 
-    # 写 latest.json（临时文件 -> 原子改名，避免读到半截）
-    write_remote_text(cli, json.dumps(manifest, ensure_ascii=False, indent=2),
-                      f"{REMOTE_DIR}/latest.json")
+    # 写变体清单（临时文件 -> 原子改名，避免读到半截）
+    manifest_text = json.dumps(manifest, ensure_ascii=False, indent=2)
+    write_remote_text(cli, manifest_text, f"{REMOTE_DIR}/latest-{flavor}.json")
+
+    # dev 变体同时更新通用 latest.json，兼容尚未按变体查询的旧客户端。
+    # （旧客户端不带变体概念，读到 stable 的包会装成另一个 App，故只用 dev 覆盖。）
+    if flavor == "dev":
+        write_remote_text(cli, manifest_text, f"{REMOTE_DIR}/latest.json")
 
     # 4) 验证：目录内容 + 通过公网域名访问后端接口
     print("==> 验证（NAS 目录内容）")
@@ -224,8 +245,8 @@ def main():
     # 容器内 curl（docker 在群晖需 sudo 或完整路径）
     print("==> 验证后端接口（容器内）")
     for dcmd in (
-        "/usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest.json'",
-        "sudo /usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest.json'",
+        f"/usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest-{flavor}.json'",
+        f"sudo /usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest-{flavor}.json'",
     ):
         body, err = ssh_exec(cli, dcmd, timeout=60)
         if body.strip() and "permission denied" not in (body + err).lower():
@@ -238,13 +259,14 @@ def main():
     # 直接从本机走公网域名验证（最能反映手机侧真实情况）
     print("==> 验证公网接口（本机请求）")
     r = run(["curl", "-s", "--max-time", "20",
-             f"{PUBLIC_BASE}/api/nestkeep/latest.json"])
+             f"{PUBLIC_BASE}/api/nestkeep/latest-{flavor}.json"])
     print(r.stdout.strip() or "(空响应)")
 
     print()
     print("==> 完成。手机侧更新入口：")
-    print(f"    {PUBLIC_BASE}/api/nestkeep/latest.json")
+    print(f"    {PUBLIC_BASE}/api/nestkeep/latest-{flavor}.json")
     print(f"    IPA 下载：{manifest['ipaUrl']}")
+    print(f"    变体：{flavor}（另一变体请单独用 --flavor 发布，两者互不覆盖）")
 
 
 if __name__ == "__main__":

@@ -354,13 +354,19 @@ final class TransactionsViewModel: ObservableObject {
 
     /// 汇总卡左上角的月份标题 —— 对齐 Web `formatDateTimeToGregorianLikeLongMonth`（「十月」）
     var summaryMonthTitle: String {
-        guard let r = ranges[.thisMonth] else { return "\(month)月" }
-        return Self.gregorianMonthName(Self.calendar.component(.month, from: Date(timeIntervalSince1970: TimeInterval(r.start))))
+        guard let r = ranges[.thisMonth] else { return Self.gregorianMonthName(month) }
+        let m = Self.calendar.component(.month, from: Date(timeIntervalSince1970: TimeInterval(r.start)))
+        return Self.gregorianMonthName(m)
     }
 
-    /// 公历月份 → 中文（Web 的 `formatDateTimeToGregorianLikeLongMonth` 走的是
-    /// 「1月」这种阿拉伯数字形式，此处保持一致用「10月」）
-    private static func gregorianMonthName(_ month: Int) -> String { "\(month)月" }
+    /// 公历月份 → 中文大写月名 —— 对齐 Web 的 `formatDateTimeToGregorianLikeLongMonth`
+    /// （走 `MMMM` → 本地化 `months()` 的 **long** 形式，zh_Hans 为「十月」而非「10月」）
+    private static func gregorianMonthName(_ month: Int) -> String {
+        let names = ["一月", "二月", "三月", "四月", "五月", "六月",
+                     "七月", "八月", "九月", "十月", "十一月", "十二月"]
+        guard month >= 1 && month <= 12 else { return "\(month)月" }
+        return names[month - 1]
+    }
 
     private static let calendar = Calendar.current
 

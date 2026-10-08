@@ -454,7 +454,7 @@ Web 手机端 `HomePage.vue` 的视觉规格，而不是沿用早期的「主题
 |---|---|---|
 | 汇总卡底 | `--hp-card:#FFFFFF`（暗 `#252530`），圆角 `--ebk-card-border-radius` | `HomePalette.card`，圆角 16 |
 | 卡外边距 | `calc(safe-area-top + 24px) 16px 16px` | List 首行占位 30 + insets 16 |
-| 左上标题 | `.home-summary-label` 18px/600，`thisMonth.displayTime`（「十月」） | 18pt semibold，「10月」 |
+| 左上标题 | `.home-summary-label` 18px/600，`thisMonth.displayTime`（走 `MMMM`→「**十月**」中文大写） | 18pt semibold，「十月」 |
 | 支出徽标 | `.expense-badge`：`#FCEBEA` 底 / `#D0443F` 字，13px/600，`padding:2px 10px`，圆角 8 | 完全一致 |
 | 大金额 | `.home-summary-amount` `font-size:2em;font-weight:600`，色 `--hp-ink` | 34pt semibold，`HomePalette.ink` |
 | 眼睛图标 | `.ebk-hide-icon` 19px，色 `--hp-secondary`，位于金额**之后** | 19pt，secondary，金额右侧 |
