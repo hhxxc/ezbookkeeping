@@ -174,7 +174,13 @@ export default defineConfig(() => {
                         // iOS PWA splash 图（约 3.9MB，42 张）对 iOS 原生壳毫无用处，浏览器 PWA 也只按
                         // media query 用其中一张。首次访问时 SW 会在后台把整批图片拉一遍抢占首屏带宽，
                         // 排除后仅按实际需要请求对应尺寸的那一张。
-                        'img/splash_screens/*'
+                        'img/splash_screens/*',
+                        // nestkeep-logo.svg 仅用于 iOS 原生壳（Capacitor）构建时读取，以及三个 HTML 的
+                        // <link rel="icon" type="image/svg+xml">。它在 public/ 下会被原样拷进 dist/，
+                        // 但部署链路里并不下发（线上实际返回 404）→ 若被 Workbox 预缓存清单收录，
+                        // SW install 会抛 bad-precaching-response 并整体安装失败（缓存/离线/更新链路全废）。
+                        // 这里显式排除；HTML 里的 SVG icon 引用仅为渐进增强，404 不影响页面。
+                        'nestkeep-logo.svg'
                     ],
                     maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
                 }
