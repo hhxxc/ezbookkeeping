@@ -31,10 +31,11 @@ SWIFT_FILES = [
     "Views/RootView.swift",
     "Views/LoginView.swift",
     "Views/MainTabView.swift",
-    "Views/HomeView.swift",
     "Views/AccountsView.swift",
     "Views/TransactionsView.swift",
+    "Views/TransactionDetailView.swift",
     "Views/TransactionEditView.swift",
+    "Views/StatisticsView.swift",
     "Views/SettingsView.swift",
 ]
 

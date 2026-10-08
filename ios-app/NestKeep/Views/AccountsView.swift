@@ -23,6 +23,7 @@ final class AccountsViewModel: ObservableObject {
 
 struct AccountsView: View {
     @StateObject private var vm = AccountsViewModel()
+    @Environment(\.mainTabBarInset) private var tabBarInset
 
     var body: some View {
         NavigationView {
@@ -50,6 +51,9 @@ struct AccountsView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: tabBarInset)
+                    }
                 }
             }
             .navigationTitle("账户")

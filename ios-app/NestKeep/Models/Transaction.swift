@@ -60,3 +60,28 @@ struct TransactionPage: Codable {
     let nextTimeSequenceId: String?
     let totalCount: Int?
 }
+
+// MARK: - 删除 / 修改请求体
+
+/// POST /transactions/delete.json 的请求体（后端 `Id` 为 `json:"id,string"`）
+struct TransactionDeleteRequest: Codable {
+    let id: String
+}
+
+/// POST /transactions/modify.json 的请求体。
+/// 后端要求 `id` / `categoryId` / `sourceAccountId` / `destinationAccountId` 都是字符串，
+/// `destinationAccountId` 允许 "0"（非转账），`tagIds` 是字符串数组。
+struct TransactionModifyRequest: Codable {
+    let id: String
+    let categoryId: String
+    let time: Int64
+    let utcOffset: Int
+    let sourceAccountId: String
+    let destinationAccountId: String
+    let sourceAmount: Int64
+    let destinationAmount: Int64
+    let hideAmount: Bool
+    let tagIds: [String]
+    let pictureIds: [String]
+    let comment: String
+}

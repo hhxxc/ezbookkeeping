@@ -5,6 +5,7 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @ObservedObject private var updateStore = UpdateStore.shared
+    @Environment(\.mainTabBarInset) private var tabBarInset
 
     @State private var showUpdateSheet = false
     @State private var showLogoutConfirm = false
@@ -85,7 +86,10 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("我的")
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: tabBarInset)
+            }
+            .navigationTitle("设置")
             .sheet(isPresented: $showUpdateSheet) {
                 UpdateResultSheet(updateStore: updateStore)
             }
