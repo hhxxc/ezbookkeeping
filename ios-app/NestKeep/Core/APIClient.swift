@@ -119,3 +119,18 @@ struct APIClient {
         return root["result"] ?? false
     }
 }
+
+// MARK: - 分类列表（后端返回按类型分组的字典，见 TransactionCategoryList）
+
+extension APIClient {
+    /// 拉取分类列表并统一拍平成数组。
+    /// 后端 `/api/v1/transaction/categories/list.json` 的 result 是
+    /// `{"1":[...],"2":[...]}` 形状的字典（带可选 `type` 过滤参数），
+    /// 不能按 `[TransactionCategory]` 直接解码。
+    func requestCategoryList(query: [URLQueryItem] = []) async throws -> [TransactionCategory] {
+        let resp: TransactionCategoryList = try await request(
+            "/api/v1/transaction/categories/list.json", query: query
+        )
+        return resp.categories
+    }
+}

@@ -77,7 +77,7 @@ final class TransactionEditViewModel: ObservableObject {
         error = nil
         do {
             async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            async let cats: [TransactionCategory] = APIClient.shared.request("/api/v1/transaction/categories/list.json")
+            async let cats = APIClient.shared.requestCategoryList()
             async let tagList: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
             async let groupList: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
             accounts = try await accs

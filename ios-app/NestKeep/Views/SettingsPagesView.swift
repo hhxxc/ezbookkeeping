@@ -299,7 +299,7 @@ struct CategoryFilterSettingsView: View {
         await store.load()
         selection = AccountFilterSettingsView.decode(store.string(settingKey))
         do {
-            categories = try await APIClient.shared.request("/api/v1/transaction/categories/list.json")
+            categories = try await APIClient.shared.requestCategoryList()
         } catch {
             categories = []
         }

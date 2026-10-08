@@ -15,7 +15,7 @@ final class AIReceiptViewModel: ObservableObject {
 
     func loadRefData() async {
         accounts = (try? await APIClient.shared.request("/api/v1/accounts/list.json")) ?? []
-        categories = (try? await APIClient.shared.request("/api/v1/transaction/categories/list.json")) ?? []
+        categories = (try? await APIClient.shared.requestCategoryList()) ?? []
     }
 
     func recognize(_ data: Data) async {

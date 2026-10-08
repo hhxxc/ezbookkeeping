@@ -112,7 +112,7 @@ final class StatisticsViewModel: ObservableObject {
         error = nil
         do {
             if categories.isEmpty {
-                categories = (try? await APIClient.shared.request("/api/v1/transaction/categories/list.json")) ?? []
+                categories = (try? await APIClient.shared.requestCategoryList()) ?? []
             }
             if accounts.isEmpty {
                 accounts = (try? await APIClient.shared.request("/api/v1/accounts/list.json")) ?? []

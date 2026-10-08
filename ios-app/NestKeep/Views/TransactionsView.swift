@@ -200,7 +200,7 @@ final class TransactionsViewModel: ObservableObject {
         error = nil
         do {
             async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            async let cats: [TransactionCategory] = APIClient.shared.request("/api/v1/transaction/categories/list.json")
+            async let cats = APIClient.shared.requestCategoryList()
             accounts = try await accs
             categories = try await cats
             transactions = try await fetchTransactions()

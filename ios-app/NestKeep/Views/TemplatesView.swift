@@ -20,7 +20,7 @@ final class TemplatesViewModel: ObservableObject {
                 "/api/v1/transaction/templates/list.json",
                 query: [URLQueryItem(name: "templateType", value: "\(templateType)")]
             )
-            async let c: [TransactionCategory] = APIClient.shared.request("/api/v1/transaction/categories/list.json")
+            async let c = APIClient.shared.requestCategoryList()
             async let a: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
             templates = (try? await t) ?? []
             categories = (try? await c) ?? []

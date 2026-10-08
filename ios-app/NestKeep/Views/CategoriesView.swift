@@ -13,8 +13,7 @@ final class CategoriesViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            let all: [TransactionCategory] = try await APIClient.shared.request(
-                "/api/v1/transaction/categories/list.json",
+            let all = try await APIClient.shared.requestCategoryList(
                 query: [URLQueryItem(name: "type", value: "\(type)")]
             )
             // 后端按 parent_id 分组返回；这里把子分类挂回父分类便于展示
