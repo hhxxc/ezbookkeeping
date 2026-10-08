@@ -529,7 +529,8 @@ struct TransactionsView: View {
     @State private var detail: Transaction?
     /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
     @State private var detailContext: RangeDetailContext?
-    @State private var showFilter = false
+    /// 账单列表独立页（点击汇总卡从右侧滑入）；筛选/搜索入口都在该页
+    @State private var showListPage = false
     /// 列表 / 日历 两种浏览方式（对齐 Web 的 TransactionListPageType）
     @State private var showCalendar = false
     @State private var showAI = false
@@ -543,10 +544,9 @@ struct TransactionsView: View {
         _showAdd = showAdd
     }
 
-    private var grouped: [(date: Date, items: [Transaction])] {
-        let cal = Calendar.current
-        let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
-        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
+    /// 从右侧滑入账单列表页（与日历页同款 push 观感动画）
+    private func openListPage() {
+        withAnimation(.easeOut(duration: 0.28)) { showListPage = true }
     }
 
     var body: some View {
@@ -555,8 +555,8 @@ struct TransactionsView: View {
         ZStack(alignment: .top) {
             Color(.systemGroupedBackground).ignoresSafeArea()
             List {
-                // 首页卡片区：汇总卡 + 日期范围卡 + 日历 + AI 识图入口 统一放在一个 Section 内，
-                // 用紧凑的自定义间距（12pt），消除 `.insetGrouped` Section 之间的默认大间隙。
+                // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
+                // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡滑入。
                 Section {
                     summaryCard
                         // leading/trailing 0：只留 insetGrouped 自带的系统分组边距（约 17pt），
@@ -564,6 +564,9 @@ struct TransactionsView: View {
                         .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .contentShape(Rectangle())
+                        // 点汇总卡 → 滑入账单列表页（内部的小按钮如隐藏金额/换背景不受影响）
+                        .onTapGesture { openListPage() }
 
                     periodCard
                         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -575,75 +578,6 @@ struct TransactionsView: View {
                             .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
-                    }
-                }
-
-                // 搜索框（对齐 Web 的描述/金额关键字搜索，防抖；胶囊样式）
-                Section {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass").foregroundColor(.secondary)
-                        TextField("搜索备注 / 金额", text: $vm.searchKeyword)
-                            .textFieldStyle(.plain)
-                            .onChange(of: vm.searchKeyword) { _ in vm.scheduleSearch() }
-                        if !vm.searchKeyword.isEmpty {
-                            Button { vm.searchKeyword = ""; vm.scheduleSearch() } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(HomePalette.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-
-                if vm.isLoading && vm.transactions.isEmpty {
-                    Section {
-                        HStack { Spacer(); ProgressView(); Spacer() }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                    }
-                } else if !vm.isLoading && vm.transactions.isEmpty {
-                    Section {
-                        VStack(spacing: 8) {
-                            Image(systemName: "tray").font(.system(size: 34)).foregroundColor(.secondary)
-                            Text(vm.isFiltering ? "没有符合条件的账单" : "本月还没有账单")
-                                .font(.subheadline).foregroundColor(.secondary)
-                            if vm.isFiltering {
-                                Button("清除筛选") { vm.clearFilter() }.font(.footnote)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
-                }
-
-                ForEach(grouped, id: \.date) { group in
-                    Section(header: dayHeader(group.date, items: group.items)) {
-                        ForEach(group.items) { tx in
-                            TransactionRow(tx: tx, vm: vm)
-                                .contentShape(Rectangle())
-                                .onTapGesture { detail = tx }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        Task { await vm.delete(tx) }
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                    Button {
-                                        editing = tx
-                                    } label: {
-                                        Label("编辑", systemImage: "pencil")
-                                    }
-                                    .tint(Theme.brand)
-                                }
-                        }
                     }
                 }
             }
@@ -659,10 +593,27 @@ struct TransactionsView: View {
                 CalendarPageView(vm: calendarVM) {
                     withAnimation(.easeOut(duration: 0.28)) { showCalendar = false }
                 } onSelectDay: { date in
+                    // 选定日期后滑回首页并直接进入账单列表页看当日账单
                     vm.selectDay(date)
-                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = false }
+                    withAnimation(.easeOut(duration: 0.28)) {
+                        showCalendar = false
+                        showListPage = true
+                    }
                 }
                 .zIndex(2)
+                .transition(.move(edge: .trailing))
+            }
+
+            // 账单列表独立页：点击首页汇总卡从右侧滑入（与日历页同款动画）
+            if showListPage {
+                BillListPageView(vm: vm, onBack: {
+                    withAnimation(.easeOut(duration: 0.28)) { showListPage = false }
+                }, onEdit: { tx in
+                    editing = tx
+                }, onDetail: { tx in
+                    detail = tx
+                })
+                .zIndex(3)
                 .transition(.move(edge: .trailing))
             }
         }
@@ -687,14 +638,6 @@ struct TransactionsView: View {
         .fullScreenCover(item: $detailContext) { ctx in
             RangeDetailView(context: ctx, mainVM: vm)
         }
-        .sheet(isPresented: $showFilter) {
-            TransactionFilterSheet(
-                filter: vm.filter,
-                accounts: vm.accounts,
-                categories: vm.categoriesForFilter,
-                onApply: { vm.applyFilter($0) }
-            )
-        }
         .task {
             await ServerSettings.shared.loadIfNeeded()
             await vm.load()
@@ -703,11 +646,12 @@ struct TransactionsView: View {
             // 切背景图后刷新汇总卡底图
             backgroundToken = UUID()
         }
-        // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选
+        // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选并滑入账单列表页
         .onChange(of: router.pendingTransactionFilter) { request in
             guard let request = request else { return }
             vm.applyFilterRequest(request)
             router.pendingTransactionFilter = nil
+            openListPage()
         }
     }
 
@@ -764,7 +708,7 @@ struct TransactionsView: View {
 
             Spacer()
 
-            // 右侧图标组：日历/筛选/新增（统一胶囊底）
+            // 右侧图标组：日历（筛选/搜索入口已移入账单列表页；加号与底栏重复也移除）
             HStack(spacing: 6) {
                 iconBarButton(
                     icon: "calendar",
@@ -772,16 +716,6 @@ struct TransactionsView: View {
                 ) {
                     withAnimation(.easeOut(duration: 0.28)) { showCalendar = true }
                 }
-
-                iconBarButton(
-                    icon: vm.filter.isActive
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle",
-                    active: vm.filter.isActive
-                ) {
-                    showFilter = true
-                }
-                // 右上角不再放加号：与底栏中央加号入口重复
             }
         }
         .padding(.horizontal, 16)
@@ -1082,12 +1016,192 @@ struct TransactionsView: View {
         .contentShape(Rectangle())
     }
 
+    static func dayLabel(_ d: Date) -> String {
+        let cal = Calendar.current
+        if cal.isDateInToday(d) { return "今天" }
+        if cal.isDateInYesterday(d) { return "昨天" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 EEEE"
+        return f.string(from: d)
+    }
+}
+
+// MARK: - 账单列表独立页（点击首页汇总卡从右侧滑入）
+/// 承载原首页的交易列表：搜索 / 加载与空态 / 日分组 / 左滑编辑删除；
+/// 筛选面板与搜索框也收在该页（首页只留总览卡片）。
+private struct BillListPageView: View {
+    @ObservedObject var vm: TransactionsViewModel
+    let onBack: () -> Void
+    let onEdit: (Transaction) -> Void
+    let onDetail: (Transaction) -> Void
+    @State private var showFilter = false
+
+    private var grouped: [(date: Date, items: [Transaction])] {
+        let cal = Calendar.current
+        let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
+        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            Color(.systemGroupedBackground).ignoresSafeArea()
+            List {
+                // 搜索框（对齐 Web 的描述/金额关键字搜索，防抖；胶囊样式）
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                        TextField("搜索备注 / 金额", text: $vm.searchKeyword)
+                            .textFieldStyle(.plain)
+                            .onChange(of: vm.searchKeyword) { _ in vm.scheduleSearch() }
+                        if !vm.searchKeyword.isEmpty {
+                            Button { vm.searchKeyword = ""; vm.scheduleSearch() } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(HomePalette.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+
+                if vm.isLoading && vm.transactions.isEmpty {
+                    Section {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+                } else if !vm.isLoading && vm.transactions.isEmpty {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "tray").font(.system(size: 34)).foregroundColor(.secondary)
+                            Text(vm.isFiltering ? "没有符合条件的账单" : "本月还没有账单")
+                                .font(.subheadline).foregroundColor(.secondary)
+                            if vm.isFiltering {
+                                Button("清除筛选") { vm.clearFilter() }.font(.footnote)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                }
+
+                ForEach(grouped, id: \.date) { group in
+                    Section(header: dayHeader(group.date, items: group.items)) {
+                        ForEach(group.items) { tx in
+                            TransactionRow(tx: tx, vm: vm)
+                                .contentShape(Rectangle())
+                                .onTapGesture { onDetail(tx) }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task { await vm.delete(tx) }
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
+                                    Button {
+                                        onEdit(tx)
+                                    } label: {
+                                        Label("编辑", systemImage: "pencil")
+                                    }
+                                    .tint(Theme.brand)
+                                }
+                        }
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .environment(\.defaultMinListRowHeight, 0)
+            .refreshable { await vm.load() }
+            .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        }
+        .sheet(isPresented: $showFilter) {
+            TransactionFilterSheet(
+                filter: vm.filter,
+                accounts: vm.accounts,
+                categories: vm.categoriesForFilter,
+                onApply: { vm.applyFilter($0) }
+            )
+        }
+    }
+
+    /// 顶栏：返回 + 标题（筛选中带「清除筛选」胶囊）+ 筛选入口
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                onBack()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.primary.opacity(0.05)))
+            }
+            .buttonStyle(.plain)
+
+            Text(vm.isFiltering ? "已筛选账单" : "账单明细")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(HomePalette.ink)
+
+            if vm.isFiltering {
+                Button {
+                    vm.clearFilter()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                        Text("清除筛选")
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Theme.brand)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+
+            Button {
+                showFilter = true
+            } label: {
+                Image(systemName: vm.filter.isActive
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(vm.filter.isActive ? Theme.brand : HomePalette.ink)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.primary.opacity(0.05)))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        .background(
+            VStack(spacing: 0) {
+                Color(.systemGroupedBackground)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(height: 0.5)
+            }
+            .ignoresSafeArea(edges: .top)
+        )
+    }
+
     /// 日分组头：日期 + 当日支出/收入合计（对齐 Web 的当日合计）
     private func dayHeader(_ date: Date, items: [Transaction]) -> some View {
         let exp = vm.dayExpense(items)
         let inc = vm.dayIncome(items)
         return HStack {
-            Text(Self.dayLabel(date))
+            Text(TransactionsView.dayLabel(date))
             Spacer()
             if exp > 0 {
                 Text("支 \(AmountFormat.format(exp))")
@@ -1100,16 +1214,6 @@ struct TransactionsView: View {
         }
         .font(.caption)
         .textCase(nil)
-    }
-
-    static func dayLabel(_ d: Date) -> String {
-        let cal = Calendar.current
-        if cal.isDateInToday(d) { return "今天" }
-        if cal.isDateInYesterday(d) { return "昨天" }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M月d日 EEEE"
-        return f.string(from: d)
     }
 }
 

@@ -74,35 +74,39 @@ struct MainTabView: View {
     /// SwiftUI 自动为所有滚动内容留出「栏高 + 底部安全区」。
     static let barContentHeight: CGFloat = 49
 
+    /// Tab 切换时非选中页「停靠」在屏幕右侧外的距离（统一右往左滑动动画）
+    private static let parkedOffset: CGFloat = UIScreen.main.bounds.width
+
     var body: some View {
         ZStack {
             // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）。
-            // 切换时淡入 + 微缩放（0.98 → 1），恢复被固定栏改动丢掉的过渡动画
+            // 切换动画统一为「右往左滑动」（无淡入淡出）：非选中页停靠在屏幕右侧外，
+            // 选中页滑入到 0 并置于顶层，覆盖在下方的旧页保持原位。
             ZStack {
                 TransactionsView(showAdd: $showAdd)
                     .environmentObject(router)
-                    .opacity(router.selection == .list ? 1 : 0)
-                    .scaleEffect(router.selection == .list ? 1 : 0.98)
+                    .offset(x: router.selection == .list ? 0 : Self.parkedOffset)
                     .allowsHitTesting(router.selection == .list)
+                    .zIndex(router.selection == .list ? 1 : 0)
 
                 AccountsView()
-                    .opacity(router.selection == .accounts ? 1 : 0)
-                    .scaleEffect(router.selection == .accounts ? 1 : 0.98)
+                    .offset(x: router.selection == .accounts ? 0 : Self.parkedOffset)
                     .allowsHitTesting(router.selection == .accounts)
+                    .zIndex(router.selection == .accounts ? 1 : 0)
 
                 StatisticsView()
                     .environmentObject(router)
-                    .opacity(router.selection == .statistics ? 1 : 0)
-                    .scaleEffect(router.selection == .statistics ? 1 : 0.98)
+                    .offset(x: router.selection == .statistics ? 0 : Self.parkedOffset)
                     .allowsHitTesting(router.selection == .statistics)
+                    .zIndex(router.selection == .statistics ? 1 : 0)
 
                 SettingsView()
-                    .opacity(router.selection == .settings ? 1 : 0)
-                    .scaleEffect(router.selection == .settings ? 1 : 0.98)
+                    .offset(x: router.selection == .settings ? 0 : Self.parkedOffset)
                     .allowsHitTesting(router.selection == .settings)
+                    .zIndex(router.selection == .settings ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.easeOut(duration: 0.22), value: router.selection)
+            .animation(.easeOut(duration: 0.28), value: router.selection)
 
             // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
             // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
@@ -208,7 +212,7 @@ struct MainTabBar: View {
 
     private func tabButton(_ tab: MainTab) -> some View {
         Button {
-            withAnimation(.easeOut(duration: 0.22)) {
+            withAnimation(.easeOut(duration: 0.28)) {
                 selection = tab
             }
         } label: {
