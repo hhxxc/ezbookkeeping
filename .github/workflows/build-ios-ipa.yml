@@ -11,10 +11,20 @@ on:
       - 'package-lock.json'
       - '.github/workflows/build-ios-ipa.yml'
       - 'public/nestkeep-logo.svg'
+      - 'src/lib/web.ts'
+      - 'src/lib/server_settings.ts'
   workflow_dispatch:
     inputs:
+      pack_mode:
+        description: 'Pack mode: local = bundle web into IPA (default), remote = load NAS web via server.url'
+        required: false
+        type: choice
+        options:
+          - local
+          - remote
+        default: 'local'
       api_base_url:
-        description: 'Server base URL loaded by the IPA shell (overrides IOS_API_BASE_URL variable)'
+        description: 'Backend API base URL. local mode: API the bundled web app connects to; remote mode: the web server to load'
         required: false
         type: string
         default: ''
@@ -70,59 +80,72 @@ jobs:
       - name: Build web
         run: npm run build
 
-      - name: Prepare Capacitor entry (app shell)
+      - name: Prepare Capacitor entry
         env:
-          DEFAULT_SERVER: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
-          FALLBACK_SERVER: ${{ inputs.fallback_api_base_url || vars.IOS_FALLBACK_API_BASE_URL }}
+          PACK_MODE: ${{ inputs.pack_mode || 'local' }}
+          API_BASE_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
           SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: |
           test -f ios-shell/index.html
-          cp ios-shell/index.html dist/index.html
 
-          node -e "
-            const fs = require('fs');
-            const file = 'dist/index.html';
-            let html = fs.readFileSync(file, 'utf8');
-            html = html.split('__NESTKEEP_DEFAULT_SERVER__').join(process.env.DEFAULT_SERVER || '');
-            html = html.split('__NESTKEEP_FALLBACK_SERVER__').join(process.env.FALLBACK_SERVER || '');
-            html = html.split('__NESTKEEP_SHELL_VERSION__').join(process.env.SHELL_VERSION || '');
-            fs.writeFileSync(file, html);
-          "
-
-          if grep -q '__NESTKEEP_DEFAULT_SERVER__\|__NESTKEEP_FALLBACK_SERVER__\|__NESTKEEP_SHELL_VERSION__' dist/index.html; then
-            echo "ERROR: there are unreplaced placeholders in the app shell"
-            exit 1
+          if [ "$PACK_MODE" = "remote" ]; then
+            echo "Remote mode: use ios-shell as jump shell"
+            cp ios-shell/index.html dist/index.html
+            node -e "
+              const fs = require('fs');
+              const file = 'dist/index.html';
+              let html = fs.readFileSync(file, 'utf8');
+              html = html.split('__NESTKEEP_DEFAULT_SERVER__').join(process.env.API_BASE_URL || '');
+              html = html.split('__NESTKEEP_FALLBACK_SERVER__').join('');
+              html = html.split('__NESTKEEP_SHELL_VERSION__').join(process.env.SHELL_VERSION || '');
+              fs.writeFileSync(file, html);
+            "
+            grep -q '__NESTKEEP_DEFAULT_SERVER__\|__NESTKEEP_SHELL_VERSION__' dist/index.html && { echo "ERROR: unreplaced placeholders in app shell"; exit 1; }
+            echo "Remote server: ${API_BASE_URL}"
+          else
+            echo "Local mode: inject API base + copy diagnostic page"
+            node -e "
+              const fs = require('fs');
+              const file = 'dist/index.html';
+              let html = fs.readFileSync(file, 'utf8');
+              const inject = '<script>window.EZBOOKKEEPING_SERVER_SETTINGS={apiBaseUrl:\"'+process.env.API_BASE_URL+'\"};</script>';
+              html = html.replace('</head>', inject + '\n</head>');
+              fs.writeFileSync(file, html);
+            "
+            cp ios-shell/index.html dist/shell-diag.html
+            echo "API base URL: ${API_BASE_URL}"
           fi
-
-          echo "Shell default server: ${DEFAULT_SERVER}"
-          echo "Shell fallback server: ${FALLBACK_SERVER}"
           echo "Shell version: ${SHELL_VERSION}"
-          grep -o "NESTKEEP_SHELL_DEFAULT_SERVER = '[^']*'" dist/index.html
-          grep -o "NESTKEEP_SHELL_FALLBACK_SERVER = '[^']*'" dist/index.html
-          grep -o "NESTKEEP_SHELL_VERSION = '[^']*'" dist/index.html
 
       - name: Install Capacitor iOS
         run: npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
 
       - name: Add iOS platform
         env:
+          PACK_MODE: ${{ inputs.pack_mode || 'local' }}
           NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
           NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: test -d ios || npx cap add ios
 
       - name: Sync iOS platform
         env:
+          PACK_MODE: ${{ inputs.pack_mode || 'local' }}
           NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
           NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          npx cap sync ios
-
-          echo "--- capacitor.config.json baked into the app ---"
-          cat ios/App/App/capacitor.config.json
-
-          if ! grep -q '"url"' ios/App/App/capacitor.config.json; then
-            echo "ERROR: the app shell url was not injected into capacitor.config.json"
-            exit 1
+          if [ "$PACK_MODE" = "remote" ]; then
+            npx cap sync ios
+            echo "--- capacitor.config.json (remote) ---"
+            cat ios/App/App/capacitor.config.json
+            grep -q '"url"' ios/App/App/capacitor.config.json || { echo "ERROR: server.url not injected"; exit 1; }
+          else
+            npx cap sync ios
+            echo "--- capacitor.config.json (local) ---"
+            cat ios/App/App/capacitor.config.json
+            if grep -q '"url"' ios/App/App/capacitor.config.json; then
+              echo "ERROR: server.url should NOT be set in local mode"; exit 1
+            fi
+            echo "OK: local mode, no server.url (WebView loads bundled dist)"
           fi
 
       - name: Patch Info.plist (allow webview to load http/LAN servers, enable high refresh rate)
@@ -137,7 +160,9 @@ jobs:
           $PB -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$PLIST"
 
           # 解锁 ProMotion 高刷：iOS 默认把第三方 App（含 WKWebView）钉在 60fps，
-          # 该 key 允许 App 按设备支持的最高帧率渲染（iPhone 13 Pro 起 120Hz，iOS 15+）
+          # 该 key 允许 App 按设备支持的最高帧率渲染（iPhone 13 Pro 起 120Hz，iOS 15+）。
+          # 注意：iOS 15.0~15.3 的 WebKit 没有解锁 WKWebView 120Hz 的私有接口
+          # （见 scripts/ios-shell-unlock.swift），升级到 iOS 16+ 才会真正生效。
           $PB -c "Delete :CADisableMinimumFrameDurationOnPhone" "$PLIST" >/dev/null 2>&1 || true
           $PB -c "Add :CADisableMinimumFrameDurationOnPhone bool true" "$PLIST"
 

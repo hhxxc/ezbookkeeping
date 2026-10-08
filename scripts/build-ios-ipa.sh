@@ -2,16 +2,24 @@
 #
 # 本地 macOS 构建「巢记」iOS IPA（供 TrollStore 安装）
 #
+# 默认：把网页（dist/）直接打包进 IPA，App 内 WebView 加载本地网页（离线可开），
+#       数据请求走 NAS 后端（由 API_BASE_URL 指定）。即「把网页打包成 IPA」。
+# 可选远程兜底：传入 SERVER_URL 时改用 Capacitor server.url 远程加载 NAS 上的网页。
+#
 # 用法:
-#   SERVER_URL=https://example-server.invalid \
-#   FALLBACK_URL=http://192.168.1.10:8080 \
-#   VERSION=1.6.0.1 \
-#   ./scripts/build-ios-ipa.sh
+#   # 默认本地打包（连 NAS 后端 https://example-server.invalid）
+#   API_BASE_URL=https://example-server.invalid VERSION=1.6.0.1 ./scripts/build-ios-ipa.sh
+#
+#   # 可选：远程加载模式（IPA 只作薄壳，加载 SERVER_URL 上的网页）
+#   SERVER_URL=https://example-server.invalid VERSION=1.6.0.1 ./scripts/build-ios-ipa.sh
 #
 # 环境变量:
-#   SERVER_URL     壳加载的服务器地址（会自动补 /mobile），默认 https://example-server.invalid
-#   FALLBACK_URL   可选备用地址（如局域网地址），留空则不用
+#   API_BASE_URL   本地打包模式：网页 App 连接的后端地址，默认 https://example-server.invalid
+#   SERVER_URL     可选，传入则改用远程加载模式（壳加载的服务器地址，会自动补 /mobile）
 #   VERSION        IPA 自身版本号，用于 App 内更新检查，默认 1.6.0.0
+#
+# 注意：iOS 15.0~15.3 的 WebKit 没有解锁 WKWebView 120Hz 的接口（见
+#       scripts/ios-shell-unlock.swift），本机若为此系统，120Hz 解锁不生效，需升级 iOS 16+。
 #
 # 前置依赖 (macOS):
 #   - Xcode + 命令行工具
@@ -26,14 +34,14 @@
 #
 set -euo pipefail
 
-DEFAULT_SERVER="${SERVER_URL:-https://example-server.invalid}"
-FALLBACK_SERVER="${FALLBACK_URL:-}"
+API_BASE_URL="${API_BASE_URL:-https://example-server.invalid}"
+SERVER_URL="${SERVER_URL:-}"           # 留空 = 本地打包；传入 = 远程加载模式
 SHELL_VERSION="${VERSION:-1.6.0.0}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-export DEFAULT_SERVER FALLBACK_SERVER SHELL_VERSION
+export API_BASE_URL SERVER_URL SHELL_VERSION
 
 echo ">>> [1/12] 安装依赖"
 npm install
@@ -44,23 +52,35 @@ node -e "const fs=require('fs');const p=require('./package.json');p.version=proc
 echo ">>> [3/12] 构建 Web"
 npm run build
 
-echo ">>> [4/12] 准备 App Shell 离线/诊断页 (ios-shell/index.html)"
-test -f ios-shell/index.html
-cp ios-shell/index.html dist/index.html
-node -e "
+if [ -n "$SERVER_URL" ]; then
+  echo ">>> [4/12] 远程加载模式：用 ios-shell 作为跳转壳"
+  test -f ios-shell/index.html
+  cp ios-shell/index.html dist/index.html
+  node -e "
 const fs=require('fs');
 let html=fs.readFileSync('dist/index.html','utf8');
-html=html.split('__NESTKEEP_DEFAULT_SERVER__').join(process.env.DEFAULT_SERVER||'');
-html=html.split('__NESTKEEP_FALLBACK_SERVER__').join(process.env.FALLBACK_SERVER||'');
+html=html.split('__NESTKEEP_DEFAULT_SERVER__').join(process.env.SERVER_URL||'');
+html=html.split('__NESTKEEP_FALLBACK_SERVER__').join('');
 html=html.split('__NESTKEEP_SHELL_VERSION__').join(process.env.SHELL_VERSION||'');
 fs.writeFileSync('dist/index.html',html);
 "
-if grep -q '__NESTKEEP_DEFAULT_SERVER__\|__NESTKEEP_FALLBACK_SERVER__\|__NESTKEEP_SHELL_VERSION__' dist/index.html; then
-  echo "ERROR: dist/index.html 中仍有未替换的占位符"; exit 1
+  if grep -q '__NESTKEEP_DEFAULT_SERVER__\|__NESTKEEP_SHELL_VERSION__' dist/index.html; then
+    echo "ERROR: dist/index.html 中仍有未替换的占位符"; exit 1
+  fi
+  echo "    远程服务器: ${SERVER_URL}"
+else
+  echo ">>> [4/12] 本地打包模式：注入 API 后端地址 + 复制诊断页"
+  node -e "
+const fs=require('fs');
+let html=fs.readFileSync('dist/index.html','utf8');
+const inject='<script>window.EZBOOKKEEPING_SERVER_SETTINGS={apiBaseUrl:\"'+process.env.API_BASE_URL+'\"};</script>';
+html=html.replace('</head>', inject+'\n</head>');
+fs.writeFileSync('dist/index.html',html);
+"
+  cp ios-shell/index.html dist/shell-diag.html
+  echo "    API 后端地址: ${API_BASE_URL}"
 fi
-echo "    Shell 默认服务器: ${DEFAULT_SERVER}"
-echo "    Shell 备用服务器: ${FALLBACK_SERVER:-（无）}"
-echo "    Shell 版本:       ${SHELL_VERSION}"
+echo "    Shell 版本:    ${SHELL_VERSION}"
 
 echo ">>> [5/12] 安装 Capacitor iOS 平台依赖"
 npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
@@ -68,10 +88,15 @@ npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
 echo ">>> [6/12] 添加 iOS 平台 (若已存在则跳过)"
 test -d ios || npx cap add ios
 
-echo ">>> [7/12] 同步 iOS 并注入 server.url"
-NESTKEEP_SHELL_SERVER_URL="$DEFAULT_SERVER" NESTKEEP_SHELL_VERSION="$SHELL_VERSION" npx cap sync ios
-if ! grep -q '"url"' ios/App/App/capacitor.config.json; then
-  echo "ERROR: server.url 未注入 ios/App/App/capacitor.config.json"; exit 1
+if [ -n "$SERVER_URL" ]; then
+  echo ">>> [7/12] 同步 iOS（远程加载模式，注入 server.url）"
+  NESTKEEP_SHELL_SERVER_URL="$SERVER_URL" NESTKEEP_SHELL_VERSION="$SHELL_VERSION" npx cap sync ios
+  if ! grep -q '"url"' ios/App/App/capacitor.config.json; then
+    echo "ERROR: server.url 未注入 ios/App/App/capacitor.config.json"; exit 1
+  fi
+else
+  echo ">>> [7/12] 同步 iOS（本地打包模式，加载包内 dist，不注入 server.url）"
+  NESTKEEP_SHELL_VERSION="$SHELL_VERSION" npx cap sync ios
 fi
 
 echo ">>> [8/12] 修补 Info.plist (ATS 放行 / 120Hz / 相机·相册权限)"

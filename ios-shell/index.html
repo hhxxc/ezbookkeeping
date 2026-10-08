@@ -9,20 +9,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
     <meta name="theme-color" content="#f6f6f8">
     <meta name="format-detection" content="telephone=no"/>
-    <title>巢记</title>
+    <title>巢记 · 离线诊断</title>
     <!--
-      巢记 iOS 启动壳（App Shell）
-      ------------------------------------------------
-      这个页面是 IPA 里唯一被打包的前端内容。它不做任何业务逻辑，
-      只负责：探测可用的服务器地址 -> 跳到服务器上的 Web 应用（/mobile）。
-      所以以后前端有更新，只需要更新 NAS 上的 Docker 容器，IPA 不用重新打包。
+      巢记 iOS 离线诊断 / 设置页（本地打包模式）
 
-      可用的服务器地址来源，按优先级：
-        1. 用户在壳里手工保存的地址（localStorage）
-        2. 构建时注入的默认地址（见下面的 NESTKEEP_SHELL_DEFAULT_SERVER）
-        3. 构建时注入的备用地址（NESTKEEP_SHELL_FALLBACK_SERVER，可为空）
+      本页由构建脚本复制到 dist/shell-diag.html，作为 Capacitor 的 errorPath
+      （本地网页加载失败时兜底显示）。本地打包（IPA 内含完整前端）时，App 直接加载
+      包内的 Vue 应用；只有当 Vue 应用无法启动时才会落到这里。
 
-      连续点击 3 次 logo 可以打开服务器设置页。
+      页面职责：
+        1. 探测已配置的后端地址（优先用构建时注入的 window.EZBOOKKEEPING_SERVER_SETTINGS，
+           其次用用户之前在壳里保存的 localStorage 地址）是否可达；
+        2. 可达 → 自动跳回应用（/）；
+        3. 不可达 → 显示设置面板，让用户输入 NAS 后端地址，保存后回跳应用。
+
+      连续点击 3 次 logo 可随时打开设置面板。
     -->
     <style>
         :root {
@@ -107,7 +108,6 @@
 
         .hidden { display: none !important; }
 
-        /* 设置 / 诊断面板 */
         #setup {
             width: 100%;
             max-width: 420px;
@@ -178,48 +178,40 @@
 <body>
 <img id="logo" class="logo" src="img/nestkeep-logo-512.png" alt="巢记"/>
 <div class="title">巢记</div>
-<div class="status" id="status">正在连接服务器…</div>
+<div class="status" id="status">正在检查后端…</div>
 <div class="spinner" id="spinner"></div>
 
 <div id="setup" class="hidden">
-    <div class="hint">连不上服务器。请确认 NAS 上的 ezbookkeeping 容器正在运行，并检查下面的地址（不需要填结尾的斜杠）。</div>
+    <div class="hint">无法连接后端。请填写你的 NAS 上 ezbookkeeping 的地址（不需要结尾的斜杠）。保存后会重新打开应用。</div>
     <input id="serverInput" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://example-server.invalid"/>
     <div class="row">
-        <button class="primary" id="saveBtn">保存并连接</button>
+        <button class="primary" id="saveBtn">保存并打开</button>
         <button id="defaultBtn">恢复默认</button>
     </div>
     <div class="row">
-        <button id="clearBtn">清除缓存并重连</button>
+        <button id="clearBtn">清除缓存并重试</button>
     </div>
     <div id="log"></div>
 </div>
 
 <script>
-    // 构建时由 GitHub Actions 替换（见 .github/workflows/build-ios-ipa.yml）
-    window.NESTKEEP_SHELL_DEFAULT_SERVER = '__NESTKEEP_DEFAULT_SERVER__';
-    window.NESTKEEP_SHELL_FALLBACK_SERVER = '__NESTKEEP_FALLBACK_SERVER__';
-    window.NESTKEEP_SHELL_VERSION = '__NESTKEEP_SHELL_VERSION__';
-
     (function () {
         'use strict';
 
-        var STORAGE_KEY_SERVER = 'nestkeep.shell.serverUrl';
-        var STORAGE_KEY_LAST = 'nestkeep.shell.lastServer';
-        var STORAGE_KEY_LAST_REDIRECT = 'nestkeep.shell.lastRedirectAt';
-        var PROBE_TIMEOUT_MS = 4500;
-        var REDIRECT_LOOP_GUARD_MS = 10000;
+        var STORAGE_KEY = 'nestkeep.shell.apiBaseUrl';
         var BUILD_DEFAULT = 'https://example-server.invalid';
+        var PROBE_TIMEOUT_MS = 4500;
 
-        var elLogo = document.getElementById('logo');
         var elStatus = document.getElementById('status');
         var elSpinner = document.getElementById('spinner');
         var elSetup = document.getElementById('setup');
         var elServerInput = document.getElementById('serverInput');
         var elLog = document.getElementById('log');
+        var elLogo = document.getElementById('logo');
 
         var logoClicks = 0;
         var logoTimer = null;
-        var stopped = false;
+        var navigating = false;
 
         function normalizeBase(url) {
             if (!url) {
@@ -239,87 +231,47 @@
             return value.replace(/\/+$/, '');
         }
 
-        function readPlaceholder(value, fallback) {
-            if (!value || value.indexOf('__NESTKEEP_') === 0) {
-                return fallback;
-            }
-
-            return value;
-        }
-
-        function buildDefaultServer() {
-            return normalizeBase(readPlaceholder(window.NESTKEEP_SHELL_DEFAULT_SERVER, BUILD_DEFAULT));
-        }
-
-        function buildFallbackServer() {
-            return normalizeBase(readPlaceholder(window.NESTKEEP_SHELL_FALLBACK_SERVER, ''));
-        }
-
-        function savedServer() {
+        // 优先：构建时注入的全局；其次：用户之前在壳里保存的地址；兜底：硬编码默认
+        function currentBase() {
             try {
-                return normalizeBase(window.localStorage.getItem(STORAGE_KEY_SERVER));
+                var injected = window.EZBOOKKEEPING_SERVER_SETTINGS &&
+                    window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl;
+
+                if (injected) {
+                    var n = normalizeBase(injected);
+                    if (n) {
+                        return n;
+                    }
+                }
             } catch (e) {
-                return '';
+                // ignore
             }
+
+            try {
+                var saved = window.localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    var s = normalizeBase(saved);
+                    if (s) {
+                        return s;
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            return BUILD_DEFAULT;
         }
 
-        function saveServer(url) {
+        function saveBase(base) {
             try {
-                if (url) {
-                    window.localStorage.setItem(STORAGE_KEY_SERVER, url);
+                if (base) {
+                    window.localStorage.setItem(STORAGE_KEY, base);
                 } else {
-                    window.localStorage.removeItem(STORAGE_KEY_SERVER);
+                    window.localStorage.removeItem(STORAGE_KEY);
                 }
             } catch (e) {
                 // ignore
             }
-        }
-
-        function lastServer() {
-            try {
-                return normalizeBase(window.localStorage.getItem(STORAGE_KEY_LAST));
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function rememberServer(url) {
-            try {
-                window.localStorage.setItem(STORAGE_KEY_LAST, url);
-            } catch (e) {
-                // ignore
-            }
-        }
-
-        // 防止「壳 -> 服务器 -> 加载失败 -> 壳」无限循环：10 秒内只自动跳转一次
-        function hasJustRedirected() {
-            try {
-                var value = parseInt(window.localStorage.getItem(STORAGE_KEY_LAST_REDIRECT) || '0', 10);
-                return value > 0 && (Date.now() - value) < REDIRECT_LOOP_GUARD_MS;
-            } catch (e) {
-                return false;
-            }
-        }
-
-        function markRedirected() {
-            try {
-                window.localStorage.setItem(STORAGE_KEY_LAST_REDIRECT, String(Date.now()));
-            } catch (e) {
-                // ignore
-            }
-        }
-
-        function candidates() {
-            var list = [savedServer(), buildDefaultServer(), buildFallbackServer(), lastServer()];
-            var result = [];
-
-            for (var i = 0; i < list.length; i++) {
-                if (list[i] && result.indexOf(list[i]) < 0) {
-                    result.push(list[i]);
-                }
-            }
-
-            return result;
         }
 
         function log(message) {
@@ -333,15 +285,26 @@
 
         function showSetup(message) {
             elSpinner.classList.add('hidden');
-            setStatus(message || '连不上服务器');
+            setStatus(message || '无法连接后端');
             elSetup.classList.remove('hidden');
-            elServerInput.value = savedServer() || buildDefaultServer();
+            elServerInput.value = currentBase();
             elServerInput.focus();
         }
 
         function hideSetup() {
             elSetup.classList.add('hidden');
             elLog.textContent = '';
+        }
+
+        function enterApp() {
+            if (navigating) {
+                return;
+            }
+
+            navigating = true;
+            setStatus('已连接，正在打开应用…');
+            elSpinner.classList.remove('hidden');
+            window.location.replace('/');
         }
 
         function probe(base) {
@@ -365,22 +328,8 @@
                 }
 
                 fetch(base + '/healthz.json', options).then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status);
-                    }
-
-                    return response.json();
-                }).then(function (body) {
                     clearTimeout(timer);
-
-                    var result = body && (body.result || body);
-
-                    if (!result || (result.status !== 'ok' && body.success !== true)) {
-                        resolve(null);
-                        return;
-                    }
-
-                    resolve({ version: result.version || '', commit: result.commit || '' });
+                    resolve(response.ok ? base : null);
                 }).catch(function (error) {
                     clearTimeout(timer);
                     log(base + ' -> ' + (error && error.message ? error.message : '连接失败'));
@@ -389,80 +338,35 @@
             });
         }
 
-        function enterApp(base, health) {
-            if (hasJustRedirected()) {
-                showSetup('刚刚已经尝试过打开应用页面，但没有成功加载');
+        function connect(autoEnter) {
+            if (navigating) {
                 return;
             }
 
-            var shellVersion = readPlaceholder(window.NESTKEEP_SHELL_VERSION, '');
-            var query = 'appshell=1&_t=' + Date.now();
-
-            if (shellVersion) {
-                query += '&shellv=' + encodeURIComponent(shellVersion);
+            if (!autoEnter) {
+                hideSetup();
+                elSpinner.classList.remove('hidden');
             }
 
-            var url = base + '/mobile?' + query + '#/';
-            var version = health && health.version ? health.version : '';
-            var commit = health && health.commit ? health.commit : '';
-
-            setStatus('已连接 ' + base + (version ? '（v' + version + (commit ? ' · ' + commit : '') + '）' : ''));
-            rememberServer(base);
-            markRedirected();
-            window.location.replace(url);
-        }
-
-        function connect() {
-            if (stopped) {
-                return;
-            }
-
-            hideSetup();
-            elSpinner.classList.remove('hidden');
             elLog.textContent = '';
+            var base = currentBase();
+            setStatus('正在连接 ' + base + ' …');
+            log('尝试 ' + base);
 
-            var list = candidates();
-
-            if (!list.length) {
-                showSetup('没有可用的服务器地址');
-                return;
-            }
-
-            var index = 0;
-
-            function next() {
-                if (stopped) {
+            probe(base).then(function (ok) {
+                if (navigating) {
                     return;
                 }
 
-                if (index >= list.length) {
-                    showSetup('连不上服务器');
-                    return;
+                if (ok) {
+                    enterApp();
+                } else if (autoEnter) {
+                    // 自动检测阶段连不上，交给用户手动设置
+                    showSetup('连不上后端 ' + base);
+                } else {
+                    showSetup('连不上后端 ' + base);
                 }
-
-                var base = list[index++];
-                setStatus('正在连接 ' + base + ' …');
-                log('尝试 ' + base);
-
-                probe(base).then(function (health) {
-                    if (stopped) {
-                        return;
-                    }
-
-                    if (health) {
-                        enterApp(base, health);
-                    } else {
-                        next();
-                    }
-                });
-            }
-
-            next();
-        }
-
-        function stopAndConfigure() {
-            stopped = true;
-            showSetup('服务器设置');
+            });
         }
 
         elLogo.addEventListener('click', function () {
@@ -478,7 +382,7 @@
 
             if (logoClicks >= 3) {
                 logoClicks = 0;
-                stopAndConfigure();
+                showSetup('后端地址设置');
             }
         });
 
@@ -490,16 +394,14 @@
                 return;
             }
 
-            saveServer(base);
-            stopped = false;
-            connect();
+            saveBase(base);
+            connect(false);
         });
 
         document.getElementById('defaultBtn').addEventListener('click', function () {
-            saveServer('');
-            elServerInput.value = buildDefaultServer();
-            stopped = false;
-            connect();
+            saveBase('');
+            elServerInput.value = BUILD_DEFAULT;
+            connect(false);
         });
 
         document.getElementById('clearBtn').addEventListener('click', function () {
@@ -529,20 +431,13 @@
                 });
             }
 
-            stopped = false;
-            elServerInput.value = buildDefaultServer();
-            connect();
+            saveBase('');
+            elServerInput.value = BUILD_DEFAULT;
+            connect(false);
         });
 
-        // 在线状态变化时自动重试一次
-        window.addEventListener('online', function () {
-            if (!elSetup.classList.contains('hidden')) {
-                stopped = false;
-                connect();
-            }
-        });
-
-        connect();
+        // 自动检测：先尝试连接已配置的后端，连上就直接进应用
+        connect(true);
     })();
 </script>
 </body>
