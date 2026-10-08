@@ -1,4 +1,4 @@
-import chardet, { type Match } from 'chardet';
+import type { Match } from 'chardet';
 
 import type { ImportFileTypeAndExtensions } from '@/core/file.ts';
 
@@ -46,7 +46,10 @@ export function isFileExtensionSupported(filename: string, supportedExtensions: 
     return false;
 }
 
-export function detectFileEncoding(file: File): Promise<string> {
+export async function detectFileEncoding(file: File): Promise<string> {
+    // chardet 仅桌面端 ImportDialog 使用，动态导入使其脱离移动端首屏必载的 common chunk
+    const chardet = (await import('chardet')).default;
+
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
 

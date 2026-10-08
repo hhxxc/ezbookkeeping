@@ -1,4 +1,4 @@
-import CryptoJS from 'crypto-js';
+import sha256 from 'crypto-js/sha256';
 
 import { base64encode } from './common.ts';
 
@@ -95,7 +95,7 @@ export function generateRandomString(): string {
         baseString += '_' + Math.random();
     }
 
-    return CryptoJS.SHA256(baseString).toString();
+    return sha256(baseString).toString();
 }
 
 export function generateRandomUUID(): string {

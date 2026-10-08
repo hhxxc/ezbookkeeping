@@ -170,7 +170,11 @@ export default defineConfig(() => {
                         'fonts/*.svg',
                         'fonts/*.woff',
                         'css/*.css',
-                        'js/*.js'
+                        'js/*.js',
+                        // iOS PWA splash 图（约 3.9MB，42 张）对 iOS 原生壳毫无用处，浏览器 PWA 也只按
+                        // media query 用其中一张。首次访问时 SW 会在后台把整批图片拉一遍抢占首屏带宽，
+                        // 排除后仅按实际需要请求对应尺寸的那一张。
+                        'img/splash_screens/*'
                     ],
                     maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
                 }
@@ -234,6 +238,15 @@ export default defineConfig(() => {
                             return 'vendor-desktop';
                         } else if (/plugin-vuetify:/i.test(id)) {
                             return 'vendor-desktop';
+                        } else if (/[\\/]node_modules[\\/](exceljs|jszip)[\\/]/i.test(id)) {
+                            // 仅桌面端 ExportDialog 静态引用（Excel 导出）。移出移动端首屏必载的
+                            // vendor-common，桌面入口会自动接住；jszip 是 exceljs 的依赖，一并处理。
+                            return 'vendor-desktop';
+                        } else if (/[\\/]node_modules[\\/]chardet[\\/]/i.test(id)) {
+                            // 仅桌面端 ImportDialog 经 src/lib/file.ts 的 detectFileEncoding 动态 import
+                            // 使用。若归入 vendor-common（兜底规则）会被移动端首屏强制加载，故脱离之，
+                            // 由 rollup 拆成按需异步 chunk：移动端永不加载，桌面端仅导入对话框打开时才拉取。
+                            return null;
                         } else if (/[\\/]node_modules[\\/]/i.test(id)) {
                             return 'vendor-common';
                         } else if (/[\\/]src[\\/](core|consts|models|stores)[\\/]/i.test(id)) {
