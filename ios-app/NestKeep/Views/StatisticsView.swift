@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-/// 统计页：收支概览 + 分类占比饼图 + 每日收支柱状图。
+/// 统计页：收支总览 + 分类占比饼图 + 日收支统计（柱状/折线 × 支出/收入/全部）+ 日报表。
 /// iOS 15 没有原生 Charts 框架，图表全部用 SwiftUI Path / 几何图形自绘。
 @MainActor
 final class StatisticsViewModel: ObservableObject {
@@ -51,9 +51,28 @@ final class StatisticsViewModel: ObservableObject {
         return cal.range(of: .day, in: .month, for: start)?.count ?? 30
     }
 
-    /// 日均支出（年模式下为「日均」，即年支出 / 全年天数）
+    /// 周期起点（月模式=当月 1 日，年模式=1 月 1 日）
+    var periodStart: Date {
+        Calendar.current.date(from: DateComponents(year: year, month: isYearMode ? 1 : month, day: 1))!
+    }
+
+    /// 周期终点（开区间，不含当天）
+    var periodEnd: Date {
+        Calendar.current.date(byAdding: isYearMode ? .year : .month, value: 1, to: periodStart)!
+    }
+
+    /// 已流逝的天数（截止今天，用于「日均」——对齐 Web `elapsedDaysInRange`，
+    /// 而不是整个周期的自然日天数；未到月底时按已过天数均摊）
+    var elapsedDaysInPeriod: Int {
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        let end = min(periodEnd, todayStart)
+        let days = Calendar.current.dateComponents([.day], from: periodStart, to: end).day ?? 0
+        return max(days + 1, 0)
+    }
+
+    /// 日均支出（对齐 Web：总支出 / 已流逝天数）
     var dailyAverageExpenseCents: Int64 {
-        let days = periodDayCount
+        let days = elapsedDaysInPeriod
         guard days > 0 else { return 0 }
         return totalExpenseCents / Int64(days)
     }
@@ -235,22 +254,34 @@ struct StatisticDailyItem: Codable {
 struct StatisticsView: View {
     @StateObject private var vm = StatisticsViewModel()
     @State private var mode: Mode = .expense
+    /// 日收支图维度（支出/收入/全部）——独立于分类饼图维度，对齐 Web `dailyChartMode`
+    @State private var dailyMode: DailyMode = .expense
+    /// 日收支图类型（柱状/折线）——对齐 Web `dailyChartType`
+    @State private var dailyChartType: ChartType = .bar
 
     enum Mode: String, CaseIterable {
         case expense = "支出"
         case income = "收入"
     }
 
+    enum DailyMode: String, CaseIterable {
+        case expense = "支出"
+        case income = "收入"
+        case all = "全部"
+    }
+
+    enum ChartType: String, CaseIterable {
+        case bar = "柱状"
+        case line = "折线"
+    }
+
     private var stats: [StatisticsViewModel.CategoryStat] {
         mode == .expense ? vm.expenseByCategory : vm.incomeByCategory
     }
 
-    private var dailyValues: [Int64] {
-        mode == .expense ? vm.dailyExpense : vm.dailyIncome
-    }
-
-    private var totalCents: Int64 {
-        mode == .expense ? vm.totalExpenseCents : vm.totalIncomeCents
+    /// 日收支图是否有数据
+    private var hasDailyData: Bool {
+        vm.dailyExpense.contains { $0 > 0 } || vm.dailyIncome.contains { $0 > 0 }
     }
 
     /// 主强调色：与 Web 统计页一致，用首页调色板（低饱和红/绿）而非全局鲜色
@@ -267,9 +298,10 @@ struct StatisticsView: View {
                         pieCard
                         rankCard
                     }
-                    if dailyValues.contains(where: { $0 > 0 }) {
+                    if hasDailyData {
                         dailyChartCard
                     }
+                    dailyReportCard
                     if let error = vm.error {
                         Text(error).font(.footnote).foregroundColor(.red)
                     }
@@ -308,11 +340,11 @@ struct StatisticsView: View {
     }
 
     // MARK: - 概览卡（对齐 Web `statistics/TransactionPage.vue`）
-    /// Web 结构：`收支概览` 标题(17px/600) + 2×2 网格（支出/收入/结余/日均支出），
+    /// Web 结构：`收支总览` 标题(17px/600) + 2×2 网格（支出/收入/结余/日均支出），
     /// 每格「标签 14px 次要色 + 数值 21px/700 主文字色」，**白底卡，不用主题色渐变**。
     private var overviewCard: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("收支概览")
+            Text("收支总览")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(HomePalette.ink)
                 .padding(.bottom, 16)
@@ -412,13 +444,35 @@ struct StatisticsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - 柱状图（自绘）：月模式按日、年模式按月
+    // MARK: - 日收支图（柱状/折线，支出/收入/全部）：月模式按日、年模式按月
     private var dailyChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(vm.isYearMode ? "每月\(mode.rawValue)" : "每日\(mode.rawValue)")
-                .font(.headline)
-            BarChart(values: dailyValues, color: accent)
+            HStack {
+                Text("日收支统计")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                Spacer()
+                Button {
+                    dailyChartType = dailyChartType == .bar ? .line : .bar
+                } label: {
+                    Image(systemName: dailyChartType == .bar ? "chart.bar.fill" : "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(HomePalette.secondary)
+                }
+            }
+
+            DailyTrendChart(expense: vm.dailyExpense,
+                            income: vm.dailyIncome,
+                            isLine: dailyChartType == .line,
+                            showExpense: dailyMode != .income,
+                            showIncome: dailyMode != .expense)
                 .frame(height: 130)
+
+            Picker("维度", selection: $dailyMode) {
+                ForEach(DailyMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+
             HStack {
                 Text(vm.isYearMode ? "1月" : "1日")
                     .font(.caption2).foregroundColor(.secondary)
@@ -429,6 +483,104 @@ struct StatisticsView: View {
         .padding(16)
         .background(HomePalette.card)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    // MARK: - 日报表（日期/收入/支出/余额 + 平均行，对齐 Web `.statistics-daily-report-table`）
+    private struct DailyReportRow: Identifiable {
+        let id: Int
+        let label: String
+        let income: Int64
+        let expense: Int64
+        var balance: Int64 { income - expense }
+    }
+
+    private var dailyReportRows: [DailyReportRow] {
+        var rows: [DailyReportRow] = []
+        if vm.isYearMode {
+            for m in 1...12 {
+                let inc = vm.dailyIncome.indices.contains(m - 1) ? vm.dailyIncome[m - 1] : 0
+                let exp = vm.dailyExpense.indices.contains(m - 1) ? vm.dailyExpense[m - 1] : 0
+                if inc == 0 && exp == 0 { continue }
+                rows.append(DailyReportRow(id: m, label: "\(m)月", income: inc, expense: exp))
+            }
+        } else {
+            for d in 1...vm.daysInMonth {
+                let inc = vm.dailyIncome.indices.contains(d - 1) ? vm.dailyIncome[d - 1] : 0
+                let exp = vm.dailyExpense.indices.contains(d - 1) ? vm.dailyExpense[d - 1] : 0
+                if inc == 0 && exp == 0 { continue }
+                rows.append(DailyReportRow(id: d, label: "\(vm.month)月\(d)日", income: inc, expense: exp))
+            }
+        }
+        return rows
+    }
+
+    private var reportTotalIncome: Int64 { dailyReportRows.reduce(0) { $0 + $1.income } }
+    private var reportTotalExpense: Int64 { dailyReportRows.reduce(0) { $0 + $1.expense } }
+
+    private var dailyReportCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("日报表")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(HomePalette.ink)
+
+            if dailyReportRows.isEmpty {
+                Text("没有交易数据")
+                    .font(.footnote)
+                    .foregroundColor(HomePalette.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 12)
+            } else {
+                reportHeaderRow
+                ForEach(dailyReportRows) { row in
+                    reportRow(label: row.label, income: row.income,
+                              expense: row.expense, balance: row.balance, isAverage: false)
+                }
+                if vm.elapsedDaysInPeriod > 0 {
+                    Divider()
+                    reportRow(label: "平均",
+                              income: reportTotalIncome / Int64(vm.elapsedDaysInPeriod),
+                              expense: reportTotalExpense / Int64(vm.elapsedDaysInPeriod),
+                              balance: (reportTotalIncome - reportTotalExpense) / Int64(vm.elapsedDaysInPeriod),
+                              isAverage: true)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var reportHeaderRow: some View {
+        HStack(spacing: 8) {
+            reportText("日期", weight: .regular, alignment: .leading, color: HomePalette.secondary)
+            reportText("收入", weight: .regular, alignment: .trailing, color: HomePalette.secondary)
+            reportText("支出", weight: .regular, alignment: .trailing, color: HomePalette.secondary)
+            reportText("余额", weight: .regular, alignment: .trailing, color: HomePalette.secondary)
+        }
+    }
+
+    private func reportRow(label: String, income: Int64, expense: Int64, balance: Int64,
+                           isAverage: Bool) -> some View {
+        let weight: Font.Weight = isAverage ? .semibold : .regular
+        return HStack(spacing: 8) {
+            reportText(label, weight: weight, alignment: .leading, color: HomePalette.ink)
+            reportText(AmountFormat.format(income), weight: weight, alignment: .trailing, color: HomePalette.ink)
+            reportText(AmountFormat.format(expense), weight: weight, alignment: .trailing, color: HomePalette.ink)
+            reportText(AmountFormat.format(balance), weight: weight, alignment: .trailing,
+                       color: balance < 0 ? HomePalette.expense : HomePalette.ink)
+        }
+    }
+
+    private func reportText(_ text: String, weight: Font.Weight, alignment: Alignment,
+                            color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 13, weight: weight))
+            .monospacedDigit()
+            .foregroundColor(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .frame(maxWidth: .infinity, alignment: alignment)
     }
 }
 
@@ -462,18 +614,48 @@ struct PieChart: View {
     }
 }
 
-// MARK: - 自绘柱状图
+// MARK: - 自绘日收支图（柱状/折线，单/双系列）
 
-struct BarChart: View {
+/// 折线路径：把一组值映射为折线（iOS 15 无 Charts，自绘）
+struct LinePath: Shape {
     let values: [Int64]
-    let color: Color
+    let maxValue: Int64
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let count = max(values.count, 1)
+        let width = rect.width
+        let height = rect.height
+        let stepX = count > 1 ? width / CGFloat(count - 1) : 0
+        let baselineY = height - 3
+
+        for (i, v) in values.enumerated() {
+            let x = count == 1 ? width / 2 : CGFloat(i) * stepX
+            let y = baselineY - height * CGFloat(Double(max(v, 0)) / Double(maxValue))
+            let point = CGPoint(x: x, y: max(y, 3))
+            if i == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+        return path
+    }
+}
+
+/// 日收支图：柱状（单系列/双系列并列）或折线（单/双系列），
+/// 对齐 Web `DailyIncomeExpenseBarChart` 的 bar/line 与 expense/income/all 三态
+struct DailyTrendChart: View {
+    let expense: [Int64]
+    let income: [Int64]
+    let isLine: Bool
+    let showExpense: Bool
+    let showIncome: Bool
 
     var body: some View {
         GeometryReader { geo in
-            let maxValue: Int64 = max(values.max() ?? 1, 1)
-            let count: Int = max(values.count, 1)
-            let barWidth: CGFloat = max(geo.size.width / CGFloat(count) - 2, 1.5)
-            let chartHeight: CGFloat = geo.size.height
+            let count = max(max(expense.count, income.count), 1)
+            let maxValue: Int64 = max(
+                max(showExpense ? expense.max() ?? 0 : 0,
+                    showIncome ? income.max() ?? 0 : 0), 1)
+            let width = geo.size.width
+            let height = geo.size.height
 
             ZStack(alignment: .bottom) {
                 // 基线
@@ -481,19 +663,64 @@ struct BarChart: View {
                     .frame(height: 1)
                     .frame(maxHeight: .infinity, alignment: .bottom)
 
-                HStack(alignment: .bottom, spacing: 2) {
-                    ForEach(Array(values.enumerated()), id: \.offset) { _, v in
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(v > 0 ? color.opacity(0.85) : Color.clear)
-                            .frame(
-                                width: barWidth,
-                                height: max(chartHeight * CGFloat(Double(v) / Double(maxValue)),
-                                            v > 0 ? 2 : 0)
-                            )
-                    }
+                if isLine {
+                    lineSeries(width: width, height: height, maxValue: maxValue)
+                } else {
+                    barSeries(width: width, height: height, count: count, maxValue: maxValue)
                 }
-                .frame(maxWidth: .infinity, alignment: .bottom)
             }
         }
+    }
+
+    private func value(_ arr: [Int64], _ i: Int) -> Int64 {
+        arr.indices.contains(i) ? arr[i] : 0
+    }
+
+    private func barHeight(_ v: Int64, _ maxValue: Int64, _ height: CGFloat) -> CGFloat {
+        guard v > 0 else { return 0 }
+        return max(height * CGFloat(Double(v) / Double(maxValue)), 2)
+    }
+
+    private func barSeries(width: CGFloat, height: CGFloat, count: Int, maxValue: Int64) -> some View {
+        let slot = width / CGFloat(count)
+        let groupWidth = min(slot - 2, 20)
+        let singleWidth: CGFloat = (showExpense && showIncome) ? max((groupWidth - 2) / 2, 2) : groupWidth
+
+        return HStack(alignment: .bottom, spacing: 0) {
+            ForEach(0..<count, id: \.self) { i in
+                HStack(alignment: .bottom, spacing: 1.5) {
+                    if showExpense {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(HomePalette.expense.opacity(0.85))
+                            .frame(width: singleWidth,
+                                   height: barHeight(value(expense, i), maxValue, height))
+                    }
+                    if showIncome {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(HomePalette.income.opacity(0.85))
+                            .frame(width: singleWidth,
+                                   height: barHeight(value(income, i), maxValue, height))
+                    }
+                }
+                .frame(width: slot, alignment: .bottom)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .bottom)
+    }
+
+    private func lineSeries(width: CGFloat, height: CGFloat, maxValue: Int64) -> some View {
+        ZStack {
+            if showExpense {
+                LinePath(values: expense, maxValue: maxValue)
+                    .stroke(HomePalette.expense,
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+            if showIncome {
+                LinePath(values: income, maxValue: maxValue)
+                    .stroke(HomePalette.income,
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .frame(width: width, height: height)
     }
 }

@@ -79,7 +79,7 @@
 
 接口：`add.json`(✅) `modify.json`(❌) `get.json`(❌) `pictures/upload.json`(❌) `templates/*`(❌)
 
-### 4. 统计　✅ **已对齐**（环形图/排行/柱状图自绘；第七轮补**月/年双周期**）
+### 4. 统计　✅ **已对齐**（环形图/排行/柱状图自绘；第七轮补**月/年双周期**；第十一轮补**折线图/支出收入全部三档/日报表**）
 
 Web 手机端有：
 - 月/年周期切换，左右翻页 + 自定义日期
@@ -581,3 +581,41 @@ AI 识图预填、应用锁冷启动）。
 **待办**：真机回归验证（对账单余额列、移动账单二次确认、2FA 扫码、预设分类导入、
 页面设置落云同步、字号预览）。
 
+
+---
+
+### 2026-10-08（第十一轮）：统计页对齐 Web（折线图 / 支出收入全部三档 / 日报表 / 日均口径修正）
+
+第七轮虽已补「月/年」双周期，但对照 Web `statistics/TransactionPage.vue` 仍缺多处，
+本轮补齐（**仅改 `Views/StatisticsView.swift`，源文件数仍 52**）：
+
+**1. 日收支图柱/折线切换** ✅
+- 原只有柱状图；新增 `DailyTrendChart`（柱状单/双系列并列 + 折线单/双系列，iOS 15 无
+  Charts，全部 `Path`/`Shape` 自绘）与 `LinePath: Shape`，删除被取代的单系列 `BarChart`
+- 卡标题改「日收支统计」，右上角柱/折切换按钮，对齐 Web `dailyChartType`（bar/line）
+
+**2. 日收支「支出/收入/全部」三档** ✅
+- 原维度只有支出/收入（与分类饼图共用同一 `mode`）；新增独立的 `dailyMode`（支出/收入/全部），
+  对齐 Web `dailyChartMode`（expense/income/all）。「全部」态同时画支出（红）+ 收入（绿）双系列
+
+**3. 日报表** ✅
+- 新增「日报表」卡：表头 日期/收入/支出/余额，逐日（年模式逐月）行，空行跳过，
+  余额为负标红；底部「平均」行 = 各项合计 / `elapsedDaysInPeriod`。对齐 Web
+  `.statistics-daily-report-table` 与 `.statistics-daily-report-average`
+
+**4. 日均口径修正** ✅
+- VM 新增 `periodStart`/`periodEnd`/`elapsedDaysInPeriod`（截止今天、含当天，`max(days+1,0)`）；
+  `dailyAverageExpenseCents` 分母由「整周期天数」改为「已流逝天数」，对齐 Web
+  `elapsedDaysInRange`（未到月底时按已过天数均摊，不再按 31/365 除）
+
+**5. 概览卡标题修正**：`收支概览` → `收支总览`（对齐 zh_Hans 词条 `Income and Expense Overview`）
+
+**契约**：接口零改动（复用 `statistics.json` / `statistics/daily.json` 已取数据）。
+
+**待办（对照仍缺，下轮继续）**：
+- 统计页「查看账单明细」链接（需跨 Tab 把当前日期区间传给账单列表）
+- 统计页多条件筛选（账户/分类/标签/描述，对应 Web 更多菜单）
+- 统计设置页（`statistics/SettingsPage.vue` 的 9 项设置：默认图表数据类型/统计时区/默认账户分类过滤器/
+  排序/分类图表类型/分类图表日期范围/趋势日期范围/资产趋势日期范围）
+- 登录页**登录时两步验证**（passcode / 备份码）与忘记密码
+- 交易编辑时区 / 地理位置（`geoLocation` 当前恒 nil）
