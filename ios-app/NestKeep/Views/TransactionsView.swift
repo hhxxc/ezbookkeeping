@@ -1422,7 +1422,6 @@ struct RangeDetailView: View {
         .listStyle(.insetGrouped)
         .environment(\.defaultMinListRowHeight, 0)
         .refreshable { await vm.load() }
-        .indicator(.hidden)
     }
 
     /// 日分组头（与主列表同款式）

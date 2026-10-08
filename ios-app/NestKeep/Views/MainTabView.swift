@@ -107,8 +107,6 @@ struct MainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.easeOut(duration: 0.28), value: router.selection)
-            // 统一隐藏滚动指示条（上下滑动时右侧不出现滚动条），对容器内所有 List/ScrollView 生效
-            .indicator(.hidden)
 
             // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
             // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
