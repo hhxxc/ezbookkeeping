@@ -76,27 +76,33 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack {
-            // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）
+            // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）。
+            // 切换时淡入 + 微缩放（0.98 → 1），恢复被固定栏改动丢掉的过渡动画
             ZStack {
                 TransactionsView(showAdd: $showAdd)
                     .environmentObject(router)
                     .opacity(router.selection == .list ? 1 : 0)
+                    .scaleEffect(router.selection == .list ? 1 : 0.98)
                     .allowsHitTesting(router.selection == .list)
 
                 AccountsView()
                     .opacity(router.selection == .accounts ? 1 : 0)
+                    .scaleEffect(router.selection == .accounts ? 1 : 0.98)
                     .allowsHitTesting(router.selection == .accounts)
 
                 StatisticsView()
                     .environmentObject(router)
                     .opacity(router.selection == .statistics ? 1 : 0)
+                    .scaleEffect(router.selection == .statistics ? 1 : 0.98)
                     .allowsHitTesting(router.selection == .statistics)
 
                 SettingsView()
                     .opacity(router.selection == .settings ? 1 : 0)
+                    .scaleEffect(router.selection == .settings ? 1 : 0.98)
                     .allowsHitTesting(router.selection == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeOut(duration: 0.22), value: router.selection)
 
             // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
             // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
@@ -202,7 +208,9 @@ struct MainTabBar: View {
 
     private func tabButton(_ tab: MainTab) -> some View {
         Button {
-            selection = tab
+            withAnimation(.easeOut(duration: 0.22)) {
+                selection = tab
+            }
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: tab.icon)

@@ -559,12 +559,14 @@ struct TransactionsView: View {
                 // 用紧凑的自定义间距（12pt），消除 `.insetGrouped` Section 之间的默认大间隙。
                 Section {
                     summaryCard
-                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 12, trailing: 16))
+                        // leading/trailing 0：只留 insetGrouped 自带的系统分组边距（约 17pt），
+                        // 此前再叠 16pt 导致两侧黑边过大
+                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
 
                     periodCard
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
 
@@ -573,14 +575,14 @@ struct TransactionsView: View {
                             vm.selectDay(date)
                             showCalendar = false
                         }
-                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 0, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
 
                     if serverSettings.enableImageRecognition {
                         aiEntryCard
-                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 0, trailing: 16))
+                            .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
@@ -604,7 +606,7 @@ struct TransactionsView: View {
                     .padding(.vertical, 9)
                     .background(HomePalette.card)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 }
@@ -737,7 +739,7 @@ struct TransactionsView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Text("\(vm.year)年\(vm.month)月")
+                    Text(verbatim: "\(vm.year)年\(vm.month)月")
                         .font(.system(size: 15, weight: .semibold))
                         .monospacedDigit()
                         .frame(minWidth: 78)
