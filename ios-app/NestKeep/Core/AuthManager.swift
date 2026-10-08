@@ -46,8 +46,8 @@ final class AuthManager: ObservableObject {
         if resp.need2FA {
             throw APIError.twoFactorRequired
         }
-        guard let token = resp.token else { throw APIError.invalidResponse }
-        self.token = token
+        guard !resp.token.isEmpty else { throw APIError.invalidResponse }
+        self.token = resp.token
         self.currentUser = resp.user
         self.isLoggedIn = true
         UserDefaults.standard.set(token, forKey: tokenKey)

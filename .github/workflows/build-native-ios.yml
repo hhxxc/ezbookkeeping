@@ -6,7 +6,8 @@ name: Build NestKeep Native IPA (TrollStore)
 # 触发：
 #   - 推送 main 且改动 ios-app/ 或本工作流时自动构建（仅上传 Artifact，不发文）
 #   - 手动 workflow_dispatch：除 Artifact 外，额外创建一个 GitHub Release（可直接下载的永久链接）
-# 出包后：在手机上用 TrollStore 打开 NestKeep.ipa 即可安装（会重新签名、永久驻留）。
+# 出包文件名带分支名与构建号：NestKeep-<分支名>-<运行号>.ipa（与 Capacitor 壳的 nestkeep.ipa 区分，避免混淆）。
+# 出包后：在手机上用 TrollStore 打开对应 IPA 即可安装（会重新签名、永久驻留）。
 
 on:
   push:
@@ -31,6 +32,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      IPA_NAME: NestKeep-${{ github.ref_name }}-${{ github.run_number }}.ipa
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,15 +63,15 @@ jobs:
           cp -r "$APP" Payload/
           codesign --force --sign - Payload/NestKeep.app
           rm -rf build/dd
-          zip -r NestKeep.ipa Payload
+          zip -r "$IPA_NAME" Payload
           rm -rf Payload
-          ls -la NestKeep.ipa
+          ls -la "$IPA_NAME"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: NestKeep-ipa
-          path: ios-app/NestKeep.ipa
+          path: ios-app/${{ env.IPA_NAME }}
           retention-days: 90
 
       - name: Create Release (dispatch only)
@@ -77,6 +80,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="nestkeep-ipa-${{ github.run_number }}"
-          gh release create "$TAG" ios-app/NestKeep.ipa \
+          gh release create "$TAG" "ios-app/${{ env.IPA_NAME }}" \
             --title "NestKeep IPA #${{ github.run_number }}" \
-            --notes "原生 iOS App 构建产物。用 TrollStore 打开 NestKeep.ipa 安装（会重新签名、永久驻留）。"
+            --notes "原生 iOS App 构建产物（${{ env.IPA_NAME }}）。用 TrollStore 打开该 IPA 安装（会重新签名、永久驻留）。"

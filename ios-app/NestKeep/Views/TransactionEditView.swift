@@ -66,7 +66,15 @@ final class TransactionEditViewModel: ObservableObject {
             error = "请选择账户和分类"
             return
         }
-        let cents = Int64((amount * 100).rounded())
+        let roundingHandler = NSDecimalNumberHandler(
+            roundingMode: .plain, scale: 0,
+            raiseOnExactness: false, raiseOnOverflow: false,
+            raiseOnUnderflow: false, raiseOnDivideByZero: false
+        )
+        let cents = NSDecimalNumber(decimal: amount)
+            .multiplying(by: NSDecimalNumber(value: 100))
+            .rounding(accordingToBehavior: roundingHandler)
+            .int64Value
         let utcOffset = TimeZone.current.secondsFromGMT() / 60
         let req = TransactionCreateRequest(
             type: type.rawValue,
