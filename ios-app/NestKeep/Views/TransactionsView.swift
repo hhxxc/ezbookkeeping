@@ -57,8 +57,8 @@ enum OverviewPeriod: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .today: return "今日"
-        case .yesterday: return "昨日"
+        case .today: return "今天"
+        case .yesterday: return "昨天"
         case .thisWeek: return "本周"
         case .thisMonth: return "本月"
         case .lastMonth: return "上月"
@@ -398,28 +398,25 @@ final class TransactionsViewModel: ObservableObject {
         case .thisYear:
             return Self.yearFormatter.string(from: start)
         default:
-            // Web 用 en dash 前后各留一个空格
-            return "\(Self.monthDayFormatter.string(from: start)) - \(Self.monthDayFormatter.string(from: end))"
+            // Web 用 en dash（–）前后各留一个空格
+            return "\(Self.monthDayFormatter.string(from: start)) – \(Self.monthDayFormatter.string(from: end))"
         }
     }
 
-    /// 汇总卡左上角的月份标题 —— 对齐 Web `formatDateTimeToGregorianLikeLongMonth`（「十月」）
+    /// 汇总卡左上角的月份标题 —— 对齐 Web `formatDateTimeToGregorianLikeLongMonth` 的**实际渲染**：
+    /// Web 端 moment 的活动 locale 实际停留在 en（自定义 locale key 未生效），中文界面下
+    /// `MMMM` 仍渲染英文长月名（如「October」，见 Web 手机端截图），故此处直接用英文月名
     var summaryMonthTitle: String {
-        guard let r = ranges[.thisMonth] else { return Self.gregorianMonthName(month) }
-        let m = Self.calendar.component(.month, from: Date(timeIntervalSince1970: TimeInterval(r.start)))
-        return Self.gregorianMonthName(m)
+        Self.englishMonthName(month)
     }
 
-    /// 公历月份 → 中文大写月名 —— 对齐 Web 的 `formatDateTimeToGregorianLikeLongMonth`
-    /// （走 `MMMM` → 本地化 `months()` 的 **long** 形式，zh_Hans 为「十月」而非「10月」）
-    private static func gregorianMonthName(_ month: Int) -> String {
-        let names = ["一月", "二月", "三月", "四月", "五月", "六月",
-                     "七月", "八月", "九月", "十月", "十一月", "十二月"]
+    /// 公历月份 → 英文长月名（对齐 Web 卡片标题的实际渲染「January…December」）
+    private static func englishMonthName(_ month: Int) -> String {
+        let names = ["January", "February", "March", "April", "May", "June",
+                     "July", "August", "September", "October", "November", "December"]
         guard month >= 1 && month <= 12 else { return "\(month)月" }
         return names[month - 1]
     }
-
-    private static let calendar = Calendar.current
 
     private static let longDateFormatter: DateFormatter = {
         let f = DateFormatter()
