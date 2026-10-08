@@ -226,7 +226,8 @@ extension ReceiptRecognizer.Recognized {
             hideAmount: nil,
             tagIds: tagIds,
             comment: comment,
-            editable: nil
+            editable: nil,
+            geoLocation: nil
         )
     }
 }

@@ -435,14 +435,14 @@ struct GeoLocationRow: View {
     private func requestLocation() {
         isLocating = true
         error = nil
-        LocationHelper.requestCurrentLocation { result in
+        LocationHelper.shared.requestCurrentLocation { result in
             DispatchQueue.main.async {
                 isLocating = false
                 switch result {
                 case .success(let coord):
                     geoLocation = TransactionGeoLocation(latitude: coord.latitude, longitude: coord.longitude)
-                case .failure(let message):
-                    error = message
+                case .failure(let err):
+                    error = err.errorDescription
                 }
             }
         }
@@ -451,12 +451,25 @@ struct GeoLocationRow: View {
 
 /// CoreLocation 单次定位封装（iOS 15 无 async CLLocationManager，用 delegate 回调）
 final class LocationHelper: NSObject, CLLocationManagerDelegate {
+    /// 定位错误（供 Result 使用）
+    enum LocationError: LocalizedError {
+        case denied
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .denied: return "未授权定位，请在系统设置中开启"
+            case .failed(let msg): return "定位失败：\(msg)"
+            }
+        }
+    }
+
     static let shared = LocationHelper()
 
     private var manager: CLLocationManager?
-    private var completion: ((Result<CLLocationCoordinate2D, String>) -> Void)?
+    private var completion: ((Result<CLLocationCoordinate2D, LocationError>) -> Void)?
 
-    func requestCurrentLocation(_ completion: @escaping (Result<CLLocationCoordinate2D, String>) -> Void) {
+    func requestCurrentLocation(_ completion: @escaping (Result<CLLocationCoordinate2D, LocationError>) -> Void) {
         self.completion = completion
         let manager = CLLocationManager()
         self.manager = manager
@@ -470,7 +483,7 @@ final class LocationHelper: NSObject, CLLocationManagerDelegate {
         case .notDetermined:
             manager.requestWhenInUseAuthorization()
         default:
-            self.completion?(.failure("未授权定位，请在系统设置中开启"))
+            self.completion?(.failure(.denied))
             self.completion = nil
             self.manager = nil
         }
@@ -480,7 +493,7 @@ final class LocationHelper: NSObject, CLLocationManagerDelegate {
         if status == .authorizedWhenInUse || status == .authorizedAlways {
             manager.requestLocation()
         } else if status == .denied || status == .restricted {
-            completion?(.failure("未授权定位，请在系统设置中开启"))
+            completion?(.failure(.denied))
             completion = nil
             self.manager = nil
         }
@@ -494,7 +507,7 @@ final class LocationHelper: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        completion?(.failure("定位失败：\(error.localizedDescription)"))
+        completion?(.failure(.failed(error.localizedDescription)))
         completion = nil
         self.manager = nil
     }
