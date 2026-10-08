@@ -1,0 +1,80 @@
+name: Build NestKeep Native IPA (TrollStore)
+
+# 原生 iOS App（SwiftUI）云端构建：在 GitHub 托管的 macOS 运行机上用 Xcode 编译，
+# 产出 IPA 供 TrollStore 安装。无需本地 Mac、无需付费开发者证书。
+#
+# 触发：
+#   - 推送 main 且改动 ios-app/ 或本工作流时自动构建（仅上传 Artifact，不发文）
+#   - 手动 workflow_dispatch：除 Artifact 外，额外创建一个 GitHub Release（可直接下载的永久链接）
+# 出包后：在手机上用 TrollStore 打开 NestKeep.ipa 即可安装（会重新签名、永久驻留）。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ios-app/**'
+      - '.github/workflows/build-native-ios.yml'
+  workflow_dispatch:
+    inputs:
+      make_release:
+        description: '同时创建一个 GitHub Release（拿到永久直链，便于 TrollStore 打开）'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build app (ad-hoc signed, no Apple cert needed)
+        working-directory: ios-app
+        run: |
+          xcodebuild build \
+            -project NestKeep.xcodeproj \
+            -scheme NestKeep \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/dd \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Package IPA (TrollStore will re-sign on device)
+        working-directory: ios-app
+        run: |
+          APP="build/dd/Build/Products/Release-iphoneos/NestKeep.app"
+          mkdir -p Payload
+          cp -r "$APP" Payload/
+          codesign --force --sign - Payload/NestKeep.app
+          rm -rf build/dd
+          zip -r NestKeep.ipa Payload
+          rm -rf Payload
+          ls -la NestKeep.ipa
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NestKeep-ipa
+          path: ios-app/NestKeep.ipa
+          retention-days: 90
+
+      - name: Create Release (dispatch only)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.make_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="nestkeep-ipa-${{ github.run_number }}"
+          gh release create "$TAG" ios-app/NestKeep.ipa \
+            --title "NestKeep IPA #${{ github.run_number }}" \
+            --notes "原生 iOS App 构建产物。用 TrollStore 打开 NestKeep.ipa 安装（会重新签名、永久驻留）。"

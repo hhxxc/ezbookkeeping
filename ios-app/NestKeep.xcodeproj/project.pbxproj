@@ -1,0 +1,301 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0f517518251d5fa1a4752aad /* NestKeepApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1b870188c31f5fc881b28c38 /* NestKeepApp.swift */; };
+		816e176607c25c7aa3c16643 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = b4257f9d4b69580a883dcf81 /* APIError.swift */; };
+		4ed44fde1c345a789410f81e /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = a17a5c5a9dbe5049824c2808 /* AppSettings.swift */; };
+		65265d29ed06526ab6115053 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5edc27394655519881da9e5e /* APIClient.swift */; };
+		4b7485c34b675199b9d14847 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = fdd4b23159f650b6865628b7 /* AuthManager.swift */; };
+		a2a03949c3c759fc8720b78d /* UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8f1cb5e6d2ab59c79d1dad97 /* UI.swift */; };
+		3aa4828ec9215e7b80ab7f98 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = ef5eb4a8cbd25593b141cc8f /* User.swift */; };
+		574dbc9fffe5518c98920162 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78fe97771f275491a820e1d6 /* Account.swift */; };
+		03945cb2951b57fd91708e18 /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ec2d974cab95c87ab80bf53 /* Transaction.swift */; };
+		d0650ce8d0b35bd49844424b /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899f0061ea965f3cae6cd32a /* Category.swift */; };
+		7829d61af5ff555ba322b500 /* Tag.swift in Sources */ = {isa = PBXBuildFile; fileRef = db0e4881cd7c5afcb4571d36 /* Tag.swift */; };
+		db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ac235b0b29e8548681d4ac1e /* ApiModels.swift */; };
+		df3d8fb2acd85116a0144ac1 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79ace7319d6955619bef9c0d /* RootView.swift */; };
+		626f0041400a53a883a137a8 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05ab3cea5ec1581abdbae577 /* LoginView.swift */; };
+		e869f36a7d0151d28dc5e201 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059dd156c8605c2183b56209 /* MainTabView.swift */; };
+		218e67703e1151ca82a602f8 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e902825ee0a455c3ab1b64cd /* HomeView.swift */; };
+		dc231398963051488e3e881b /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = cb972d23c64853e39535066b /* AccountsView.swift */; };
+		0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0495932aeb51539792929ea7 /* TransactionsView.swift */; };
+		2789cf9acdf65c179737f6b8 /* TransactionEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1b870188c31f5fc881b28c38 /* NestKeepApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepApp.swift; sourceTree = "<group>"; };
+		b4257f9d4b69580a883dcf81 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/APIError.swift; sourceTree = "<group>"; };
+		a17a5c5a9dbe5049824c2808 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/AppSettings.swift; sourceTree = "<group>"; };
+		5edc27394655519881da9e5e /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/APIClient.swift; sourceTree = "<group>"; };
+		fdd4b23159f650b6865628b7 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/AuthManager.swift; sourceTree = "<group>"; };
+		8f1cb5e6d2ab59c79d1dad97 /* UI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/UI.swift; sourceTree = "<group>"; };
+		ef5eb4a8cbd25593b141cc8f /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/User.swift; sourceTree = "<group>"; };
+		78fe97771f275491a820e1d6 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Account.swift; sourceTree = "<group>"; };
+		3ec2d974cab95c87ab80bf53 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Transaction.swift; sourceTree = "<group>"; };
+		899f0061ea965f3cae6cd32a /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Category.swift; sourceTree = "<group>"; };
+		db0e4881cd7c5afcb4571d36 /* Tag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Tag.swift; sourceTree = "<group>"; };
+		ac235b0b29e8548681d4ac1e /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ApiModels.swift; sourceTree = "<group>"; };
+		79ace7319d6955619bef9c0d /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RootView.swift; sourceTree = "<group>"; };
+		05ab3cea5ec1581abdbae577 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/LoginView.swift; sourceTree = "<group>"; };
+		059dd156c8605c2183b56209 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
+		e902825ee0a455c3ab1b64cd /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeView.swift; sourceTree = "<group>"; };
+		cb972d23c64853e39535066b /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AccountsView.swift; sourceTree = "<group>"; };
+		0495932aeb51539792929ea7 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionsView.swift; sourceTree = "<group>"; };
+		2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionEditView.swift; sourceTree = "<group>"; };
+		97a32b6869505131847b6e7b /* NestKeep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestKeep.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		03f934da01b85ca5b31f0284 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		02dbd39461e85fa5a817b082 /* NestKeep */ = {
+			isa = PBXGroup;
+			children = (
+				1b870188c31f5fc881b28c38 /* NestKeepApp.swift */,
+				b4257f9d4b69580a883dcf81 /* APIError.swift */,
+				a17a5c5a9dbe5049824c2808 /* AppSettings.swift */,
+				5edc27394655519881da9e5e /* APIClient.swift */,
+				fdd4b23159f650b6865628b7 /* AuthManager.swift */,
+				8f1cb5e6d2ab59c79d1dad97 /* UI.swift */,
+				ef5eb4a8cbd25593b141cc8f /* User.swift */,
+				78fe97771f275491a820e1d6 /* Account.swift */,
+				3ec2d974cab95c87ab80bf53 /* Transaction.swift */,
+				899f0061ea965f3cae6cd32a /* Category.swift */,
+				db0e4881cd7c5afcb4571d36 /* Tag.swift */,
+				ac235b0b29e8548681d4ac1e /* ApiModels.swift */,
+				79ace7319d6955619bef9c0d /* RootView.swift */,
+				05ab3cea5ec1581abdbae577 /* LoginView.swift */,
+				059dd156c8605c2183b56209 /* MainTabView.swift */,
+				e902825ee0a455c3ab1b64cd /* HomeView.swift */,
+				cb972d23c64853e39535066b /* AccountsView.swift */,
+				0495932aeb51539792929ea7 /* TransactionsView.swift */,
+				2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */,
+			);
+			path = NestKeep;
+			sourceTree = "<group>";
+		};
+		53ebd12fa21250d88d83a005 = {
+			isa = PBXGroup;
+			children = (
+				02dbd39461e85fa5a817b082 /* NestKeep */,
+				97a32b6869505131847b6e7b /* NestKeep.app */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		d478a1d858af50e9bfa2b17f /* NestKeep */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = fb6415b4a9f6554b94be2a46 /* Build configuration list for PBXNativeTarget "NestKeep" */;
+			buildPhases = (
+				0f824d16deea5deb9cf9167c /* Sources */,
+				03f934da01b85ca5b31f0284 /* Frameworks */,
+				8b8a1ebd2cef5f69bcfbfc44 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NestKeep;
+			productName = NestKeep;
+			productReference = 97a32b6869505131847b6e7b /* NestKeep.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		a17f40863d4a5c93b4102858 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					d478a1d858af50e9bfa2b17f = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = b794c756181e553da536efa0 /* Build configuration list for PBXProject "NestKeep" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 53ebd12fa21250d88d83a005;
+			productRefGroup = 53ebd12fa21250d88d83a005 /* NestKeep */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				d478a1d858af50e9bfa2b17f /* NestKeep */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8b8a1ebd2cef5f69bcfbfc44 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0f824d16deea5deb9cf9167c /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0f517518251d5fa1a4752aad /* NestKeepApp.swift in Sources */,
+				816e176607c25c7aa3c16643 /* APIError.swift in Sources */,
+				4ed44fde1c345a789410f81e /* AppSettings.swift in Sources */,
+				65265d29ed06526ab6115053 /* APIClient.swift in Sources */,
+				4b7485c34b675199b9d14847 /* AuthManager.swift in Sources */,
+				a2a03949c3c759fc8720b78d /* UI.swift in Sources */,
+				3aa4828ec9215e7b80ab7f98 /* User.swift in Sources */,
+				574dbc9fffe5518c98920162 /* Account.swift in Sources */,
+				03945cb2951b57fd91708e18 /* Transaction.swift in Sources */,
+				d0650ce8d0b35bd49844424b /* Category.swift in Sources */,
+				7829d61af5ff555ba322b500 /* Tag.swift in Sources */,
+				db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */,
+				df3d8fb2acd85116a0144ac1 /* RootView.swift in Sources */,
+				626f0041400a53a883a137a8 /* LoginView.swift in Sources */,
+				e869f36a7d0151d28dc5e201 /* MainTabView.swift in Sources */,
+				218e67703e1151ca82a602f8 /* HomeView.swift in Sources */,
+				dc231398963051488e3e881b /* AccountsView.swift in Sources */,
+				0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */,
+				2789cf9acdf65c179737f6b8 /* TransactionEditView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		af7691fbfa1451b580510089 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		cbfc3e2d094554d9af07af7a /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		31c9825cb6fb56e7b2091cf4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
+				DEVELOPMENT_LANGUAGE = en;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NestKeep/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		119856b3883552908d826dc2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
+				DEVELOPMENT_LANGUAGE = en;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NestKeep/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		b794c756181e553da536efa0 /* Build configuration list for PBXProject "NestKeep" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				af7691fbfa1451b580510089 /* Debug */,
+				cbfc3e2d094554d9af07af7a /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		fb6415b4a9f6554b94be2a46 /* Build configuration list for PBXNativeTarget "NestKeep" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				31c9825cb6fb56e7b2091cf4 /* Debug */,
+				119856b3883552908d826dc2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = a17f40863d4a5c93b4102858 /* Project object */;
+}

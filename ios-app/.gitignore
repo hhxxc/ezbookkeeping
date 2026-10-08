@@ -1,0 +1,10 @@
+# Xcode / 构建产物
+build/
+*.xcarchive
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# 用户本地覆盖
+*.xcconfig
