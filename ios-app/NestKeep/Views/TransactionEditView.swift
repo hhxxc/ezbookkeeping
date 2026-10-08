@@ -370,7 +370,7 @@ struct TransactionEditView: View {
         .task { await vm.load() }
         .onChange(of: vm.didSave) { saved in if saved { dismiss() } }
         .sheet(isPresented: $showAccountSheet) {
-            AccountPickerSheet(
+            EditAccountPickerSheet(
                 title: vm.type == .transfer ? "选择转出账户" : "选择账户",
                 accounts: vm.accounts,
                 selectedId: vm.sourceAccountId,
@@ -378,7 +378,7 @@ struct TransactionEditView: View {
             ) { vm.sourceAccountId = $0 }
         }
         .sheet(isPresented: $showDestAccountSheet) {
-            AccountPickerSheet(
+            EditAccountPickerSheet(
                 title: "选择转入账户",
                 accounts: vm.accounts,
                 selectedId: vm.destinationAccountId,
@@ -849,7 +849,7 @@ struct TransactionEditView: View {
 }
 
 /// 账户选择弹层（单选，点选即回填并关闭）
-private struct AccountPickerSheet: View {
+private struct EditAccountPickerSheet: View {
     let title: String
     let accounts: [Account]
     let selectedId: String
