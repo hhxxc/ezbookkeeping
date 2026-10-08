@@ -112,6 +112,16 @@ struct CategoriesView: View {
                     }
                 }
             }
+
+            Section {
+                NavigationLink {
+                    PresetCategoriesView()
+                } label: {
+                    Label("导入默认分类", systemImage: "square.and.arrow.down.on.square")
+                }
+            } footer: {
+                Text("从内置预设分类（对齐 Web）批量导入支出 / 收入 / 转账分类。")
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("分类管理")

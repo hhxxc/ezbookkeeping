@@ -123,6 +123,9 @@ struct AccountsView: View {
     @State private var editingAccount: Account?
     @State private var showAdd = false
     @State private var deleting: Account?
+    /// 对账单 / 移动全部账单的目标账户
+    @State private var statementAccount: Account?
+    @State private var moveFromAccount: Account?
 
     var body: some View {
         NavigationView {
@@ -185,6 +188,15 @@ struct AccountsView: View {
             }
             .sheet(item: $editingAccount) { acc in
                 AccountEditView(account: acc)
+            }
+            .sheet(item: $statementAccount) { acc in
+                NavigationView {
+                    ReconciliationStatementView(account: acc)
+                        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                }
+            }
+            .sheet(item: $moveFromAccount) { acc in
+                MoveAllTransactionsView(fromAccount: acc)
             }
             .confirmationDialog("删除账户？", isPresented: Binding(
                 get: { deleting != nil },
@@ -329,6 +341,12 @@ struct AccountsView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { editingAccount = account }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            Button { statementAccount = account } label: {
+                Label("对账单", systemImage: "list.bullet.rectangle")
+            }
+            .tint(Theme.brand)
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) { deleting = account } label: {
                 Label("删除", systemImage: "trash")
@@ -337,6 +355,13 @@ struct AccountsView: View {
                 Label("隐藏", systemImage: "eye.slash")
             }
             .tint(.gray)
+            // 单账户（非父账户）才能移动全部账单
+            if account.type != AccountType.multiSubAccounts.rawValue {
+                Button { moveFromAccount = account } label: {
+                    Label("移动账单", systemImage: "arrow.right.arrow.left")
+                }
+                .tint(.orange)
+            }
         }
     }
 }

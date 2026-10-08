@@ -68,6 +68,40 @@ struct SettingsView: View {
                     }
                 }
 
+                // 页面与显示
+                Section(header: Text("页面与显示")) {
+                    NavigationLink {
+                        PageSettingsView()
+                    } label: {
+                        Label("页面设置", systemImage: "slider.horizontal.3")
+                    }
+                    NavigationLink {
+                        TextSizeSettingsView()
+                    } label: {
+                        Label("字号", systemImage: "textformat.size")
+                    }
+                    NavigationLink {
+                        AccountCategoryOrderView()
+                    } label: {
+                        Label("账户类别顺序", systemImage: "arrow.up.arrow.down")
+                    }
+                    NavigationLink {
+                        AccountFilterSettingsView(type: "homePageOverview", title: "概览统计账户")
+                    } label: {
+                        Label("概览统计账户", systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                    NavigationLink {
+                        CategoryFilterSettingsView(type: "homePageOverview", title: "概览统计分类")
+                    } label: {
+                        Label("概览统计分类", systemImage: "square.grid.2x2")
+                    }
+                    NavigationLink {
+                        TagFilterSettingsView()
+                    } label: {
+                        Label("标签筛选", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                }
+
                 // 安全
                 Section(header: Text("安全")) {
                     NavigationLink {
@@ -75,6 +109,12 @@ struct SettingsView: View {
                             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("应用锁", systemImage: "lock.shield")
+                    }
+                    NavigationLink {
+                        TwoFactorAuthView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("两步验证", systemImage: "lock.rotation")
                     }
                     NavigationLink {
                         SessionsView()
@@ -97,6 +137,16 @@ struct SettingsView: View {
                             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("汇率", systemImage: "arrow.left.arrow.right")
+                    }
+                    NavigationLink {
+                        BrowserCacheSettingsView()
+                    } label: {
+                        Label("缓存管理", systemImage: "internaldrive")
+                    }
+                    NavigationLink {
+                        CloudSyncSettingsView()
+                    } label: {
+                        Label("设置云同步", systemImage: "icloud")
                     }
                 }
 

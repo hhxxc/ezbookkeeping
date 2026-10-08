@@ -71,6 +71,13 @@ struct AccountModifyRequest: Codable {
 struct AccountIdRequest: Codable { let id: String }
 struct AccountHideRequest: Codable { let id: String; let hidden: Bool }
 
+/// 移动某账户下的全部账单到另一账户。
+/// `POST /api/v1/transactions/move/all.json`，两个 id 均为 `json:",string"`。
+struct MoveAllTransactionsRequest: Codable {
+    let fromAccountId: String
+    let toAccountId: String
+}
+
 /// 账户类型（对应 Go AccountType）
 enum AccountType: Int {
     case single = 1              // 单账户

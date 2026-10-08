@@ -72,4 +72,48 @@ struct APIClient {
             message: envelope.errorMessage ?? "请求失败"
         )
     }
+
+    /// 请求并返回原始 `result`（可能是数组、false、字符串等），用于 result 类型不固定的接口
+    /// （如 `users/settings/cloud/get.json` 可能返回 `false` 或数组）。
+    func requestRaw(
+        _ path: String,
+        method: HTTPMethod = .GET,
+        query: [URLQueryItem] = [],
+        body: Encodable? = nil
+    ) async throws -> Any? {
+        guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
+            throw APIError.invalidURL
+        }
+        if !query.isEmpty { components.queryItems = query }
+        guard let url = components.url else { throw APIError.invalidURL }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = method.rawValue
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = AuthManager.shared.token {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let tz = TimeZone.current
+        req.setValue("\(tz.secondsFromGMT() / 60)", forHTTPHeaderField: "X-Timezone-Offset")
+        req.setValue(tz.identifier, forHTTPHeaderField: "X-Timezone-Name")
+
+        if let body = body {
+            req.httpBody = try JSONEncoder().encode(AnyEncodable(body))
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+
+        let (data, _) = try await session.data(for: req)
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw APIError.invalidResponse
+        }
+        let success = root["success"] as? Bool ?? false
+        if !success {
+            throw APIError.server(
+                code: root["errorCode"] as? Int ?? -1,
+                message: root["errorMessage"] as? String ?? "请求失败"
+            )
+        }
+        // result 可能是 false / null
+        return root["result"] ?? false
+    }
 }
