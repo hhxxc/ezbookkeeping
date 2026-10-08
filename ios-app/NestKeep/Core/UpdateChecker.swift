@@ -11,7 +11,9 @@ struct ServerVersionInfo: Codable {
 /// 更新检测结果
 enum UpdateCheckResult: Equatable {
     case upToDate(current: String)
-    case updateAvailable(current: String, latest: String, downloadURL: URL?)
+    /// - releaseURL: Release 页面（含说明）
+    /// - ipaURL: IPA 文件直链（供 TrollStore「从 URL 安装」）
+    case updateAvailable(current: String, latest: String, releaseURL: URL?, ipaURL: URL?)
     case failed(message: String)
 }
 
@@ -55,7 +57,7 @@ enum UpdateChecker {
             }
 
             // 只保留非 draft / 非 prerelease 的正式版本，取版本号最大者
-            var best: (tag: String, url: URL?)?
+            var best: (tag: String, releaseURL: URL?, ipaURL: URL?)?
             for r in releases {
                 if (r["draft"] as? Bool) == true { continue }
                 if (r["prerelease"] as? Bool) == true { continue }
@@ -63,14 +65,14 @@ enum UpdateChecker {
                 let normalized = normalizeVersion(tag)
                 // 仅考虑形如 x.y.z 的版本（忽略 nestkeep-ipa-N 这类环境 tag）
                 guard isSemanticVersion(normalized) else { continue }
+                let releaseURL = (r["html_url"] as? String).flatMap { URL(string: $0) }
+                let ipaURL = ipaAssetURL(from: r)
                 if let cur = best {
                     if compareVersion(normalized, cur.tag) > 0 {
-                        let u = (r["html_url"] as? String).flatMap { URL(string: $0) }
-                        best = (normalized, u)
+                        best = (normalized, releaseURL, ipaURL)
                     }
                 } else {
-                    let u = (r["html_url"] as? String).flatMap { URL(string: $0) }
-                    best = (normalized, u)
+                    best = (normalized, releaseURL, ipaURL)
                 }
             }
 
@@ -79,12 +81,29 @@ enum UpdateChecker {
             }
 
             if compareVersion(latest.tag, current) > 0 {
-                return .updateAvailable(current: current, latest: latest.tag, downloadURL: latest.url ?? releasesPageURL)
+                return .updateAvailable(
+                    current: current,
+                    latest: latest.tag,
+                    releaseURL: latest.releaseURL ?? releasesPageURL,
+                    ipaURL: latest.ipaURL
+                )
             }
             return .upToDate(current: current)
         } catch {
             return .failed(message: error.localizedDescription)
         }
+    }
+
+    /// 从 release 的 assets 里找 .ipa 的浏览器直链
+    private static func ipaAssetURL(from release: [String: Any]) -> URL? {
+        guard let assets = release["assets"] as? [[String: Any]] else { return nil }
+        for a in assets {
+            if let name = a["name"] as? String, name.lowercased().hasSuffix(".ipa"),
+               let urlStr = a["browser_download_url"] as? String, let u = URL(string: urlStr) {
+                return u
+            }
+        }
+        return nil
     }
 
     // MARK: - 后端版本
@@ -133,9 +152,8 @@ final class UpdateStore: ObservableObject {
     @Published var result: UpdateCheckResult?
     @Published var serverVersion: ServerVersionInfo?
 
-    /// 上次自动检查时间（避免每次启动都打 GitHub API）
+    /// 上次自动检查时间（仅用于记录展示，不再做长节流）
     private let lastAutoCheckKey = "nestkeep.lastAutoUpdateCheck"
-    private let autoCheckInterval: TimeInterval = 60 * 60 * 12  // 12 小时
 
     /// 手动检查（用户点按）：同时刷新后端版本
     func checkNow() async {
@@ -150,16 +168,17 @@ final class UpdateStore: ObservableObject {
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastAutoCheckKey)
     }
 
-    /// 启动时静默检查：超过间隔才真正请求，且失败不打扰用户
-    func autoCheckIfNeeded() async {
+    /// 启动时检查：每次启动都查（有新版才提示，失败静默）。
+    /// 加一层 1 小时的最小间隔兜底，避免用户疯狂切前后台时反复打 GitHub API。
+    func autoCheckIfNeeded(force: Bool = false) async {
         let last = UserDefaults.standard.double(forKey: lastAutoCheckKey)
         let now = Date().timeIntervalSince1970
-        guard now - last > autoCheckInterval else { return }
+        if !force && now - last < 60 * 60 { return }
         UserDefaults.standard.set(now, forKey: lastAutoCheckKey)
         // 静默刷新后端版本
         self.serverVersion = await UpdateChecker.fetchServerVersion()
         let r = await UpdateChecker.checkAppUpdate()
-        // 仅当有新版时才在 UI 上提示（upToDate/failed 不打扰）
+        // 每次启动都拿结果：有新版提示，无新版/失败不打扰
         if case .updateAvailable = r { self.result = r }
     }
 }

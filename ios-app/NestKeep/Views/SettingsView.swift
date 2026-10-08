@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 「我的」页：账号信息、App 版本、后端版本、检查更新、退出登录
 struct SettingsView: View {
@@ -100,10 +101,11 @@ struct SettingsView: View {
 struct UpdateResultSheet: View {
     @ObservedObject var updateStore: UpdateStore
     @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 Spacer()
 
                 if updateStore.isChecking {
@@ -118,15 +120,21 @@ struct UpdateResultSheet: View {
                         Text("已是最新版本").font(.title3).bold()
                         Text("当前版本 \(current)").foregroundColor(.secondary)
 
-                    case .updateAvailable(let current, let latest, let url):
+                    case .updateAvailable(let current, let latest, let releaseURL, let ipaURL):
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 56))
                             .foregroundColor(Theme.brand)
                         Text("发现新版本 \(latest)").font(.title3).bold()
                         Text("当前版本 \(current)").foregroundColor(.secondary)
-                        if let url = url {
-                            Link(destination: url) {
-                                Text("前往下载")
+
+                        // 主按钮：复制 IPA 直链（TrollStore「从 URL 安装」用）
+                        if let ipaURL = ipaURL {
+                            Button {
+                                UIPasteboard.general.string = ipaURL.absoluteString
+                                copied = true
+                            } label: {
+                                Label(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链",
+                                      systemImage: copied ? "checkmark.circle.fill" : "doc.on.doc")
                                     .bold()
                                     .frame(maxWidth: .infinity)
                                     .padding()
@@ -135,12 +143,25 @@ struct UpdateResultSheet: View {
                                     .cornerRadius(12)
                             }
                             .padding(.horizontal, 32)
+                            Text("TrollStore → 右上角 + → 从 URL 安装，粘贴即装。")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
                         }
-                        Text("下载后用 TrollStore 打开 IPA 覆盖安装即可。")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+
+                        // 次按钮：打开发布页
+                        if let releaseURL = releaseURL {
+                            Link(destination: releaseURL) {
+                                Text("打开发布页")
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Theme.brand.opacity(0.12))
+                                    .foregroundColor(Theme.brand)
+                                    .cornerRadius(12)
+                            }
                             .padding(.horizontal, 32)
+                        }
 
                     case .failed(let message):
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -163,6 +184,9 @@ struct UpdateResultSheet: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                 }
+            }
+            .onChange(of: updateStore.isChecking) { checking in
+                if !checking { copied = false }
             }
         }
     }

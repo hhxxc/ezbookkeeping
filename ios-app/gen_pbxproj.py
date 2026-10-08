@@ -39,6 +39,8 @@ SWIFT_FILES = [
 ]
 
 INFOPLIST = "Info.plist"
+# 资源目录（AppIcon 图标、颜色等）；作为 folder reference 加入 Resources 构建阶段
+ASSET_CATALOG = "Assets.xcassets"
 
 # 用稳定 hash 生成 24 位十六进制 ID，保证文件增删时旧 ID 不变
 def oid(seed: str) -> str:
@@ -69,6 +71,10 @@ for f in SWIFT_FILES:
     file_ref_ids[f] = oid("FileRef." + f)
     build_file_ids[f] = oid("BuildFile." + f)
 
+# 资源目录 ID
+assets_ref_id = oid("FileRef." + ASSET_CATALOG)
+assets_build_id = oid("BuildFile." + ASSET_CATALOG)
+
 # ---- PBXBuildFile ----
 build_files = []
 for f in SWIFT_FILES:
@@ -77,6 +83,10 @@ for f in SWIFT_FILES:
         f'\t\t{build_file_ids[f]} /* {name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref_ids[f]} /* {name} */; }};\n'
     )
 build_files_txt = "".join(build_files)
+# 资源文件也需一条 PBXBuildFile（归入 Resources 阶段）
+build_files_txt += (
+    f'\t\t{assets_build_id} /* {ASSET_CATALOG} in Resources */ = {{isa = PBXBuildFile; fileRef = {assets_ref_id} /* {ASSET_CATALOG} */; }};\n'
+)
 
 # ---- PBXFileReference ----
 file_refs = []
@@ -88,10 +98,15 @@ for f in SWIFT_FILES:
 file_refs.append(
     f'\t\t{product_id} /* NestKeep.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestKeep.app; sourceTree = BUILT_PRODUCTS_DIR; }};\n'
 )
+# 资源目录引用（lastKnownFileType = folder.assetcatalog）
+file_refs.append(
+    f'\t\t{assets_ref_id} /* {ASSET_CATALOG} */ = {{isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = {ASSET_CATALOG}; sourceTree = "<group>"; }};\n'
+)
 file_refs_txt = "".join(file_refs)
 
 # ---- PBXGroup ----
 group_children = ",\n".join(f"\t\t\t\t{file_ref_ids[f]} /* {os.path.basename(f)} */" for f in SWIFT_FILES)
+group_children += f",\n\t\t\t\t{assets_ref_id} /* {ASSET_CATALOG} */"
 nestkeep_group = (
     f'\t\t{nestkeep_group_id} /* NestKeep */ = {{\n'
     f'\t\t\tisa = PBXGroup;\n'
@@ -193,6 +208,7 @@ resources_txt = (
     f'\t\t\tisa = PBXResourcesBuildPhase;\n'
     f'\t\t\tbuildActionMask = 2147483647;\n'
     f'\t\t\tfiles = (\n'
+    f'\t\t\t\t{assets_build_id} /* {ASSET_CATALOG} in Resources */,\n'
     f'\t\t\t);\n'
     f'\t\t\trunOnlyForDeploymentPostprocessing = 0;\n'
     f'\t\t}};\n'
@@ -243,6 +259,7 @@ target_debug = (
     f'\t\t{tgt_dbg_id} /* Debug */ = {{\n'
     f'\t\t\tisa = XCBuildConfiguration;\n'
     f'\t\t\tbuildSettings = {{\n'
+    f'\t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n'
     f'\t\t\t\tASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;\n\t\t\t\tDEVELOPMENT_LANGUAGE = en;\n'
     f'\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
     f'\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
@@ -255,7 +272,7 @@ target_debug = (
     f'\t\t\t\t\t"$(inherited)",\n'
     f'\t\t\t\t\t"@executable_path/Frameworks",\n'
     f'\t\t\t\t);\n'
-    f'\t\t\t\tMARKETING_VERSION = 1.0;\n'
+    f'\t\t\t\tMARKETING_VERSION = 1.6.0;\n'
     f'\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;\n'
     f'\t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";\n'
     f'\t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;\n'
@@ -269,6 +286,7 @@ target_release = (
     f'\t\t{tgt_rel_id} /* Release */ = {{\n'
     f'\t\t\tisa = XCBuildConfiguration;\n'
     f'\t\t\tbuildSettings = {{\n'
+    f'\t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;\n'
     f'\t\t\t\tASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;\n\t\t\t\tDEVELOPMENT_LANGUAGE = en;\n'
     f'\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
     f'\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
@@ -281,7 +299,7 @@ target_release = (
     f'\t\t\t\t\t"$(inherited)",\n'
     f'\t\t\t\t\t"@executable_path/Frameworks",\n'
     f'\t\t\t\t);\n'
-    f'\t\t\t\tMARKETING_VERSION = 1.0;\n'
+    f'\t\t\t\tMARKETING_VERSION = 1.6.0;\n'
     f'\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;\n'
     f'\t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";\n'
     f'\t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;\n'

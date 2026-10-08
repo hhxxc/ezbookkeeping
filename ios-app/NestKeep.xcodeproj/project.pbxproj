@@ -28,6 +28,7 @@
 		0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0495932aeb51539792929ea7 /* TransactionsView.swift */; };
 		2789cf9acdf65c179737f6b8 /* TransactionEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */; };
 		f7e92de663135ff8a6a496e4 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = b16f5ca236175000ac9aacf6 /* SettingsView.swift */; };
+		dbc1a5d2300d5d06b902e001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = f6b51b49f5ab5537a189796d /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -53,6 +54,7 @@
 		2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionEditView.swift; sourceTree = "<group>"; };
 		b16f5ca236175000ac9aacf6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsView.swift; sourceTree = "<group>"; };
 		97a32b6869505131847b6e7b /* NestKeep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestKeep.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		f6b51b49f5ab5537a189796d /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +92,7 @@
 				0495932aeb51539792929ea7 /* TransactionsView.swift */,
 				2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */,
 				b16f5ca236175000ac9aacf6 /* SettingsView.swift */,
+				f6b51b49f5ab5537a189796d /* Assets.xcassets */,
 			);
 			path = NestKeep;
 			sourceTree = "<group>";
@@ -160,6 +163,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				dbc1a5d2300d5d06b902e001 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -235,6 +239,7 @@
 		31c9825cb6fb56e7b2091cf4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				DEVELOPMENT_LANGUAGE = en;
 				CODE_SIGN_STYLE = Automatic;
@@ -248,7 +253,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -260,6 +265,7 @@
 		119856b3883552908d826dc2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				DEVELOPMENT_LANGUAGE = en;
 				CODE_SIGN_STYLE = Automatic;
@@ -273,7 +279,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
