@@ -4,11 +4,12 @@ name: Build NestKeep Native IPA (TrollStore)
 # 产出 IPA 供 TrollStore 安装。无需本地 Mac、无需付费开发者证书。
 #
 # 触发：
-#   - 推送 main / native-ios-app 且改动 ios-app/ 下任何文件或本工作流时自动构建
-#     （仅上传 Artifact，不发文）。'ios-app/**' 已覆盖 Info.plist、gen_pbxproj.py
-#     等关键文件；历史上曾因忽略路径过滤导致「改了却没构建」的静默失败，故此处
-#     额外加了产物断言步骤兜底（见 Verify IPA 关键键）。
-#   - 手动 workflow_dispatch：除 Artifact 外，额外创建一个 GitHub Release（可直接下载的永久链接）
+#   - 推送 native-ios-app 且改动 ios-app/ 下任何文件或本工作流时自动构建，
+#     **并自动发一个语义版本 Release**（版本号 = 本变体现有最大语义版本的 patch+1），
+#     供 App 内「检查更新」识别到新版本。这样每次 push 完，手机端一键更新即可拿到。
+#   - 推送 main（Web 后端）时仅上传 Artifact，不发版。
+#   - 手动 workflow_dispatch：可指定 app_version 跳版本（如 1.7.0）；填了才会用指定版本发版，
+#     留空则同样按 patch+1 自动推进。
 #
 # 变体（flavor）：
 #   dev    → 巢记+        Bundle ID com.nestkeep.app.dev     （日常开发用）
@@ -112,23 +113,52 @@ jobs:
           echo "==> pbxproj:"
           grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' NestKeep.xcodeproj/project.pbxproj
 
+      - name: Compute app version (auto patch+1 on push, or manual on dispatch)
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 统一在此决定本次构建的语义版本号：
+          #   - workflow_dispatch 传了 app_version -> 用它（支持手动跳大版本，如 1.7.0）
+          #   - 否则（push 到 native-ios-app / main）-> 自动取「本变体现有最大语义版本」的 patch+1，
+          #     这样每次 push 都会产出一个比上一版更大的新版本，App 内「检查更新」就能查到。
+          #
+          # 版本号只写进 CFBundleShortVersionString（纯三段 x.y.z），构建号（CFBundleVersion）
+          # 单独用 run_number。绝不把运行号拼进版本号——那会让 1.6.3.16 被判成「新于」1.6.3，
+          # 导致永远提示有更新（历史教训）。
+          SUFFIX=""
+          if [ "$FLAVOR" = "stable" ]; then SUFFIX="-stable"; fi
+
+          MANUAL="${{ github.event.inputs.app_version }}"
+          if [ -n "$MANUAL" ]; then
+            V="${MANUAL#v}"
+            echo "==> 使用手动指定版本 $V"
+          else
+            # 查本变体现有语义版本 tag（vX.Y.Z 或 vX.Y.Z-stable），取最大 patch
+            LATEST="$(gh api "repos/${{ github.repository }}/releases?per_page=100" --jq '.[].tag_name' \
+              | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+${SUFFIX}\$" \
+              | sed -E "s/^v//; s/${SUFFIX}\$//" \
+              | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)"
+            # 没有任何语义版本 tag 时，从仓库基线（gen_pbxproj.py / Info.plist 的 MARKETING_VERSION）起步
+            if [ -z "$LATEST" ]; then
+              LATEST="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' ios-app/NestKeep/Info.plist)"
+            fi
+            V="$(echo "$LATEST" | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')"
+            echo "==> 自动推进版本：$LATEST -> $V"
+          fi
+          # 健壮性：极端情况下 V 仍为空则回退基线
+          if [ -z "$V" ]; then V="1.6.3"; fi
+          echo "app_version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag_suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+
       - name: Inject app version into Info.plist
         working-directory: ios-app
         run: |
           # 版本号必须真实写进 App 包，否则 App 内「我的」永远显示基线值，
-          # 用户无法判断自己装的是哪一版（此前 app_version 只用于给 Release 打 tag）。
+          # 用户无法判断自己装的是哪一版。
           PLIST="NestKeep/Info.plist"
-          V="${{ github.event.inputs.app_version }}"
-          if [ -z "$V" ]; then
-            # push 触发：版本号保持纯语义版本（读基线），构建号用运行号区分每次构建。
-            # 注意不要把运行号拼进 CFBundleShortVersionString——那会让 App 内
-            # 版本比较把 1.6.3.16 判成「新于」1.6.3，导致永远提示有更新。
-            V="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
-            B="${{ github.run_number }}"
-          else
-            V="${V#v}"
-            B="${{ github.run_number }}"
-          fi
+          V="${{ steps.version.outputs.app_version }}"
+          B="${{ github.run_number }}"
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$PLIST" \
             || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $V" "$PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" "$PLIST" \
@@ -231,15 +261,19 @@ jobs:
             --notes "原生 iOS App（${{ env.FLAVOR }} 变体，显示名「${{ steps.flavor.outputs.display_name }}」，Bundle ID ${{ steps.flavor.outputs.bundle_id }}）。产物 ${{ env.IPA_NAME }}。用 TrollStore 打开该 IPA 安装（会重新签名、永久驻留）。"
 
       - name: Publish semantic version release (for in-app update check)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.app_version != ''
+        # push 到 native-ios-app（原生 App 主分支）或手动 dispatch 都发语义版本 Release，
+        # 供 App 内「检查更新」识别。main 分支是 Web 后端，不改动原生 App，不发版。
+        if: github.event_name == 'workflow_dispatch' || github.ref_name == 'native-ios-app'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          V="${{ github.event.inputs.app_version }}"
-          # 去掉可能的 v 前缀；stable 变体加后缀避免与 dev 的 tag 撞车
-          V="${V#v}"
-          SUFFIX=""
-          if [ "$FLAVOR" = "stable" ]; then SUFFIX="-stable"; fi
+          V="${{ steps.version.outputs.app_version }}"
+          SUFFIX="${{ steps.version.outputs.tag_suffix }}"
+          # 若目标 tag 已存在（例如同一版本重复构建），跳过发版而不是报错中断
+          if gh release view "v$V$SUFFIX" >/dev/null 2>&1; then
+            echo "==> tag v$V$SUFFIX 已存在，跳过发版（避免重复）"
+            exit 0
+          fi
           gh release create "v$V$SUFFIX" "ios-app/${{ env.IPA_NAME }}" \
             --title "NestKeep ${FLAVOR} v$V" \
             --notes "原生 iOS App（$FLAVOR 变体）v$V（${{ env.IPA_NAME }}）。显示名「${{ steps.flavor.outputs.display_name }}」，Bundle ID ${{ steps.flavor.outputs.bundle_id }}，与另一变体可同时安装。用 TrollStore 打开 IPA 覆盖安装（同变体才会覆盖）。"

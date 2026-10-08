@@ -51,30 +51,51 @@ enum UpdateChecker {
 
     // MARK: - App 更新检测
 
-    /// 查询最新版本并比对。优先读用户自己后端的中转清单（走自己的域名，国内可达），
-    /// 失败再回退 GitHub API（需能访问 github.com）。
+    /// 单个来源报告的最新版本信息（内部用）。
+    /// version 为空表示该来源不可用（网络失败 / 无本变体版本）。
+    private struct LatestInfo {
+        let version: String
+        let releaseURL: URL?
+        let ipaURL: URL?
+    }
+
+    /// 查询最新版本并比对。
+    ///
+    /// **同时查两个来源，取版本号较大者**：
+    ///   1. 后端中转清单 latest.json（走自有域名，国内可达、快）
+    ///   2. GitHub Releases API（权威，但需能访问 github.com）
+    ///
+    /// 之所以不采用「清单优先、失败才回退」的串行策略，是因为 latest.json 由发版脚本
+    /// 手动更新、可能滞后：若清单存在但版本号偏旧，串行策略会直接返回「已是最新」，
+    /// 永远不会回退到 GitHub 去发现真正的新版——这正是「查不到最新」的根因之一。
+    /// 并行取最大，能保证无论哪个来源更及时，用户都能拿到真正的最大版本号。
     static func checkAppUpdate() async -> UpdateCheckResult {
         let current = currentAppVersion
 
-        // 1) 优先：后端中转清单 /api/nestkeep/latest.json
-        if let r = await checkViaBackend(current: current) {
-            return r
+        async let backend = queryBackend()
+        async let github = queryGitHub()
+        let b = await backend
+        let g = await github
+
+        // 取两个来源中版本号较大者
+        let candidates = [b, g].compactMap { $0 }
+        guard let best = candidates.max(by: { compareVersion($0.version, $1.version) < 0 }) else {
+            return .failed(message: "无法获取版本信息，请稍后重试")
         }
-        // 2) 回退：GitHub Releases API
-        return await checkViaGitHub(current: current)
+
+        if compareVersion(best.version, current) > 0 {
+            return .updateAvailable(
+                current: current,
+                latest: best.version,
+                releaseURL: best.releaseURL,
+                ipaURL: best.ipaURL
+            )
+        }
+        return .upToDate(current: current)
     }
 
-    /// 后端中转清单结构（由发版脚本写入 NAS）：{ version, ipaUrl, releaseUrl?, notes?, variant? }
-    /// variant 为可选：区分 dev / stable 变体，缺省表示通用（不带变体语义）。
-    private struct BackendManifest: Decodable {
-        let version: String
-        let ipaUrl: String?
-        let releaseUrl: String?
-        let notes: String?
-        let variant: String?
-    }
-
-    private static func checkViaBackend(current: String) async -> UpdateCheckResult? {
+    /// 后端清单来源：返回清单报告的最新版本（不可用/无本变体版本则返回 nil）。
+    private static func queryBackend() async -> LatestInfo? {
         // 后端目前只有一个清单 latest.json（用 variant 字段区分变体，见 NestKeepLatestHandler）。
         // 直接读它即可；不存在的变体专属清单（latest-dev.json 等）后端没有对应路由，
         // 请求只会命中 :name 通配返回 404，属于无意义的往返。
@@ -97,7 +118,6 @@ enum UpdateChecker {
         }
 
         // 清单若带 variant 字段，则必须与本机变体一致才采用（防跨变体误报）。
-        // 不带 variant 的旧清单视为通用，但此时 ipaUrl 可能指向任一变体，仍按版本号比对。
         if let variant = manifest.variant, !variant.isEmpty, variant != channel {
             return nil
         }
@@ -105,73 +125,65 @@ enum UpdateChecker {
         let latest = normalizeVersion(manifest.version)
         guard isSemanticVersion(latest) else { return nil }
 
-        if compareVersion(latest, current) > 0 {
-            return .updateAvailable(
-                current: current,
-                latest: latest,
-                releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
-                ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
-            )
-        }
-        return .upToDate(current: current)
+        return LatestInfo(
+            version: latest,
+            releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
+            ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
+        )
     }
 
-    /// 通过 GitHub Releases API 查询最新版本并比对（回退路径）。
+    /// 后端中转清单结构（由发版脚本写入 NAS）：{ version, ipaUrl, releaseUrl?, notes?, variant? }
+    /// variant 为可选：区分 dev / stable 变体，缺省表示通用（不带变体语义）。
+    private struct BackendManifest: Decodable {
+        let version: String
+        let ipaUrl: String?
+        let releaseUrl: String?
+        let notes: String?
+        let variant: String?
+    }
+
+    /// GitHub Releases API 来源：返回本变体最新的语义版本（不可用/无本变体版本则返回 nil）。
     ///
     /// 注意变体语义：stable 变体的语义版本 tag 是 `vX.Y.Z-stable`（见 build-native-ios.yml 的
     /// `Publish semantic version release` 步骤），dev 是 `vX.Y.Z`。这里必须**只认本变体的 tag**，
     /// 否则 stable 用户会拿到 dev 的 `vX.Y.Z` 当成自己的最新版，一键安装后被装成 dev 变体。
-    private static func checkViaGitHub(current: String) async -> UpdateCheckResult {
-        do {
-            // per_page 给到 100：历史 Release 里有大量环境 tag（nestkeep-ipa-N / 巢记 v1.6.01.0x），
-            // 若只取前 10 且版本号与 created_at 顺序不一致，会把真正的最新语义版本截断掉。
-            let url = URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=100")!
-            var req = URLRequest(url: url)
-            req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            req.setValue("NestKeep-iOS", forHTTPHeaderField: "User-Agent")
-            req.timeoutInterval = 15
-
-            let (data, _) = try await URLSession.shared.data(for: req)
-            guard let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                return .failed(message: "无法解析版本信息")
-            }
-
-            // 只保留非 draft / 非 prerelease 的正式版本，取版本号最大者
-            var best: (tag: String, releaseURL: URL?, ipaURL: URL?)?
-            for r in releases {
-                if (r["draft"] as? Bool) == true { continue }
-                if (r["prerelease"] as? Bool) == true { continue }
-                guard let tag = r["tag_name"] as? String, !tag.isEmpty else { continue }
-                // 解析出「核心版本号 + 变体后缀」，只认本 channel 的 tag；
-                // 忽略 nestkeep-ipa-N / 巢记 v1.6.01.0x 等环境 tag。
-                guard let parsed = parseVersionTag(tag), parsed.variant == channel else { continue }
-                let releaseURL = (r["html_url"] as? String).flatMap { URL(string: $0) }
-                let ipaURL = ipaAssetURL(from: r)
-                if let cur = best {
-                    if compareVersion(parsed.version, cur.tag) > 0 {
-                        best = (parsed.version, releaseURL, ipaURL)
-                    }
-                } else {
-                    best = (parsed.version, releaseURL, ipaURL)
-                }
-            }
-
-            guard let latest = best else {
-                return .failed(message: "暂无可用的正式版本")
-            }
-
-            if compareVersion(latest.tag, current) > 0 {
-                return .updateAvailable(
-                    current: current,
-                    latest: latest.tag,
-                    releaseURL: latest.releaseURL ?? releasesPageURL,
-                    ipaURL: latest.ipaURL
-                )
-            }
-            return .upToDate(current: current)
-        } catch {
-            return .failed(message: error.localizedDescription)
+    private static func queryGitHub() async -> LatestInfo? {
+        // per_page 给到 100：历史 Release 里有大量环境 tag（nestkeep-ipa-N / 巢记 v1.6.01.0x），
+        // 若只取前 10 且版本号与 created_at 顺序不一致，会把真正的最新语义版本截断掉。
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=100") else {
+            return nil
         }
+        var req = URLRequest(url: url)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("NestKeep-iOS", forHTTPHeaderField: "User-Agent")
+        req.timeoutInterval = 15
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return nil
+        }
+
+        // 只保留非 draft / 非 prerelease 的正式版本，取版本号最大者
+        var best: LatestInfo?
+        for r in releases {
+            if (r["draft"] as? Bool) == true { continue }
+            if (r["prerelease"] as? Bool) == true { continue }
+            guard let tag = r["tag_name"] as? String, !tag.isEmpty else { continue }
+            // 解析出「核心版本号 + 变体后缀」，只认本 channel 的 tag；
+            // 忽略 nestkeep-ipa-N / 巢记 v1.6.01.0x 等环境 tag。
+            guard let parsed = parseVersionTag(tag), parsed.variant == channel else { continue }
+            let releaseURL = (r["html_url"] as? String).flatMap { URL(string: $0) }
+            let ipaURL = ipaAssetURL(from: r)
+            let info = LatestInfo(version: parsed.version, releaseURL: releaseURL, ipaURL: ipaURL)
+            if let cur = best {
+                if compareVersion(info.version, cur.version) > 0 {
+                    best = info
+                }
+            } else {
+                best = info
+            }
+        }
+        return best
     }
 
     /// 从 release 的 assets 里找 .ipa 的浏览器直链
