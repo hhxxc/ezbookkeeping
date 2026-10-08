@@ -13,26 +13,11 @@ struct MainTabView: View {
             TransactionsView()
                 .tabItem { Label("账单", systemImage: "list.bullet") }
 
-            PlaceholderView(title: "我的", systemImage: "person.fill")
+            SettingsView()
                 .tabItem { Label("我的", systemImage: "person.fill") }
         }
         .accentColor(Theme.brand)
-    }
-}
-
-/// 临时占位页（下一轮替换为「我的/设置」）
-struct PlaceholderView: View {
-    let title: String
-    let systemImage: String
-
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 12) {
-                Image(systemName: systemImage).font(.largeTitle).foregroundColor(.secondary)
-                Text("「\(title)」页面将在后续阶段实现")
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle(title)
-        }
+        // 启动时静默检查更新（有间隔节流，失败不打扰）
+        .task { await UpdateStore.shared.autoCheckIfNeeded() }
     }
 }

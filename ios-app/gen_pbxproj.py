@@ -21,6 +21,7 @@ SWIFT_FILES = [
     "Core/APIClient.swift",
     "Core/AuthManager.swift",
     "Core/UI.swift",
+    "Core/UpdateChecker.swift",
     "Models/User.swift",
     "Models/Account.swift",
     "Models/Transaction.swift",
@@ -34,6 +35,7 @@ SWIFT_FILES = [
     "Views/AccountsView.swift",
     "Views/TransactionsView.swift",
     "Views/TransactionEditView.swift",
+    "Views/SettingsView.swift",
 ]
 
 INFOPLIST = "Info.plist"

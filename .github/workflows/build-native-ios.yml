@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: true
+      app_version:
+        description: '语义化版本号（如 1.6.1）；填了才会额外发一个 vX.Y.Z 的 Release，供 App 内自动更新检测识别。留空则只发 nestkeep-ipa-N 环境包'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -83,3 +88,15 @@ jobs:
           gh release create "$TAG" "ios-app/${{ env.IPA_NAME }}" \
             --title "NestKeep IPA #${{ github.run_number }}" \
             --notes "原生 iOS App 构建产物（${{ env.IPA_NAME }}）。用 TrollStore 打开该 IPA 安装（会重新签名、永久驻留）。"
+
+      - name: Publish semantic version release (for in-app update check)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.app_version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V="${{ github.event.inputs.app_version }}"
+          # 去掉可能的 v 前缀，统一成 vX.Y.Z
+          V="${V#v}"
+          gh release create "v$V" "ios-app/${{ env.IPA_NAME }}" \
+            --title "NestKeep v$V" \
+            --notes "原生 iOS App v$V（${{ env.IPA_NAME }}）。App 内「我的 > 检查更新」会自动识别此版本号并提示升级。下载后用 TrollStore 打开 IPA 覆盖安装。"
