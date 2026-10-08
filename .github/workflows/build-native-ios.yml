@@ -49,7 +49,8 @@ jobs:
             -derivedDataPath build/dd \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Package IPA (TrollStore will re-sign on device)
         working-directory: ios-app
