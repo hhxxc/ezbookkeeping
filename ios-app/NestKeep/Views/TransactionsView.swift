@@ -31,6 +31,59 @@ struct TransactionFilter: Equatable {
     mutating func reset() { self = TransactionFilter() }
 }
 
+/// 首页「日期范围」的 6 个区间（顺序与手机端 Web 的 `overview-transaction-list` 一致）。
+/// `key` 即后端 `amounts.json` 的 query 类型名（见 `TransactionAmountsRequestType`）。
+enum OverviewPeriod: String, CaseIterable, Identifiable {
+    case today
+    case yesterday
+    case thisWeek
+    case thisMonth
+    case lastMonth
+    case thisYear
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .today: return "今日"
+        case .yesterday: return "昨日"
+        case .thisWeek: return "本周"
+        case .thisMonth: return "本月"
+        case .lastMonth: return "上月"
+        case .thisYear: return "今年"
+        }
+    }
+
+    /// 图标徽章配色（取自 Web 的低饱和图表色板）
+    var color: Color {
+        switch self {
+        case .today: return Color(hex: "#26A69A")
+        case .yesterday: return Color(hex: "#8E7CC3")
+        case .thisWeek: return Color(hex: "#5B8DB8")
+        case .thisMonth: return Color(hex: "#DD9437")
+        case .lastMonth: return Color(hex: "#879BAB")
+        case .thisYear: return Color(hex: "#5DA65C")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .today: return "sun.max.fill"
+        case .yesterday: return "moon.fill"
+        case .thisWeek: return "square.grid.2x2.fill"
+        case .thisMonth: return "calendar"
+        case .lastMonth: return "arrow.counterclockwise.circle.fill"
+        case .thisYear: return "square.stack.3d.up.fill"
+        }
+    }
+}
+
+/// 某个区间的起止（Unix **秒**，与 Web 的 startTime/endTime 同口径）
+struct OverviewDateRange {
+    let start: Int
+    let end: Int
+}
+
 /// 账单页：顶部汇总卡（原首页内容）+ 按月分页列表，按日分组。
 /// 结构对齐手机端 Web：Web 的首页内容并入本页顶部，底部不再有独立「首页」Tab。
 @MainActor
@@ -45,6 +98,16 @@ final class TransactionsViewModel: ObservableObject {
     @Published var accounts: [Account] = []
     @Published var monthIncomeCents: Int64 = 0
     @Published var monthExpenseCents: Int64 = 0
+
+    /// 6 个区间的日期边界（用于展示副标题 + 点击跳筛选）
+    @Published var ranges: [OverviewPeriod: OverviewDateRange] = [:]
+    /// 6 个区间的收支合计（元→分，与其它金额一致）
+    @Published var periodIncome: [OverviewPeriod: Int64] = [:]
+    @Published var periodExpense: [OverviewPeriod: Int64] = [:]
+    /// 首页/账单页金额隐藏（眼睛图标切换，持久化）
+    @Published var hideAmounts = UserDefaults.standard.bool(forKey: "nestkeep.hideAmounts") {
+        didSet { UserDefaults.standard.set(hideAmounts, forKey: "nestkeep.hideAmounts") }
+    }
 
     // 筛选条件（对齐 Web 的账单筛选）
     @Published var filter = TransactionFilter()
@@ -174,27 +237,140 @@ final class TransactionsViewModel: ObservableObject {
         Task { await load() }
     }
 
-    /// 拉取当前自然月的收支合计（用于汇总卡；与列表月份无关，始终是「本月」）
-    private func loadAmounts() async {
+    /// 计算 6 个区间的 Unix 秒边界（口径完全对齐 Web 的 `initTransactionDateRange`）：
+    /// - today / yesterday：本日与前一日的 00:00:00 ~ 23:59:59
+    /// - thisWeek：以**周一**为一周之始（Web 用 currentUserFirstDayOfWeek，默认取 0 为周日；
+    ///   此处按国内习惯固定周一，保证与用户预期一致）
+    /// - thisMonth：本月 1 日 00:00 ~ 下月 1 日 00:00 前 1 秒
+    /// - lastMonth：上月 1 日 00:00 ~ 本月 1 日 00:00 前 1 秒
+    /// - thisYear：1 月 1 日 00:00 ~ 次年 1 月 1 日 00:00 前 1 秒
+    private func buildRanges() -> [OverviewPeriod: OverviewDateRange] {
         let cal = Calendar.current
-        let now = Date()
-        guard let start = cal.date(from: cal.dateComponents([.year, .month], from: now)),
-              let end = cal.date(byAdding: .month, value: 1, to: start) else { return }
-        let query = "m_\(Int(start.timeIntervalSince1970))_\(Int(end.timeIntervalSince1970))"
+        let todayStart = cal.startOfDay(for: Date())
+        guard let tomorrow = cal.date(byAdding: .day, value: 1, to: todayStart),
+              let yesterdayStart = cal.date(byAdding: .day, value: -1, to: todayStart),
+              let thisMonthStart = cal.date(from: cal.dateComponents([.year, .month], from: todayStart)),
+              let nextMonthStart = cal.date(byAdding: .month, value: 1, to: thisMonthStart),
+              let lastMonthStart = cal.date(byAdding: .month, value: -1, to: thisMonthStart),
+              let thisYearStart = cal.date(from: cal.dateComponents([.year], from: todayStart)),
+              let nextYearStart = cal.date(byAdding: .year, value: 1, to: thisYearStart) else { return [:] }
+
+        // 本周起始：以周一为第一天（Calendar 的 weekday：1=周日…2=周一）
+        let weekdayOffset = (cal.component(.weekday, from: todayStart) + 5) % 7   // 周一→0，周日→6
+        guard let thisWeekStart = cal.date(byAdding: .day, value: -weekdayOffset, to: todayStart),
+              let nextWeekStart = cal.date(byAdding: .day, value: 7, to: thisWeekStart) else { return [:] }
+
+        func range(_ start: Date, _ exclusiveEnd: Date) -> OverviewDateRange {
+            OverviewDateRange(
+                start: Int(start.timeIntervalSince1970),
+                end: Int(exclusiveEnd.timeIntervalSince1970) - 1
+            )
+        }
+
+        return [
+            .today: range(todayStart, tomorrow),
+            .yesterday: range(yesterdayStart, todayStart),
+            .thisWeek: range(thisWeekStart, nextWeekStart),
+            .thisMonth: range(thisMonthStart, nextMonthStart),
+            .lastMonth: range(lastMonthStart, thisMonthStart),
+            .thisYear: range(thisYearStart, nextYearStart)
+        ]
+    }
+
+    /// 一次请求拉取 6 个区间的收支合计（用于汇总卡与日期范围卡）。
+    /// 请求形如：
+    ///   GET /api/v1/transactions/amounts.json?use_transaction_timezone=true
+    ///       &query=today_<s>_<e>|yesterday_<s>_<e>|...
+    private func loadAmounts() async {
+        let built = buildRanges()
+        guard !built.isEmpty else { return }
+        ranges = built
+
+        // 顺序与 Web 的 ALL_TRANSACTION_AMOUNTS_REQUEST_TYPE 保持一致
+        let ordered = OverviewPeriod.allCases.compactMap { p -> String? in
+            guard let r = built[p] else { return nil }
+            return "\(p.rawValue)_\(r.start)_\(r.end)"
+        }
         guard let dict: [String: TransactionAmountsResponseItem] = try? await APIClient.shared.request(
             "/api/v1/transactions/amounts.json",
-            query: [URLQueryItem(name: "query", value: query)]
+            query: [
+                URLQueryItem(name: "use_transaction_timezone", value: "true"),
+                URLQueryItem(name: "query", value: ordered.joined(separator: "|"))
+            ]
         ) else { return }
-        let list = dict.values.flatMap { $0.amounts ?? [] }
-        var inc: Int64 = 0
-        var exp: Int64 = 0
-        for a in list where a.currency == "CNY" || a.currency == nil {
-            inc += a.incomeAmount ?? 0
-            exp += a.expenseAmount ?? 0
+
+        var income: [OverviewPeriod: Int64] = [:]
+        var expense: [OverviewPeriod: Int64] = [:]
+        for p in OverviewPeriod.allCases {
+            guard let item = dict[p.rawValue] else { continue }
+            var inc: Int64 = 0
+            var exp: Int64 = 0
+            for a in (item.amounts ?? []) where a.currency == "CNY" || a.currency == nil {
+                inc += a.incomeAmount ?? 0
+                exp += a.expenseAmount ?? 0
+            }
+            income[p] = inc
+            expense[p] = exp
         }
-        monthIncomeCents = inc
-        monthExpenseCents = exp
+        periodIncome = income
+        periodExpense = expense
+        // 汇总卡沿用「本月」口径
+        monthIncomeCents = income[.thisMonth] ?? 0
+        monthExpenseCents = expense[.thisMonth] ?? 0
     }
+
+    // MARK: - 日期范围卡展示辅助（与 Web 的 displayDateRange 一致）
+
+    /// 区间副标题：today/yesterday/thisYear 显示单个日期，其余显示起止
+    func rangeSubtitle(_ period: OverviewPeriod) -> String {
+        guard let r = ranges[period] else { return "" }
+        let start = Date(timeIntervalSince1970: TimeInterval(r.start))
+        let end = Date(timeIntervalSince1970: TimeInterval(r.end))
+        switch period {
+        case .today, .yesterday:
+            return Self.mdFormatter.string(from: start)
+        case .thisYear:
+            return Self.yearFormatter.string(from: start)
+        default:
+            return "\(Self.mdFormatter.string(from: start)) - \(Self.mdFormatter.string(from: end))"
+        }
+    }
+
+    /// 点某一行 → 只筛选该区间（清掉其它条件，与 Web 的跳转语义一致）
+    func selectPeriod(_ period: OverviewPeriod) {
+        guard let r = ranges[period] else { return }
+        filter = TransactionFilter()
+        searchKeyword = ""
+        filter.startDate = Date(timeIntervalSince1970: TimeInterval(r.start))
+        filter.endDate = Date(timeIntervalSince1970: TimeInterval(r.end))
+        Task { await load() }
+    }
+
+    /// 日历点某天 → 只筛选该日
+    func selectDay(_ date: Date) {
+        filter = TransactionFilter()
+        searchKeyword = ""
+        filter.startDate = date
+        filter.endDate = date
+        Task { await load() }
+    }
+
+    func income(for period: OverviewPeriod) -> Int64 { periodIncome[period] ?? 0 }
+    func expense(for period: OverviewPeriod) -> Int64 { periodExpense[period] ?? 0 }
+
+    private static let mdFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日"
+        return f
+    }()
+
+    private static let yearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "yyyy年"
+        return f
+    }()
 
     func shiftMonth(by delta: Int) {
         var comps = DateComponents(year: year, month: month)
@@ -260,9 +436,16 @@ struct TransactionsView: View {
     @StateObject private var vm = TransactionsViewModel()
     @Binding var showAdd: Bool
     @Environment(\.mainTabBarInset) private var tabBarInset
+    @ObservedObject private var serverSettings = ServerSettings.shared
     @State private var editing: Transaction?
     @State private var detail: Transaction?
     @State private var showFilter = false
+    /// 列表 / 日历 两种浏览方式（对齐 Web 的 TransactionListPageType）
+    @State private var showCalendar = false
+    @State private var showAI = false
+    @StateObject private var calendarVM = TransactionCalendarViewModel()
+    /// 首页背景图变化时刷新汇总卡底图
+    @State private var backgroundToken = UUID()
 
     init(showAdd: Binding<Bool> = .constant(false)) {
         _showAdd = showAdd
@@ -297,8 +480,36 @@ struct TransactionsView: View {
                 // 汇总卡（原首页内容）—— 作为列表首行，与 Web 首页并入本页对应
                 Section {
                     summaryCard
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
                         .listRowBackground(Color.clear)
+                }
+
+                // 日期范围卡：今日/昨日/本周/本月/上月/今年（6 行，点击进对应区间）
+                Section {
+                    periodCard
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+                }
+
+                // 日历视图（对齐 Web 的「账单日历」）：点某天 → 按该日筛选
+                if showCalendar {
+                    Section {
+                        TransactionCalendarView(vm: calendarVM) { date in
+                            vm.selectDay(date)
+                            showCalendar = false
+                        }
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
+                // AI 识图入口（仅后端开启该能力时展示）
+                if serverSettings.enableImageRecognition {
+                    Section {
+                        aiEntryCard
+                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                    }
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
@@ -367,6 +578,12 @@ struct TransactionsView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
+                        // 列表 / 日历 切换（对齐 Web 的列表页类型切换）
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { showCalendar.toggle() }
+                        } label: {
+                            Image(systemName: showCalendar ? "list.bullet" : "calendar")
+                        }
                         Button { showFilter = true } label: {
                             Image(systemName: vm.filter.isActive
                                   ? "line.3.horizontal.decrease.circle.fill"
@@ -377,6 +594,9 @@ struct TransactionsView: View {
                 }
             }
             .refreshable { await vm.load() }
+            .sheet(isPresented: $showAI) {
+                AIReceiptView()
+            }
             .sheet(item: $editing) { tx in
                 TransactionEditView(transaction: tx, mode: .edit)
             }
@@ -392,20 +612,65 @@ struct TransactionsView: View {
                 )
             }
         }
-        .task { await vm.load() }
+        .task {
+            await ServerSettings.shared.loadIfNeeded()
+            await vm.load()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
+            // 切背景图后刷新汇总卡底图
+            backgroundToken = UUID()
+        }
+    }
+
+    /// AI 识图入口卡（对齐 Web 的 `.home-ai-entry-card`）
+    private var aiEntryCard: some View {
+        Button { showAI = true } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.brand)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.brand.opacity(0.14))
+                    .cornerRadius(10)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI 识图记账").font(.body.weight(.medium)).foregroundColor(.primary)
+                    Text("拍张票据，让 AI 帮你记一笔").font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .padding(14)
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - 汇总卡
     private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        // 依赖 backgroundToken：用户更换/移除背景图后触发重建
+        let bgURL = HomeBackground.imageURL
+        _ = backgroundToken
+        return VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("总资产").font(.subheadline.weight(.medium))
                     .foregroundColor(.white.opacity(0.85))
                 Spacer()
-                Image(systemName: "house.lodge.fill")
-                    .foregroundColor(.white.opacity(0.85))
+                // 金额隐藏：眼睛图标（对齐 Web 首页的显示/隐藏金额切换）
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) { vm.hideAmounts.toggle() }
+                } label: {
+                    Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
+                        .foregroundColor(.white.opacity(0.9))
+                        .font(.system(size: 15, weight: .medium))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            Text(AmountFormat.format(vm.totalAssetsCents))
+            Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.totalAssetsCents))
                 .font(.system(size: 34, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .minimumScaleFactor(0.6)
@@ -424,25 +689,95 @@ struct TransactionsView: View {
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(
-                colors: [Theme.brand, Theme.brand.opacity(0.78)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
+            // 有背景图时叠一层渐变压暗，保证白色文字始终可读
+            ZStack {
+                if let url = bgURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img): img.resizable().scaledToFill()
+                        default: Color.clear
+                        }
+                    }
+                }
+                LinearGradient(
+                    colors: [Theme.brand, Theme.brand.opacity(0.78)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+                .opacity(bgURL == nil ? 1 : 0.72)
+            }
         )
-        .cornerRadius(18)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .shadow(color: Theme.brand.opacity(0.30), radius: 10, x: 0, y: 5)
     }
 
     private func miniStat(title: String, amount: Int64) -> some View {
         VStack(spacing: 4) {
             Text(title).font(.caption).foregroundColor(.white.opacity(0.8))
-            Text(AmountFormat.format(amount))
+            Text(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(amount))
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .foregroundColor(.white)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - 日期范围卡（6 区间）
+    /// 每行：彩色图标徽章 + 标题/日期副标题 + 右侧收入/支出双金额；点击按该区间筛选账单
+    private var periodCard: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(OverviewPeriod.allCases.enumerated()), id: \.element.id) { idx, period in
+                Button {
+                    vm.selectPeriod(period)
+                } label: {
+                    periodRow(period)
+                }
+                .buttonStyle(.plain)
+                if idx < OverviewPeriod.allCases.count - 1 {
+                    Divider().padding(.leading, 60)
+                }
+            }
+        }
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func periodRow(_ period: OverviewPeriod) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: period.icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(period.color)
+                .frame(width: 32, height: 32)
+                .background(period.color.opacity(0.14))
+                .cornerRadius(10)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(period.title).font(.body)
+                Text(vm.rangeSubtitle(period))
+                    .font(.caption).foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.income(for: period)))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(Theme.income)
+                    .lineLimit(1)
+                Text(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expense(for: period)))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(Theme.expense)
+                    .lineLimit(1)
+            }
+            .minimumScaleFactor(0.7)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color(.tertiaryLabel))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     /// 日分组头：日期 + 当日支出/收入合计（对齐 Web 的当日合计）

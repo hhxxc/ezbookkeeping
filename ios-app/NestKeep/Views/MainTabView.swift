@@ -40,6 +40,9 @@ struct MainTabView: View {
     /// 长按中央加号弹出的模板菜单
     @State private var showAddMenu = false
     @State private var showTemplates = false
+    /// AI 识图记账
+    @State private var showAI = false
+    @ObservedObject private var serverSettings = ServerSettings.shared
 
     /// 各页面底部需要避让的高度（不含安全区），通过环境值下发，避免列表被浮层导航盖住
     static let barContentHeight: CGFloat = 52
@@ -84,9 +87,15 @@ struct MainTabView: View {
         .confirmationDialog("快捷记账", isPresented: $showAddMenu, titleVisibility: .visible) {
             Button("记一笔") { showAdd = true }
             Button("模板与计划账单") { showTemplates = true }
+            if serverSettings.enableImageRecognition {
+                Button("AI 识图记账") { showAI = true }
+            }
             Button("取消", role: .cancel) {}
         } message: {
             Text("选择记账方式")
+        }
+        .sheet(isPresented: $showAI) {
+            AIReceiptView()
         }
         .sheet(isPresented: $showTemplates) {
             NavigationView {
@@ -99,7 +108,10 @@ struct MainTabView: View {
             }
         }
         // 启动时静默检查更新（有间隔节流，失败不打扰）
-        .task { await UpdateStore.shared.autoCheckIfNeeded() }
+        .task {
+            await ServerSettings.shared.loadIfNeeded()
+            await UpdateStore.shared.autoCheckIfNeeded()
+        }
     }
 }
 

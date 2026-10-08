@@ -71,10 +71,32 @@ struct SettingsView: View {
                 // 安全
                 Section(header: Text("安全")) {
                     NavigationLink {
+                        AppLockSettingsView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("应用锁", systemImage: "lock.shield")
+                    }
+                    NavigationLink {
                         SessionsView()
                             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("设备与会话", systemImage: "iphone.gen3")
+                    }
+                }
+
+                // 显示与汇率
+                Section(header: Text("显示与汇率")) {
+                    NavigationLink {
+                        HomeBackgroundSettingsView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("首页背景图", systemImage: "photo")
+                    }
+                    NavigationLink {
+                        ExchangeRatesView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("汇率", systemImage: "arrow.left.arrow.right")
                     }
                 }
 

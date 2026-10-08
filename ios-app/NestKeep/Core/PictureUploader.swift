@@ -12,13 +12,22 @@ enum PictureUploader {
     }
 
     /// 上传一张图片，返回 pictureId（失败抛 APIError）
-    static func upload(imageData: Data, fileName: String = "photo.jpg") async throws -> UploadedPicture {
+    /// - Parameters:
+    ///   - path: 上传接口路径；默认交易图片接口。首页背景图用 `/api/v1/home/backgrounds/upload.json`
+    ///   - fieldName: multipart 表单字段名；默认 `picture`（两个接口都用这个名字）
+    static func upload(
+        imageData: Data,
+        fileName: String = "photo.jpg",
+        path: String = "/api/v1/transaction/pictures/upload.json",
+        fieldName: String = "picture"
+    ) async throws -> UploadedPicture {
         let boundary = "----NestKeepBoundary\(UUID().uuidString)"
-        guard var components = URLComponents(
-            url: AppSettings.shared.serverURL.appendingPathComponent("/api/v1/transaction/pictures/upload.json"),
+        guard let components = URLComponents(
+            url: AppSettings.shared.serverURL.appendingPathComponent(path),
             resolvingAgainstBaseURL: false
-        ) else { throw APIError.invalidURL }
-        guard let url = components.url else { throw APIError.invalidURL }
+        ), let url = components.url else {
+            throw APIError.invalidURL
+        }
 
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -36,7 +45,7 @@ enum PictureUploader {
         let contentType = ext == "png" ? "image/png" : "image/jpeg"
 
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"picture\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
         body.append(imageData)
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
@@ -44,12 +53,24 @@ enum PictureUploader {
 
         let (data, _) = try await URLSession.shared.data(for: req)
         let decoder = JSONDecoder()
-        guard let envelope = try? decoder.decode(APIEnvelope<UploadedPicture>.self, from: data) else {
-            throw APIError.invalidResponse
+        // 交易图片返回 { pictureId, originalUrl }；首页背景图只返回 { url }，统一容错
+        if let envelope = try? decoder.decode(APIEnvelope<UploadedPicture>.self, from: data) {
+            if envelope.success, let result = envelope.result { return result }
+            throw APIError.server(code: envelope.errorCode ?? -1,
+                                  message: envelope.errorMessage ?? "图片上传失败")
         }
-        if envelope.success, let result = envelope.result {
-            return result
+        if let envelope = try? decoder.decode(APIEnvelope<UploadedPictureURL>.self, from: data) {
+            if envelope.success, let result = envelope.result {
+                return UploadedPicture(pictureId: "", originalUrl: result.url)
+            }
+            throw APIError.server(code: envelope.errorCode ?? -1,
+                                  message: envelope.errorMessage ?? "图片上传失败")
         }
-        throw APIError.server(code: envelope.errorCode ?? -1, message: envelope.errorMessage ?? "图片上传失败")
+        throw APIError.invalidResponse
     }
+}
+
+/// 首页背景图上传的返回体 `{ "url": "..." }`
+struct UploadedPictureURL: Codable {
+    let url: String
 }

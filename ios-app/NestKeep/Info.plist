@@ -77,5 +77,8 @@
         <key>NSAllowsArbitraryLoads</key>
         <false/>
     </dict>
+    <!-- 应用锁：使用 Face ID 解锁时需要声明用途，否则系统会直接拒绝评估 -->
+    <key>NSFaceIDUsageDescription</key>
+    <string>用于快速解锁「巢记」，解锁后即可查看你的账目数据。</string>
 </dict>
 </plist>

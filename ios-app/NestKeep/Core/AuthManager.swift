@@ -29,10 +29,14 @@ final class AuthManager: ObservableObject {
         if let token = UserDefaults.standard.string(forKey: tokenKey) {
             self.token = token
             self.isLoggedIn = true
-            if let data = UserDefaults.standard.data(forKey: userKey),
-               let user = try? JSONDecoder().decode(UserBasicInfo.self, from: data) {
-                self.currentUser = user
-            }
+        } else if AppLockManager.hasStoredCredential {
+            // 开启了应用锁：持久层只有密文，明文 token 需解锁后才回到内存。
+            // 这里把登录态视为「已登录但未解锁」，交给 RootView 展示解锁页。
+            self.isLoggedIn = true
+        }
+        if let data = UserDefaults.standard.data(forKey: userKey),
+           let user = try? JSONDecoder().decode(UserBasicInfo.self, from: data) {
+            self.currentUser = user
         }
     }
 
@@ -71,6 +75,34 @@ final class AuthManager: ObservableObject {
         isLoggedIn = false
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: userKey)
+        // 登出时一并清掉应用锁的凭证密文，避免残留无法解密的 token
+        UserDefaults.standard.removeObject(forKey: "nestkeep.appLock.encryptedToken")
+        UserDefaults.standard.removeObject(forKey: "nestkeep.appLock.salt")
+    }
+
+    /// 应用锁解锁后：把明文 token 交回内存（不改动落盘的密文）
+    @MainActor
+    func restoreToken(_ newToken: String) {
+        self.token = newToken
+        self.isLoggedIn = true
+    }
+
+    /// 重新锁定：只清内存里的 token，UserDefaults 中的凭证保持不变
+    /// （应用锁开启时落盘的是密文，明文 token 不应留在持久层）
+    @MainActor
+    func clearInMemoryTokenPreservingStorage() {
+        self.token = nil
+        self.isLoggedIn = false
+    }
+
+    /// 应用锁开启后：把 UserDefaults 里的明文 token 换成密文（由 AppLockManager 提供）
+    func removePlaintextTokenFromStorage() {
+        UserDefaults.standard.removeObject(forKey: tokenKey)
+    }
+
+    /// 应用锁关闭后：把明文 token 写回 UserDefaults
+    func persistPlaintextTokenToStorage(_ token: String) {
+        UserDefaults.standard.set(token, forKey: tokenKey)
     }
 
     /// 资料更新后同步本地用户信息（后端可能下发新 token，需一并替换）

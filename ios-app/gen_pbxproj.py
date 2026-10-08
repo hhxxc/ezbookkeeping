@@ -23,6 +23,10 @@ SWIFT_FILES = [
     "Core/UI.swift",
     "Core/UpdateChecker.swift",
     "Core/PictureUploader.swift",
+    "Core/ServerSettings.swift",
+    "Core/ReceiptRecognizer.swift",
+    "Core/HomeBackground.swift",
+    "Core/AppLockManager.swift",
     "Models/User.swift",
     "Models/Account.swift",
     "Models/AccountRequests.swift",
@@ -32,6 +36,7 @@ SWIFT_FILES = [
     "Models/Tag.swift",
     "Models/Token.swift",
     "Models/ApiModels.swift",
+    "Models/ExchangeRate.swift",
     "Views/RootView.swift",
     "Views/LoginView.swift",
     "Views/MainTabView.swift",
@@ -40,6 +45,7 @@ SWIFT_FILES = [
     "Views/TransactionsView.swift",
     "Views/TransactionDetailView.swift",
     "Views/TransactionEditView.swift",
+    "Views/TransactionCalendarView.swift",
     "Views/CategoriesView.swift",
     "Views/TagsView.swift",
     "Views/TemplatesView.swift",
@@ -49,6 +55,11 @@ SWIFT_FILES = [
     "Views/AboutView.swift",
     "Views/StatisticsView.swift",
     "Views/SettingsView.swift",
+    "Views/AIReceiptView.swift",
+    "Views/ExchangeRatesView.swift",
+    "Views/HomeBackgroundSettingsView.swift",
+    "Views/AppLockView.swift",
+    "Views/AppLockSettingsView.swift",
 ]
 
 INFOPLIST = "Info.plist"

@@ -356,3 +356,87 @@ workflow**，需另做一次真实 push 或手动 dispatch 才能出包。
 
 **交付**：IPA `NestKeep-native-ios-app-20.ipa`（1.6.3 构建号 20，817KB，已发 NAS；
 `latest.json` version=1.6.4；GitHub Release `v1.6.4`）。
+
+### 2026-10-08（第五轮）：P3 收尾 —— 6 区间 / 日历 / AI 识图 / 汇率 / 背景图 / 应用锁
+
+至此 GAP-ANALYSIS 第二章列出的 **14 个模块全部落地**，P0/P1/P2/P3 关闭。
+
+**1. 首页 6 区间切换 + 金额隐藏** ✅
+- 汇总卡下方新增「日期范围卡」：今日 / 昨日 / 本周 / 本月 / 上月 / 今年 **6 行**，
+  每行左侧 32×32 圆角色块图标徽章（配色照 Web：today `#26A69A`、yesterday `#8E7CC3`、
+  week `#5B8DB8`、month `#DD9437`、lastMonth `#879BAB`、year `#5DA65C`），
+  中间标题 + 日期副标题，右侧收入（绿）/ 支出（红）双金额；点击整行 → 按该区间筛选账单
+- `loadAmounts()` 从「只查本月」改为**一次请求拉 6 个区间**：
+  `query=today_s_e|yesterday_s_e|thisWeek_s_e|thisMonth_s_e|lastMonth_s_e|thisYear_s_e`
+  + `use_transaction_timezone=true`；返回是**字典**（按区间名为键）
+- 边界口径完全对齐 Web 的 `initTransactionDateRange`；本周以**周一**为第一天
+- 汇总卡右上角加**眼睛图标**切换金额隐藏（总资产 + 三个 miniStat + 6 行金额联动），
+  状态持久化到 `UserDefaults`（`nestkeep.hideAmounts`）
+
+**2. 日历视图** ✅
+- 账单页工具条新增「列表 / 日历」切换按钮（对应 Web 的 `TransactionListPageType`）
+- 新增 `Views/TransactionCalendarView.swift`：自绘月历网格（`LazyVGrid`，
+  iOS 15 无原生日历组件），每格显示当日支出/收入（紧凑格式 `1.2万`），
+  今日高亮，点某天 → 按该日筛选
+- 数据走 `transactions/statistics/daily.json`（与统计页同口径）
+
+**3. AI 识图记账** ✅
+- 新增 `Core/ReceiptRecognizer.swift`：multipart 上传，表单字段名 **`image`**
+  （注意不是 `picture`），返回**数组**（兼容旧版单对象），字段 `type/time/categoryId/
+  sourceAccountId/destinationAccountId/sourceAmount/destinationAmount/tagIds/comment`
+- 新增 `Views/AIReceiptView.swift`：选图 → 识别 → 结果卡列表 → 点任一条
+  进「新增交易」并**预填**（`Recognized.asPrefillTransaction()` 包装成 `Transaction`）
+- 入口：首页 `.home-ai-entry-card` 同款卡片 + 中央加号长按菜单「AI 识图记账」
+- **能力探测**：该路由仅在 `ReceiptImageRecognitionLLMConfig != nil &&
+  LLMProvider != "" && TransactionFromAIImageRecognition` 时注册，否则 404。
+  新增 `Core/ServerSettings.swift` 解析后端下发的
+  `GET /mobile/server_settings.js`（`window.EZBOOKKEEPING_SERVER_SETTINGS['llmt']=1;`，
+  **键名是单引号**），据此决定入口显隐，避免死入口
+
+**4. 汇率页** ✅
+- 新增 `Models/ExchangeRate.swift` + `Views/ExchangeRatesView.swift`
+- 展示 `exchange_rates/latest.json`：基准货币、汇率列表（按代码排序）、数据源（可点击
+  跳外链）、更新时间
+- 左滑删除自定义汇率（`exchange_rates/user_custom/delete.json`，基准货币不可删，
+  后端返回 `ErrCannotDeleteExchangeRateForDefaultCurrency`）
+- 右上角 `+` 新增自定义汇率：`exchange_rates/user_custom/update.json`
+  请求体 `{currency(3位), rate(字符串)}`；「1 默认货币 = N 目标货币」的语义与 Web 一致
+- 入口：「设置 → 显示与汇率 → 汇率」
+
+**5. 首页背景图** ✅
+- 新增 `Core/HomeBackground.swift`：上传走
+  `POST /api/v1/home/backgrounds/upload.json`（multipart，字段名 `picture`，返回 `{url}`），
+  与 Web 的 `uploadHomeBackground` 一致；该路由在 `EnableTransactionPictures` 下注册
+- 展示时把返回的**相对路径**拼成完整 URL 并带 `?token=`（图片接口按 token 鉴权）
+- 汇总卡底图改为 `AsyncImage` + 主色渐变压暗（`opacity 0.72`）保证白字可读
+- 入口：「设置 → 显示与汇率 → 首页背景图」（上传 / 更换 / 移除，未开启图片功能时提示）
+
+**6. 应用锁（PIN + 生物识别）** ✅
+- 新增 `Core/AppLockManager.swift`：**不存 PIN 明文**，用
+  `key = SHA256("EBK_LOCK_SECRET_" + PIN + "|" + salt)` 派生 AES-256 密钥，
+  用它对 token 做 AES-GCM 加密后落盘；明文 token **只在内存**，解锁后才注入 `AuthManager`
+- `AuthManager` 新增 `restoreToken` / `clearInMemoryTokenPreservingStorage` /
+  `removePlaintextTokenFromStorage` / `persistPlaintextTokenWithStorage`，
+  并在 `init` 中识别「有加密凭证 → 视为已登录但未解锁」
+- 新增 `Views/AppLockView.swift`（6 位 PIN 数字键盘 + Face ID/Touch ID + 重新登录兜底）
+- 新增 `Views/AppLockSettingsView.swift`（开关 / 改 PIN / 生物识别开关）
+- `RootView` 三态：未登录 → 登录页；已登录未解锁 → 解锁页；否则主界面；
+  监听 `didEnterBackground` 自动重新上锁
+- `Info.plist` 新增 `NSFaceIDUsageDescription`（缺了系统会直接拒绝评估生物识别）
+- 入口：「设置 → 安全 → 应用锁」
+
+**iOS 15 / 契约坑（本轮新踩）**：
+1. `ServerSettings` 解析：后端 `appendEncodedString` 用的是**单引号**
+   （`['llmt']=1`），最初按双引号写解析恒为空
+2. 应用锁开启后 UserDefaults 里不能再留明文 token，否则锁形同虚设；
+   `AuthManager.init` 必须靠「存在加密凭证」判断已登录，否则解锁页永远不出现
+
+**新增 / 修改的 Swift 文件**（`gen_pbxproj.py` 已同步，共 **45 个源文件**）：
+- 新增 `Core/{ServerSettings,ReceiptRecognizer,HomeBackground,AppLockManager}.swift`、
+  `Models/ExchangeRate.swift`、`Views/{AIReceiptView,ExchangeRatesView,
+  HomeBackgroundSettingsView,AppLockView,AppLockSettingsView,TransactionCalendarView}.swift`
+- 改 `Views/{TransactionsView,MainTabView,SettingsView,RootView}.swift`、
+  `Core/{AuthManager,PictureUploader}.swift`、`NestKeep/Info.plist`、`gen_pbxproj.py`
+
+**待验证**：云端构建（`build-native-ios.yml`，push `native-ios-app` 触发）需通过；
+真机验证 6 区间金额、日历着色、AI 识图预填、应用锁冷启动流程。
