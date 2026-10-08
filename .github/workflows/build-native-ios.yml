@@ -66,6 +66,21 @@ jobs:
           APP="build/dd/Build/Products/Release-iphoneos/NestKeep.app"
           mkdir -p Payload
           cp -r "$APP" Payload/
+
+          # 新版 Xcode 的 actool 不再向 App 包输出实体图标 PNG（只留 Assets.car 里的编译结果），
+          # 而 CFBundleIconFiles 指向的那些 loose PNG 会变成全透明占位图 -> 主屏显示白块。
+          # 这里直接把真实图标 PNG 覆盖进 App 包，文件名对齐 Info.plist 的 CFBundleIconFiles。
+          ICONSET="NestKeep/Assets.xcassets/AppIcon.appiconset"
+          cp "$ICONSET/icon-60x60@2x.png" Payload/NestKeep.app/AppIcon60x60@2x.png
+          cp "$ICONSET/icon-60x60@3x.png" Payload/NestKeep.app/AppIcon60x60@3x.png
+          cp "$ICONSET/icon-76x76@2x.png" Payload/NestKeep.app/AppIcon76x76@2x~ipad.png
+          cp "$ICONSET/icon-40x40@2x.png" Payload/NestKeep.app/AppIcon40x40@2x.png
+          cp "$ICONSET/icon-40x40@3x.png" Payload/NestKeep.app/AppIcon40x40@3x.png
+          cp "$ICONSET/icon-29x29@2x.png" Payload/NestKeep.app/AppIcon29x29@2x.png
+          cp "$ICONSET/icon-29x29@3x.png" Payload/NestKeep.app/AppIcon29x29@3x.png
+          cp "$ICONSET/icon-1024x1024@1x.png" Payload/NestKeep.app/AppIcon1024x1024.png
+          ls -la Payload/NestKeep.app/ | grep -i appicon
+
           codesign --force --sign - Payload/NestKeep.app
           rm -rf build/dd
           zip -r "$IPA_NAME" Payload
