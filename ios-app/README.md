@@ -29,6 +29,24 @@ ios-app/
 ```
 
 ## 构建 & 安装（TrollStore）
+
+无需本地 Mac —— **主路径是 GitHub Actions 云端构建**：
+
+### 方式一：GitHub Actions 云端出包（推荐，免 Mac / 免证书）
+仓库 `hhxxc/ezbookkeeping` 的 `.github/workflows/build-native-ios.yml` 在 `macos-latest` 运行机上用 Xcode 编译，
+免证书 ad-hoc 签名，产出 IPA。
+
+- **自动触发**：push 到 `native-ios-app` 分支（或 `main` 且改动 `ios-app/`）即触发；构建完成后在
+  Actions 运行页下载 **Artifact**（90 天有效）。
+- **拿永久直链**：在 Actions 页面手动 `Run workflow`（workflow_dispatch）会自动建一个 GitHub Release；
+  或手动 `gh release create nestkeep-ipa-<N> <ipa文件>` 发版。
+- **IPA 文件名带分支名 + 构建号**：`NestKeep-<分支名>-<run_number>.ipa`
+  （例：`NestKeep-native-ios-app-3.ipa`），与 Capacitor 壳的 `nestkeep.ipa` 天然区分。
+- 安装：把 IPA 传到 iPhone，用 **TrollStore 打开**安装（会重新签名、永久驻留）。
+
+> 已验证绿构建：run `37727726759`，Release `https://github.com/hhxxc/ezbookkeeping/releases/tag/nestkeep-ipa-3`
+
+### 方式二：本地 Mac 构建（可选）
 在 **Mac** 上（Windows 无法编译 Swift）：
 
 ```bash
@@ -41,6 +59,23 @@ cd ios-app
 ```
 
 > 本机（Windows）只能产出源码与工程文件，不能编译/出 IPA；上述步骤必须在 Mac 上完成。
+
+### 已知坑（构建 / 编译，已踩过并修掉）
+- **新 Xcode / iOS SDK 禁止构建期 ad-hoc 签名**：GitHub 运行机是 Xcode 26 / iOS 26 SDK，
+  `xcodebuild` 直接 `CODE_SIGN_IDENTITY="-"` 会报
+  `Ad Hoc code signing is not allowed with SDK 'iOS 26.5'`。修法：xcodebuild 加
+  `CODE_SIGNING_ALLOWED=NO`，把签名延后到打包阶段 `codesign --force --sign - Payload/NestKeep.app`
+  （TrollStore 装时会重签，不影响）。
+- **`AuthResponse.token` 后端恒非空 `String`**：不要写 `guard let token = resp.token`
+  （报错「conditional binding must have Optional type」），改 `guard !resp.token.isEmpty`。
+- **金额换算 `Decimal * 100` 在 Xcode 26 / Swift 6 报 `*` cannot be applied to `Decimal` and `Float16`**
+  （整数字面量被推断成 `Float16` 重载）。金额→分必须走 `NSDecimalNumber` 显式乘法：
+  ```swift
+  let cents = NSDecimalNumber(decimal: amount)
+      .multiplying(by: NSDecimalNumber(value: 100))
+      .rounding(accordingToBehavior: handler)  // NSDecimalNumberHandler(roundingMode:.plain, scale:0, raiseOn*:false)
+      .int64Value
+  ```
 
 ## 后端 API 契约（已核对的关键点）
 - 统一响应信封：`{ success, result, errorCode, errorMessage, path }` → Swift 端 `APIEnvelope<T>` 统一解包。
