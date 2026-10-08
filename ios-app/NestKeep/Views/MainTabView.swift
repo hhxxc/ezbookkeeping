@@ -80,8 +80,7 @@ struct MainTabView: View {
     var body: some View {
         ZStack {
             // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）。
-            // 切换动画统一为「右往左滑动」（无淡入淡出）：非选中页停靠在屏幕右侧外，
-            // 选中页滑入到 0 并置于顶层，覆盖在下方的旧页保持原位。
+        // Tab 点击**无动画**即时切换（用户要求）：非选中页停靠在屏幕右侧外，选中页置于顶层。
             ZStack {
                 TransactionsView(showAdd: $showAdd)
                     .environmentObject(router)
@@ -106,7 +105,6 @@ struct MainTabView: View {
                     .zIndex(router.selection == .settings ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .animation(.easeOut(duration: 0.28), value: router.selection)
 
             // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
             // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
@@ -208,9 +206,8 @@ struct MainTabBar: View {
 
     private func tabButton(_ tab: MainTab) -> some View {
         Button {
-            withAnimation(.easeOut(duration: 0.28)) {
-                selection = tab
-            }
+            // 无动画即时切换（用户要求底栏点击不要动画）
+            selection = tab
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: tab.icon)
