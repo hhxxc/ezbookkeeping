@@ -24,6 +24,25 @@ struct TagSection: Identifiable {
     let tags: [TransactionTag]
 }
 
+// MARK: - 标签 / 标签组写操作请求体
+
+struct TagCreateRequest: Codable {
+    let groupId: String
+    let name: String
+}
+
+struct TagModifyRequest: Codable {
+    let id: String
+    let groupId: String
+    let name: String
+}
+
+struct TagHideRequest: Codable { let id: String; let hidden: Bool }
+struct TagIdRequest: Codable { let id: String }
+
+struct TagGroupCreateRequest: Codable { let name: String }
+struct TagGroupModifyRequest: Codable { let id: String; let name: String }
+
 enum TagGrouping {
     /// 按标签组聚合标签；无组标签归入「未分组」
     static func sections(tags: [TransactionTag], groups: [TransactionTagGroup]) -> [TagSection] {

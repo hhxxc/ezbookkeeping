@@ -37,8 +37,9 @@ enum MainTab: Int, CaseIterable {
 struct MainTabView: View {
     @State private var selection: MainTab = .list
     @State private var showAdd = false
-    /// 长按中央加号弹出的模板菜单（当前模板功能未实现，先给「图片识别」占位）
+    /// 长按中央加号弹出的模板菜单
     @State private var showAddMenu = false
+    @State private var showTemplates = false
 
     /// 各页面底部需要避让的高度（不含安全区），通过环境值下发，避免列表被浮层导航盖住
     static let barContentHeight: CGFloat = 52
@@ -82,9 +83,20 @@ struct MainTabView: View {
         // 长按加号：模板快捷菜单（对齐 Web 的 template-popover-menu）
         .confirmationDialog("快捷记账", isPresented: $showAddMenu, titleVisibility: .visible) {
             Button("记一笔") { showAdd = true }
+            Button("模板与计划账单") { showTemplates = true }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("模板与 AI 识图功能开发中")
+            Text("选择记账方式")
+        }
+        .sheet(isPresented: $showTemplates) {
+            NavigationView {
+                TemplatesView()
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("完成") { showTemplates = false }
+                        }
+                    }
+            }
         }
         // 启动时静默检查更新（有间隔节流，失败不打扰）
         .task { await UpdateStore.shared.autoCheckIfNeeded() }

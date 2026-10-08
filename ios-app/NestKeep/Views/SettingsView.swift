@@ -32,6 +32,12 @@ struct SettingsView: View {
                     } else {
                         Text("已登录").foregroundColor(.secondary)
                     }
+                    NavigationLink {
+                        ProfileEditView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("个人资料", systemImage: "person.text.rectangle")
+                    }
                 }
 
                 // 数据管理
@@ -42,6 +48,34 @@ struct SettingsView: View {
                     } label: {
                         Label("分类管理", systemImage: "square.grid.2x2")
                     }
+                    NavigationLink {
+                        TagsView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("标签管理", systemImage: "tag")
+                    }
+                    NavigationLink {
+                        TemplatesView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("模板与计划账单", systemImage: "doc.on.doc")
+                    }
+                    NavigationLink {
+                        DataManagementView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("数据管理", systemImage: "externaldrive")
+                    }
+                }
+
+                // 安全
+                Section(header: Text("安全")) {
+                    NavigationLink {
+                        SessionsView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("设备与会话", systemImage: "iphone.gen3")
+                    }
                 }
 
                 // 版本与更新
@@ -51,6 +85,13 @@ struct SettingsView: View {
                         Spacer()
                         Text("\(UpdateChecker.currentAppVersion) (\(UpdateChecker.currentBuildNumber))")
                             .foregroundColor(.secondary)
+                    }
+
+                    NavigationLink {
+                        AboutView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("关于巢记", systemImage: "info.circle")
                     }
 
                     HStack {

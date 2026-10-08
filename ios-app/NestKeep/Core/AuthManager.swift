@@ -72,4 +72,17 @@ final class AuthManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: userKey)
     }
+
+    /// 资料更新后同步本地用户信息（后端可能下发新 token，需一并替换）
+    @MainActor
+    func updateCurrentUser(_ user: UserBasicInfo, newToken: String?) async {
+        if let newToken = newToken, !newToken.isEmpty {
+            self.token = newToken
+            UserDefaults.standard.set(newToken, forKey: tokenKey)
+        }
+        self.currentUser = user
+        if let data = try? JSONEncoder().encode(user) {
+            UserDefaults.standard.set(data, forKey: userKey)
+        }
+    }
 }
