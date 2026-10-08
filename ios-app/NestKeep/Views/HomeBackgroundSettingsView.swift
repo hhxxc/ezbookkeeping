@@ -82,7 +82,7 @@ struct HomeBackgroundSettingsView: View {
                     .padding(.horizontal, 16)
                 }
 
-                Text("背景图会作为账单页顶部汇总卡的底图，并自动加一层主色渐变压暗以保证文字清晰。")
+                Text("背景图会作为账单页顶部汇总卡的底图，并自动叠加一层中性压暗蒙层，保证卡片文字清晰可读。")
                     .font(.caption).foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)

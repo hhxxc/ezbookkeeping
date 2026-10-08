@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 底部导航的 5 个位置（与手机端 Web 的 `main-tabbar` 一一对应）
 enum MainTab: Int, CaseIterable {
-    case list        // 账单
+    case list        // 详情（Web 的 Details）
     case accounts    // 账户
     case add         // 中央加号（非页面，点击弹新增交易）
     case statistics  // 统计
@@ -10,7 +10,7 @@ enum MainTab: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .list: return "账单"
+        case .list: return "详情"
         case .accounts: return "账户"
         case .add: return ""
         case .statistics: return "统计"
@@ -30,9 +30,9 @@ enum MainTab: Int, CaseIterable {
     }
 }
 
-/// 主界面：底部 5 位导航（账单 / 账户 / 中央加号 / 统计 / 设置）。
+/// 主界面：底部 5 位导航（详情 / 账户 / 中央加号 / 统计 / 设置）。
 /// 结构与手机端 Web 的 `HomePage.vue` 底部 tabbar 完全对齐：
-/// 启动落在「账单」页（Web 的首页内容并入账单页顶部），中央加号是记账主入口，
+/// 启动落在「详情」页（Web 的首页内容并入该页顶部），中央加号是记账主入口，
 /// 短按新增交易、长按弹出模板快捷菜单。
 struct MainTabView: View {
     @State private var selection: MainTab = .list
