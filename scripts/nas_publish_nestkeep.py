@@ -22,6 +22,7 @@ App 侧更新检测优先读 {serverURL}/api/nestkeep/latest.json；
 """
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -50,6 +51,56 @@ def parse_creds(path):
     if len(parts) < 4:
         raise SystemExit(f"凭据文件格式不对（需 IP 端口 用户 密码）：{path}")
     return parts[0], int(parts[1]), parts[2], parts[3]
+
+
+def ssh_exec(cli, cmd, timeout=120):
+    _, so, se = cli.exec_command(cmd, timeout=timeout)
+    out = so.read().decode("utf-8", "replace")
+    err = se.read().decode("utf-8", "replace")
+    return out, err
+
+
+def upload_file(cli, local_path, remote_path, chunk_size=48 * 1024):
+    """把本地文件传到 NAS。群晖默认禁用 SFTP 子系统，故用 base64 分块经 exec 通道写入。
+
+    注意：命令长度受 NAS sshd / shell 限制（实测 ~64KB 以上会被截断），
+    故 chunk_size 取 48KB（base64 后约 64KB），并在末尾做整文件大小校验。
+    """
+    total = os.path.getsize(local_path)
+    print(f"==> 上传 {os.path.basename(local_path)} ({total/1024:.1f} KB) -> {remote_path}")
+    ssh_exec(cli, f": > '{remote_path}'")
+    sent = 0
+    t0 = time.time()
+    with open(local_path, "rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            b64 = base64.b64encode(chunk).decode("ascii")
+            out, err = ssh_exec(
+                cli, f"printf '%s' '{b64}' | base64 -d >> '{remote_path}'", timeout=120)
+            if err.strip():
+                print("\n[warn]", err[:200])
+            sent += len(chunk)
+            pct = sent * 100 // total
+            print(f"\r    {sent}/{total} ({pct}%)", end="", flush=True)
+    print()
+    out, _ = ssh_exec(cli, f"wc -c < '{remote_path}'")
+    try:
+        remote_size = int(out.strip())
+    except ValueError:
+        remote_size = -1
+    if remote_size != total:
+        raise SystemExit(f"上传大小不一致：本地 {total} / 远端 {remote_size}")
+    print(f"    完成，用时 {time.time()-t0:.1f}s（大小校验通过）")
+
+
+def write_remote_text(cli, text, remote_path):
+    """把文本写入远端文件（base64 中转，避免引号转义问题）。"""
+    b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    tmp = remote_path + ".tmp"
+    ssh_exec(cli, f"printf '%s' '{b64}' | base64 -d > '{tmp}' && "
+                  f"chmod 644 '{tmp}' && mv -f '{tmp}' '{remote_path}'")
 
 
 def download_ipa_from_release(version, out_dir):
@@ -143,52 +194,51 @@ def main():
     if err.strip():
         print("[warn]", err)
 
-    sftp = cli.open_sftp()
-
     if ipa_path and not args.no_upload_ipa:
         remote_ipa = f"{REMOTE_DIR}/{os.path.basename(ipa_path)}"
-        size = os.path.getsize(ipa_path)
-        print(f"==> 上传 IPA {os.path.basename(ipa_path)} ({size/1024:.1f} KB) -> {remote_ipa}")
-        t0 = time.time()
-        sftp.put(ipa_path, remote_ipa)
-        print(f"    完成，用时 {time.time()-t0:.1f}s")
+        upload_file(cli, ipa_path, remote_ipa)
         # 只保留最新的 IPA，避免目录膨胀
-        sftp.chmod(remote_ipa, 0o644)
-        sftp.close()
-        sftp = cli.open_sftp()
         keep = os.path.basename(ipa_path)
-        for name in sftp.listdir(REMOTE_DIR):
+        out, _ = ssh_exec(cli, f"ls -1 '{REMOTE_DIR}'")
+        for name in out.splitlines():
+            name = name.strip()
             if name.lower().endswith(".ipa") and name != keep:
                 print(f"    清理旧包 {name}")
-                sftp.remove(f"{REMOTE_DIR}/{name}")
+                ssh_exec(cli, f"rm -f '{REMOTE_DIR}/{name}'")
 
     # 写 latest.json（临时文件 -> 原子改名，避免读到半截）
-    tmp = f"{REMOTE_DIR}/.latest.json.tmp"
-    with sftp.open(tmp, "w") as f:
-        f.write(json.dumps(manifest, ensure_ascii=False, indent=2))
-    sftp.chmod(tmp, 0o644)
-    sftp.rename(tmp, f"{REMOTE_DIR}/latest.json")
-    sftp.close()
+    write_remote_text(cli, json.dumps(manifest, ensure_ascii=False, indent=2),
+                      f"{REMOTE_DIR}/latest.json")
 
-    # 4) 验证：容器内可读 + 后端接口可访问
-    docker = "/usr/local/bin/docker"
-    print("==> 验证（目录内容）")
-    _, so, se = cli.exec_command(f"ls -la '{REMOTE_DIR}'", timeout=30)
-    print(so.read().decode("utf-8", "replace"))
+    # 4) 验证：目录内容 + 通过公网域名访问后端接口
+    print("==> 验证（NAS 目录内容）")
+    out, _ = ssh_exec(cli, f"ls -la '{REMOTE_DIR}'")
+    print(out)
 
-    print("==> 验证后端接口（容器内 curl）")
-    _, so, se = cli.exec_command(
-        f"{docker} exec ezbookkeeping sh -c "
-        f"'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest.json || "
-        f"curl -s http://127.0.0.1:15080/api/nestkeep/latest.json'", timeout=60)
-    body = so.read().decode("utf-8", "replace")
-    err = se.read().decode("utf-8", "replace")
-    print(body or err)
+    # 容器内 curl（docker 在群晖需 sudo 或完整路径）
+    print("==> 验证后端接口（容器内）")
+    for dcmd in (
+        "/usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest.json'",
+        "sudo /usr/local/bin/docker exec ezbookkeeping sh -c 'wget -qO- http://127.0.0.1:15080/api/nestkeep/latest.json'",
+    ):
+        body, err = ssh_exec(cli, dcmd, timeout=60)
+        if body.strip() and "permission denied" not in (body + err).lower():
+            print(body)
+            break
+    else:
+        print("（容器内校验跳过；请以公网接口为准）")
     cli.close()
+
+    # 直接从本机走公网域名验证（最能反映手机侧真实情况）
+    print("==> 验证公网接口（本机请求）")
+    r = run(["curl", "-s", "--max-time", "20",
+             f"{PUBLIC_BASE}/api/nestkeep/latest.json"])
+    print(r.stdout.strip() or "(空响应)")
 
     print()
     print("==> 完成。手机侧更新入口：")
     print(f"    {PUBLIC_BASE}/api/nestkeep/latest.json")
+    print(f"    IPA 下载：{manifest['ipaUrl']}")
 
 
 if __name__ == "__main__":
