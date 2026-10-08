@@ -96,6 +96,13 @@ struct OverviewDateRange {
     let end: Int
 }
 
+/// 区间详情页上下文（fullScreenCover(item:) 需要 Identifiable）
+struct RangeDetailContext: Identifiable {
+    let period: OverviewPeriod
+    let range: OverviewDateRange
+    var id: String { period.rawValue }
+}
+
 /// 账单页：顶部汇总卡（原首页内容）+ 按月分页列表，按日分组。
 /// 结构对齐手机端 Web：Web 的首页内容并入本页顶部，底部不再有独立「首页」Tab。
 @MainActor
@@ -439,16 +446,6 @@ final class TransactionsViewModel: ObservableObject {
         return f
     }()
 
-    /// 点某一行 → 只筛选该区间（清掉其它条件，与 Web 的跳转语义一致）
-    func selectPeriod(_ period: OverviewPeriod) {
-        guard let r = ranges[period] else { return }
-        filter = TransactionFilter()
-        searchKeyword = ""
-        filter.startDate = Date(timeIntervalSince1970: TimeInterval(r.start))
-        filter.endDate = Date(timeIntervalSince1970: TimeInterval(r.end))
-        Task { await load() }
-    }
-
     /// 日历点某天 → 只筛选该日
     func selectDay(_ date: Date) {
         filter = TransactionFilter()
@@ -530,6 +527,8 @@ struct TransactionsView: View {
     @EnvironmentObject private var router: TabRouter
     @State private var editing: Transaction?
     @State private var detail: Transaction?
+    /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
+    @State private var detailContext: RangeDetailContext?
     @State private var showFilter = false
     /// 列表 / 日历 两种浏览方式（对齐 Web 的 TransactionListPageType）
     @State private var showCalendar = false
@@ -679,6 +678,10 @@ struct TransactionsView: View {
         }
         .sheet(item: $detail) { tx in
             TransactionDetailView(transaction: tx)
+        }
+        // 点区间行 → 区间详情页（对齐 Web：首页点「今天/昨天/…」推入 /transaction/list?dateType=...）
+        .fullScreenCover(item: $detailContext) { ctx in
+            RangeDetailView(context: ctx, mainVM: vm)
         }
         .sheet(isPresented: $showFilter) {
             TransactionFilterSheet(
@@ -1016,7 +1019,10 @@ struct TransactionsView: View {
         VStack(spacing: 0) {
             ForEach(Array(OverviewPeriod.allCases.enumerated()), id: \.element.id) { idx, period in
                 Button {
-                    vm.selectPeriod(period)
+                    // 对齐 Web：点区间行 → 推入区间详情页（/transaction/list?dateType=...）
+                    if let r = vm.ranges[period] {
+                        detailContext = RangeDetailContext(period: period, range: r)
+                    }
                 } label: {
                     periodRow(period)
                 }
@@ -1103,6 +1109,234 @@ struct TransactionsView: View {
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M月d日 EEEE"
         return f.string(from: d)
+    }
+}
+
+// MARK: - 区间详情页（对齐 Web：首页点「今天/昨天/…」→ 推入 /transaction/list?dateType=...）
+
+/// 区间详情页 VM：拉取单个区间的账单（list.json + min_time/max_time **毫秒级**时间过滤，
+/// 契约与主页面筛选分支一致）；删除直接转发主 VM（同步刷新主列表与区间汇总）
+@MainActor
+final class RangeDetailViewModel: ObservableObject {
+    @Published var transactions: [Transaction] = []
+    @Published var isLoading = false
+    @Published var error: String?
+
+    let context: RangeDetailContext
+    let mainVM: TransactionsViewModel
+
+    init(context: RangeDetailContext, mainVM: TransactionsViewModel) {
+        self.context = context
+        self.mainVM = mainVM
+    }
+
+    /// 区间收支合计（复用主 VM 已拉取的 amounts.json 结果）
+    var incomeCents: Int64 { mainVM.income(for: context.period) }
+    var expenseCents: Int64 { mainVM.expense(for: context.period) }
+
+    func load() async {
+        isLoading = true
+        error = nil
+        do {
+            // list.json 的时间过滤是毫秒级时间序列 id（Unix 秒 × 1000）；
+            // range.end 为 23:59:59（秒），补足到 23:59:59.999
+            let start = Int64(context.range.start) * 1000
+            let end = Int64(context.range.end) * 1000 + 999
+            let page: TransactionPage = try await APIClient.shared.request(
+                "/api/v1/transactions/list.json",
+                query: [
+                    URLQueryItem(name: "count", value: "500"),
+                    URLQueryItem(name: "with_count", value: "true"),
+                    URLQueryItem(name: "min_time", value: "\(start)"),
+                    URLQueryItem(name: "max_time", value: "\(end)"),
+                    URLQueryItem(name: "sort_by", value: "time"),
+                    URLQueryItem(name: "sort_order", value: "desc")
+                ]
+            )
+            transactions = page.items
+            isLoading = false
+        } catch {
+            isLoading = false
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func delete(_ tx: Transaction) async {
+        await mainVM.delete(tx)
+        transactions.removeAll { $0.id == tx.id }
+    }
+
+    func dayExpense(_ items: [Transaction]) -> Int64 {
+        items.filter { $0.transactionType == .expense }.reduce(0) { $0 + $1.sourceAmount }
+    }
+
+    func dayIncome(_ items: [Transaction]) -> Int64 {
+        items.filter { $0.transactionType == .income }.reduce(0) { $0 + $1.sourceAmount }
+    }
+}
+
+/// 区间详情页：顶栏（返回 + 区间名 + 日期副标题 + 收支合计）+ 按日分组账单列表。
+/// 分类/账户名解析复用主 VM；行 UI 复用 TransactionRow；编辑/详情 sheet 与主列表一致。
+struct RangeDetailView: View {
+    @StateObject private var vm: RangeDetailViewModel
+    @ObservedObject private var mainVM: TransactionsViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var editing: Transaction?
+    @State private var detail: Transaction?
+
+    init(context: RangeDetailContext, mainVM: TransactionsViewModel) {
+        _vm = StateObject(wrappedValue: RangeDetailViewModel(context: context, mainVM: mainVM))
+        self.mainVM = mainVM
+    }
+
+    private var grouped: [(date: Date, items: [Transaction])] {
+        let cal = Calendar.current
+        let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
+        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            topBar
+
+            if vm.isLoading && vm.transactions.isEmpty {
+                Spacer()
+                ProgressView()
+                Spacer()
+            } else if let error = vm.error {
+                Spacer()
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 32))
+                        .foregroundColor(.secondary)
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("重试") { Task { await vm.load() } }
+                        .font(.subheadline)
+                }
+                .padding(.horizontal, 32)
+                Spacer()
+            } else if vm.transactions.isEmpty {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 34))
+                        .foregroundColor(.secondary)
+                    Text("该区间还没有账单")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+            } else {
+                transactionList
+            }
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .task { await vm.load() }
+        .sheet(item: $editing, onDismiss: {
+            // 编辑保存后同步刷新详情列表 + 主页面的列表与区间汇总
+            Task {
+                await vm.load()
+                await mainVM.load()
+            }
+        }) { tx in
+            TransactionEditView(transaction: tx, mode: .edit)
+        }
+        .sheet(item: $detail) { tx in
+            TransactionDetailView(transaction: tx)
+        }
+    }
+
+    /// 自绘顶栏（返回胶囊 + 标题/日期副标题 + 收支合计，风格对齐账单页 topBar）
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.primary.opacity(0.05)))
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(vm.context.period.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                Text(mainVM.rangeSubtitle(vm.context.period))
+                    .font(.system(size: 11))
+                    .foregroundColor(HomePalette.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("收 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.incomeCents))")
+                    .foregroundColor(HomePalette.income)
+                Text("支 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expenseCents))")
+                    .foregroundColor(HomePalette.expense)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private var transactionList: some View {
+        List {
+            ForEach(grouped, id: \.date) { group in
+                Section(header: dayHeader(group.date, items: group.items)) {
+                    ForEach(group.items) { tx in
+                        TransactionRow(tx: tx, vm: mainVM)
+                            .contentShape(Rectangle())
+                            .onTapGesture { detail = tx }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task { await vm.delete(tx) }
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                                Button {
+                                    editing = tx
+                                } label: {
+                                    Label("编辑", systemImage: "pencil")
+                                }
+                                .tint(Theme.brand)
+                            }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .environment(\.defaultMinListRowHeight, 0)
+        .refreshable { await vm.load() }
+    }
+
+    /// 日分组头（与主列表同款式）
+    private func dayHeader(_ date: Date, items: [Transaction]) -> some View {
+        let exp = vm.dayExpense(items)
+        let inc = vm.dayIncome(items)
+        return HStack {
+            Text(TransactionsView.dayLabel(date))
+            Spacer()
+            if exp > 0 {
+                Text("支 \(AmountFormat.format(exp))")
+                    .foregroundColor(Theme.expense)
+            }
+            if inc > 0 {
+                Text("收 \(AmountFormat.format(inc))")
+                    .foregroundColor(Theme.income)
+            }
+        }
+        .font(.caption)
+        .textCase(nil)
     }
 }
 
