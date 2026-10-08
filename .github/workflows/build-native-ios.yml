@@ -54,9 +54,11 @@ jobs:
           PLIST="NestKeep/Info.plist"
           V="${{ github.event.inputs.app_version }}"
           if [ -z "$V" ]; then
-            # push 触发时用「基线版本 + 运行号」：1.6.3.15 形式，便于区分每次构建
-            V="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST").${{ github.run_number }}"
-            B="1"
+            # push 触发：版本号保持纯语义版本（读基线），构建号用运行号区分每次构建。
+            # 注意不要把运行号拼进 CFBundleShortVersionString——那会让 App 内
+            # 版本比较把 1.6.3.16 判成「新于」1.6.3，导致永远提示有更新。
+            V="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+            B="${{ github.run_number }}"
           else
             V="${V#v}"
             B="${{ github.run_number }}"
