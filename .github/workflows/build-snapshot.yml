@@ -269,3 +269,59 @@ jobs:
               echo "  → HTTP $HTTP_CODE"
             fi
           done
+
+  notify:
+    needs:
+      - setup
+      - push-linux-docker
+      - build-windows-package
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send build result notification
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_USERNAME }}
+          DOCKER_RESULT: ${{ needs.push-linux-docker.result }}
+          PACKAGE_RESULT: ${{ needs.build-windows-package.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY'
+          import os, smtplib
+          from email.mime.text import MIMEText
+          from email.header import Header
+
+          user = os.environ["MAIL_USERNAME"]
+          password = os.environ["MAIL_PASSWORD"]
+          to = os.environ.get("MAIL_TO") or user
+
+          docker_result = os.environ.get("DOCKER_RESULT", "unknown")
+          package_result = os.environ.get("PACKAGE_RESULT", "unknown")
+          sha = os.environ.get("GITHUB_SHA", "")[:7]
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+          run_url = os.environ.get("RUN_URL", "")
+
+          overall = "成功" if docker_result == "success" else "失败"
+
+          subject = f"[巢记] 构建{overall} · {sha} · Docker {docker_result}"
+
+          body = (
+              f"仓库：{repo}\n"
+              f"提交：{sha}\n"
+              f"Docker 镜像（NAS 部署用）：{docker_result}\n"
+              f"Windows 安装包：{package_result}\n"
+              f"构建详情：{run_url}\n"
+          )
+
+          msg = MIMEText(body, "plain", "utf-8")
+          msg["Subject"] = Header(subject, "utf-8")
+          msg["From"] = user
+          msg["To"] = to
+
+          s = smtplib.SMTP_SSL("smtp.qq.com", 465, timeout=30)
+          s.login(user, password)
+          s.sendmail(user, [to], msg.as_string())
+          s.quit()
+          print("通知邮件已发送到", to)
+          PY
