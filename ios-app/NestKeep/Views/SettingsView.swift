@@ -5,7 +5,6 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @ObservedObject private var updateStore = UpdateStore.shared
-    @Environment(\.mainTabBarInset) private var tabBarInset
 
     @State private var showUpdateSheet = false
     @State private var showLogoutConfirm = false
@@ -34,7 +33,6 @@ struct SettingsView: View {
                     }
                     NavigationLink {
                         ProfileEditView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("个人资料", systemImage: "person.text.rectangle")
                     }
@@ -44,25 +42,21 @@ struct SettingsView: View {
                 Section(header: Text("数据管理")) {
                     NavigationLink {
                         CategoriesView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("分类管理", systemImage: "square.grid.2x2")
                     }
                     NavigationLink {
                         TagsView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("标签管理", systemImage: "tag")
                     }
                     NavigationLink {
                         TemplatesView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("模板与计划账单", systemImage: "doc.on.doc")
                     }
                     NavigationLink {
                         DataManagementView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("数据管理", systemImage: "externaldrive")
                     }
@@ -106,19 +100,16 @@ struct SettingsView: View {
                 Section(header: Text("安全")) {
                     NavigationLink {
                         AppLockSettingsView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("应用锁", systemImage: "lock.shield")
                     }
                     NavigationLink {
                         TwoFactorAuthView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("两步验证", systemImage: "lock.rotation")
                     }
                     NavigationLink {
                         SessionsView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("设备与会话", systemImage: "iphone.gen3")
                     }
@@ -128,13 +119,11 @@ struct SettingsView: View {
                 Section(header: Text("显示与汇率")) {
                     NavigationLink {
                         HomeBackgroundSettingsView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("首页背景图", systemImage: "photo")
                     }
                     NavigationLink {
                         ExchangeRatesView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("汇率", systemImage: "arrow.left.arrow.right")
                     }
@@ -161,7 +150,6 @@ struct SettingsView: View {
 
                     NavigationLink {
                         AboutView()
-                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
                     } label: {
                         Label("关于巢记", systemImage: "info.circle")
                     }
@@ -209,9 +197,7 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: tabBarInset)
-            }
+            // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
             .navigationTitle("设置")
             .sheet(isPresented: $showUpdateSheet) {
                 UpdateResultSheet(updateStore: updateStore)

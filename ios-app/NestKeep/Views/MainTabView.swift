@@ -44,8 +44,10 @@ struct MainTabView: View {
     @State private var showAI = false
     @ObservedObject private var serverSettings = ServerSettings.shared
 
-    /// 各页面底部需要避让的高度（不含安全区），通过环境值下发，避免列表被浮层导航盖住
-    static let barContentHeight: CGFloat = 52
+    /// 各页面底部需要避让的高度 = 导航条内容 52pt + 条下方 8pt 内边距 + 额外 12pt 呼吸位。
+    /// 通过环境值下发；同时在 `MainTabView` 层统一给**整页容器**加同高的 `safeAreaInset`，
+    /// 这样无论页面是否包在 `NavigationView` 里，滚动内容都不会被浮层导航条遮住。
+    static let barContentHeight: CGFloat = 72
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -68,7 +70,12 @@ struct MainTabView: View {
                     .allowsHitTesting(selection == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // 各页内容底部留出浮层导航的高度（导航行本身；安全区由各页 safeAreaInset 自动叠加）
+            // 关键：在**整页容器**上加底部安全区避让（而不是各页内层 List），
+            // 这样无论页面是否包在 NavigationView 里，滚动内容都不会被浮层导航条遮住。
+            // 同时把高度下发为环境值，供各页内部（如 sheet 内的列表）复用。
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: Self.barContentHeight)
+            }
             .environment(\.mainTabBarInset, Self.barContentHeight)
 
             // 底部导航浮层：自身撑满底部安全区，中央加号上探不被裁切

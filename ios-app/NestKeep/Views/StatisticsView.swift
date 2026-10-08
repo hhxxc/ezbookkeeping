@@ -234,7 +234,6 @@ struct StatisticDailyItem: Codable {
 
 struct StatisticsView: View {
     @StateObject private var vm = StatisticsViewModel()
-    @Environment(\.mainTabBarInset) private var tabBarInset
     @State private var mode: Mode = .expense
 
     enum Mode: String, CaseIterable {
@@ -279,9 +278,7 @@ struct StatisticsView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 24)
             }
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: tabBarInset)
-            }
+            // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
             .background(Theme.pageBackground.ignoresSafeArea())
             .navigationTitle("统计")
             .toolbar {

@@ -164,9 +164,7 @@ struct AccountsView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
-                    .safeAreaInset(edge: .bottom) {
-                        Color.clear.frame(height: tabBarInset)
-                    }
+                    // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
             }
             .navigationTitle("账户")

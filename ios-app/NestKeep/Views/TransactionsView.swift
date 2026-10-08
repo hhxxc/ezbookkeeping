@@ -476,7 +476,7 @@ final class TransactionsViewModel: ObservableObject {
 struct TransactionsView: View {
     @StateObject private var vm = TransactionsViewModel()
     @Binding var showAdd: Bool
-    @Environment(\.mainTabBarInset) private var tabBarInset
+    // 底部避让由 MainTabView 统一施加；本页不再需要读取 mainTabBarInset
     @ObservedObject private var serverSettings = ServerSettings.shared
     @State private var editing: Transaction?
     @State private var detail: Transaction?
@@ -619,10 +619,8 @@ struct TransactionsView: View {
             // 让列表内容从安全区上方 24pt 开始（Web 的 `calc(safe-area-top + 24px)`）
             .environment(\.defaultMinListRowHeight, 0)
             .refreshable { await vm.load() }
-            .safeAreaInset(edge: .bottom) {
-                // 浮层底部导航的避让（列表滚到底时最后几行不被加号/导航盖住）
-                Color.clear.frame(height: tabBarInset)
-            }
+            // 底部避让由 MainTabView 在整页容器上统一施加（见 MainTabView.barContentHeight），
+            // 这里不再重复加，避免叠加成双倍留白。
             .overlay(alignment: .top) { topBar }
         }
         .sheet(isPresented: $showAI) { AIReceiptView() }
