@@ -127,8 +127,44 @@ struct UpdateResultSheet: View {
                         Text("发现新版本 \(latest)").font(.title3.bold())
                         Text("当前版本 \(current)").foregroundColor(.secondary)
 
-                        // 主按钮：复制 IPA 直链（TrollStore「从 URL 安装」用）
+                        // 主按钮：一键唤起 TrollStore 安装（走 apple-magnifier scheme）
                         if let ipaURL = ipaURL {
+                            Button {
+                                // TrollStore 覆盖了系统「放大器」的 URL scheme（为规避越狱检测）。
+                                // 点它会直接唤起 TrollStore 下载并弹出安装确认；
+                                // 未装 TrollStore 的设备只会打开放大器，无副作用。
+                                var comp = URLComponents()
+                                comp.scheme = "apple-magnifier"
+                                comp.host = "install"
+                                comp.queryItems = [URLQueryItem(name: "url",
+                                                                value: ipaURL.absoluteString)]
+                                if let trollURL = comp.url, UIApplication.shared.canOpenURL(trollURL) {
+                                    UIApplication.shared.open(trollURL)
+                                } else {
+                                    // 兜底：复制直链，手动去 TrollStore 粘贴
+                                    UIPasteboard.general.string = ipaURL.absoluteString
+                                    copied = true
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.down.app.fill")
+                                    Text("一键安装到 TrollStore").bold()
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Theme.brand)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                            }
+                            .padding(.horizontal, 32)
+
+                            Text("会直接跳转 TrollStore 并弹出安装确认，下载走你自己的服务器中转，不需要能访问 GitHub。")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+
+                            // 次按钮：复制直链（一键安装不可用时的手动兜底）
                             Button {
                                 UIPasteboard.general.string = ipaURL.absoluteString
                                 copied = true
@@ -139,28 +175,11 @@ struct UpdateResultSheet: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Theme.brand)
-                                .foregroundColor(.white)
+                                .background(Theme.brand.opacity(0.12))
+                                .foregroundColor(Theme.brand)
                                 .cornerRadius(12)
                             }
                             .padding(.horizontal, 32)
-
-                            // 次按钮：用 Safari 直接打开下载页（走自有域名中转，无需访问 GitHub）
-                            Link(destination: ipaURL) {
-                                Text("打开下载链接")
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Theme.brand.opacity(0.12))
-                                    .foregroundColor(Theme.brand)
-                                    .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 32)
-
-                            Text("TrollStore → 右上角 + → 从 URL 安装，粘贴即装。下载走你自己的服务器中转，不需要能访问 GitHub。")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
                         }
 
                         // 次按钮：打开发布页

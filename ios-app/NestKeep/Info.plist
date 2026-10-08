@@ -66,6 +66,12 @@
     <dict/>
     <key>UIBackgroundModes</key>
     <array/>
+    <!-- 一键安装：TrollStore 用系统「放大器」的 scheme 做安装入口（规避越狱检测）。
+         iOS 9+ 起 canOpenURL 必须先在此声明白名单，否则恒为 false。 -->
+    <key>LSApplicationQueriesSchemes</key>
+    <array>
+        <string>apple-magnifier</string>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
