@@ -40,10 +40,60 @@ enum UpdateChecker {
 
     // MARK: - App 更新检测
 
-    /// 通过 GitHub Releases API 查询最新版本并比对。
-    /// 取「最新的、非 draft 的 release」的 tag_name，去掉前缀 v 后与当前版本做数值比较。
+    /// 查询最新版本并比对。优先读用户自己后端的中转清单（走自己的域名，国内可达），
+    /// 失败再回退 GitHub API（需能访问 github.com）。
     static func checkAppUpdate() async -> UpdateCheckResult {
         let current = currentAppVersion
+
+        // 1) 优先：后端中转清单 /api/nestkeep/latest.json
+        if let r = await checkViaBackend(current: current) {
+            return r
+        }
+        // 2) 回退：GitHub Releases API
+        return await checkViaGitHub(current: current)
+    }
+
+    /// 后端中转清单结构（由发版脚本写入 NAS）：{ version, ipaUrl, releaseUrl?, notes? }
+    private struct BackendManifest: Decodable {
+        let version: String
+        let ipaUrl: String?
+        let releaseUrl: String?
+        let notes: String?
+    }
+
+    private static func checkViaBackend(current: String) async -> UpdateCheckResult? {
+        guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent("api/nestkeep/latest.json"), resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        comp.query = nil
+        guard let url = comp.url else { return nil }
+
+        var req = URLRequest(url: url)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 10
+
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              let manifest = try? JSONDecoder().decode(BackendManifest.self, from: data) else {
+            return nil
+        }
+
+        let latest = normalizeVersion(manifest.version)
+        guard isSemanticVersion(latest) else { return nil }
+
+        if compareVersion(latest, current) > 0 {
+            return .updateAvailable(
+                current: current,
+                latest: latest,
+                releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
+                ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
+            )
+        }
+        return .upToDate(current: current)
+    }
+
+    /// 通过 GitHub Releases API 查询最新版本并比对（回退路径）。
+    private static func checkViaGitHub(current: String) async -> UpdateCheckResult {
         do {
             let url = URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=10")!
             var req = URLRequest(url: url)

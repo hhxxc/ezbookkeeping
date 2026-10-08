@@ -359,6 +359,11 @@ func startWebServer(c *core.CliContext) error {
 		// GitHub download proxy (no auth required)
 		apiRoute.GET("/proxy/github/download", bindEventStreamApi(api.GitHubProxy.GitHubDownloadProxyHandler))
 
+		// NestKeep native app update manifest (no auth; raw JSON from local data/nestkeep/latest.json)
+		apiRoute.GET("/nestkeep/latest.json", func(ginCtx *gin.Context) {
+			api.Systems.NestKeepLatestHandler(core.WrapWebContext(ginCtx))
+		})
+
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorization(config)))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config)))
