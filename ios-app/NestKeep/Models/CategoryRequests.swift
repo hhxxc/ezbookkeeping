@@ -39,6 +39,15 @@ struct CategoryModifyRequest: Codable {
 struct CategoryIdRequest: Codable { let id: String }
 struct CategoryHideRequest: Codable { let id: String; let hidden: Bool }
 
+/// 分类排序（`POST /api/v1/transaction/categories/move.json`）
+struct CategoryMoveRequest: Codable {
+    let newDisplayOrders: [CategoryNewDisplayOrderRequest]
+}
+struct CategoryNewDisplayOrderRequest: Codable {
+    let id: String
+    let displayOrder: Int
+}
+
 /// 分类图标候选（后端 icon 为图标字体编号，原生用 SF Symbols 近似映射）
 enum CategoryIconCatalog {
     static let options: [(Int, String)] = [

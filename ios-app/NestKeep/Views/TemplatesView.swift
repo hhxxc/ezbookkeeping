@@ -68,6 +68,21 @@ final class TemplatesViewModel: ObservableObject {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    /// 保存排序结果
+    func saveOrder(_ ordered: [TransactionTemplate]) async {
+        let req = TemplateMoveRequest(newDisplayOrders: ordered.enumerated().map {
+            TemplateNewDisplayOrderRequest(id: $0.element.id, displayOrder: $0.offset)
+        })
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/templates/move.json", method: .POST, body: req
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
 }
 
 /// 模板响应（内嵌 TransactionInfoResponse 字段 + 模板特有字段）
@@ -83,8 +98,10 @@ struct TransactionTemplate: Codable, Identifiable {
     let comment: String?
     let templateType: Int?
     let scheduledFrequencyType: Int?
+    let scheduledFrequency: String?
     let scheduledStartDate: String?
     let scheduledEndDate: String?
+    let tagIds: [String]?
     let displayOrder: Int?
     let hidden: Bool?
 
@@ -94,73 +111,135 @@ struct TransactionTemplate: Codable, Identifiable {
 struct TemplateIdRequest: Codable { let id: String }
 struct TemplateHideRequest: Codable { let id: String; let hidden: Bool }
 
+/// 模板排序（`POST /api/v1/transaction/templates/move.json`）
+struct TemplateMoveRequest: Codable {
+    let newDisplayOrders: [TemplateNewDisplayOrderRequest]
+}
+struct TemplateNewDisplayOrderRequest: Codable {
+    let id: String
+    let displayOrder: Int
+}
+
 struct TemplatesView: View {
     @StateObject private var vm = TemplatesViewModel()
+    @State private var isSorting = false
+    @State private var sortItems: [TransactionTemplate] = []
+    /// 新增 / 编辑模板
+    @State private var editingTemplate: TransactionTemplate?
+    @State private var showAddTemplate = false
 
     var body: some View {
         List {
-            Picker("类型", selection: $vm.templateType) {
-                Text("模板").tag(1)
-                Text("计划账单").tag(2)
-            }
-            .pickerStyle(.segmented)
-            .listRowBackground(Color.clear)
-            .onChange(of: vm.templateType) { _ in Task { await vm.load() } }
-
-            if vm.templates.isEmpty && !vm.isLoading {
+            if isSorting {
                 Section {
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.on.doc").font(.system(size: 34)).foregroundColor(.secondary)
-                        Text(vm.templateType == 1 ? "还没有模板" : "还没有计划账单")
-                            .font(.subheadline).foregroundColor(.secondary)
-                        Text("可在网页端创建，或在新增交易时保存为模板")
-                            .font(.caption2).foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .listRowBackground(Color.clear)
-                }
-            }
-
-            ForEach(vm.templates, id: \.id) { template in
-                HStack(spacing: 12) {
-                    Image(systemName: iconName(template))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
-                        .background(iconColor(template))
-                        .cornerRadius(9)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(template.name)
-                        HStack(spacing: 6) {
-                            Text(vm.categoryName(template.categoryId))
-                            Text("· \(vm.accountName(template.sourceAccountId))")
+                    ForEach(sortItems, id: \.id) { template in
+                        HStack(spacing: 12) {
+                            Image(systemName: iconName(template))
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(iconColor(template))
+                                .cornerRadius(9)
+                            Text(template.name)
+                            Spacer()
                         }
-                        .font(.caption).foregroundColor(.secondary)
                     }
-                    Spacer()
-                    Text(AmountFormat.format(template.sourceAmount))
-                        .font(.system(.body, design: .rounded))
+                    .onMove { from, to in sortItems.move(fromOffsets: from, toOffset: to) }
+                } footer: {
+                    Text("拖动调整顺序，完成后点「完成」。")
                 }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) { Task { await vm.delete(template) } } label: {
-                        Label("删除", systemImage: "trash")
-                    }
-                    Button { Task { await vm.toggleHide(template) } } label: {
-                        Label(template.hidden ?? false ? "显示" : "隐藏",
-                              systemImage: template.hidden ?? false ? "eye" : "eye.slash")
-                    }
-                    .tint(.gray)
+            } else {
+                Picker("类型", selection: $vm.templateType) {
+                    Text("模板").tag(1)
+                    Text("计划账单").tag(2)
                 }
-            }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .onChange(of: vm.templateType) { _ in Task { await vm.load() } }
 
-            if let error = vm.error {
-                Section { Text(error).foregroundColor(.red).font(.footnote) }
+                if vm.templates.isEmpty && !vm.isLoading {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.on.doc").font(.system(size: 34)).foregroundColor(.secondary)
+                            Text(vm.templateType == 1 ? "还没有模板" : "还没有计划账单")
+                                .font(.subheadline).foregroundColor(.secondary)
+                            Text("点右上角 + 新建，或在新增交易时保存为模板")
+                                .font(.caption2).foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
+                ForEach(vm.templates, id: \.id) { template in
+                    HStack(spacing: 12) {
+                        Image(systemName: iconName(template))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(iconColor(template))
+                            .cornerRadius(9)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(template.name)
+                            HStack(spacing: 6) {
+                                Text(vm.categoryName(template.categoryId))
+                                Text("· \(vm.accountName(template.sourceAccountId))")
+                            }
+                            .font(.caption).foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text(AmountFormat.format(template.sourceAmount))
+                            .font(.system(.body, design: .rounded))
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { editingTemplate = template }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) { Task { await vm.delete(template) } } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                        Button { Task { await vm.toggleHide(template) } } label: {
+                            Label(template.hidden ?? false ? "显示" : "隐藏",
+                                  systemImage: template.hidden ?? false ? "eye" : "eye.slash")
+                        }
+                        .tint(.gray)
+                    }
+                }
+
+                if let error = vm.error {
+                    Section { Text(error).foregroundColor(.red).font(.footnote) }
+                }
             }
         }
         .listStyle(.insetGrouped)
+        .environment(\.editMode, .constant(isSorting ? EditMode.active : EditMode.inactive))
         .navigationTitle("模板与计划账单")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if isSorting {
+                    Button("完成") {
+                        let ordered = sortItems
+                        isSorting = false
+                        Task { await vm.saveOrder(ordered) }
+                    }
+                } else {
+                    HStack(spacing: 16) {
+                        Button("排序") {
+                            sortItems = vm.templates
+                            isSorting = true
+                        }
+                        Button { showAddTemplate = true } label: { Image(systemName: "plus") }
+                    }
+                }
+            }
+        }
         .refreshable { await vm.load() }
+        .sheet(isPresented: $showAddTemplate) {
+            TemplateEditView(template: nil, templateType: vm.templateType)
+        }
+        .sheet(item: $editingTemplate) { template in
+            TemplateEditView(template: template, templateType: template.templateType ?? 1)
+        }
         .task { await vm.load() }
     }
 

@@ -43,6 +43,27 @@ struct TagIdRequest: Codable { let id: String }
 struct TagGroupCreateRequest: Codable { let name: String }
 struct TagGroupModifyRequest: Codable { let id: String; let name: String }
 
+/// 标签排序（`POST /api/v1/transaction/tags/move.json`）
+struct TagMoveRequest: Codable {
+    let newDisplayOrders: [TagNewDisplayOrderRequest]
+}
+struct TagNewDisplayOrderRequest: Codable {
+    let id: String
+    let displayOrder: Int
+}
+
+/// 标签组删除（`POST /api/v1/transaction/tags/groups/delete.json`）
+struct TagGroupDeleteRequest: Codable { let id: String }
+
+/// 标签组排序（`POST /api/v1/transaction/tags/groups/move.json`）
+struct TagGroupMoveRequest: Codable {
+    let newDisplayOrders: [TagGroupNewDisplayOrderRequest]
+}
+struct TagGroupNewDisplayOrderRequest: Codable {
+    let id: String
+    let displayOrder: Int
+}
+
 enum TagGrouping {
     /// 按标签组聚合标签；无组标签归入「未分组」
     static func sections(tags: [TransactionTag], groups: [TransactionTagGroup]) -> [TagSection] {

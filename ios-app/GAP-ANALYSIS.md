@@ -685,3 +685,43 @@ AI 识图预填、应用锁冷启动）。
 **待验证**：云端构建（`build-native-ios.yml`，push `native-ios-app` 触发）需通过；
 真机回归（统计明细跳转、统计筛选、统计设置落云、登录 2FA、交易定位）。
 
+---
+
+### 2026-10-08（第十三轮）：管理页拖拽排序 + 标签组删除 + 模板新增/编辑
+
+第十二轮宣称「功能级对齐完成」后，按「Web 手机端实际调用的服务函数」逐页复核，发现
+**四类管理页缺「拖拽排序」、标签组缺删除、模板缺新增/编辑**（均为移动端功能，非桌面端专属），本轮补齐：
+
+**1. 账户 / 分类 / 标签 / 标签组 / 模板 拖拽排序** ✅
+- 五个管理页各加「排序」入口：进入排序模式 → 扁平列表 `List` + `.onMove` 拖拽 →
+  点「完成」一次性提交 `newDisplayOrders`；`.environment(\.editMode, .constant(.active))` 激活拖拽手柄
+- 契约（五个 move 接口统一格式）：`{"newDisplayOrders":[{"id":"<字符串>","displayOrder":<数字>}]}`，
+  id 后端 `,string`；displayOrder 按当前顺序 0..n 重排
+- 排序口径对齐 Web：账户=全局重排可见账户（父+子）；分类=父+子扁平重排；标签=全局重排可见标签；
+  标签组=组重排；模板=列表重排
+- 新增请求结构：`AccountMoveRequest` / `CategoryMoveRequest` / `TagMoveRequest` /
+  `TagGroupMoveRequest` / `TemplateMoveRequest`（各带 `NewDisplayOrderRequest`）
+
+**2. 标签组删除** ✅
+- `TagsView` 新增「标签组」区块，左滑删除（`POST /transaction/tags/groups/delete.json`，body `{id}`）；
+  删除后组内标签归「未分组」（后端行为）
+
+**3. 模板 / 计划账单新增 + 编辑** ✅
+- 新增 `Views/TemplateEditView.swift`：复用交易编辑的字段（名称/类型/账户/分类/金额/标签/备注），
+  类型仅支出/收入/转账（不含余额调整，对齐 Web 限制）
+- 计划账单（templateType=2）额外字段：频率（禁用/每日/每周/每月/每年）+ 起止日期
+- 频率值编码对齐 Web：Weekly=星期 0~6（0=周日，对齐 Go `time.Weekday`）；Monthly=日期 1~28；
+  Yearly=`month*100+day`；`scheduledFrequency` 为逗号分隔升序字符串
+- 日期 `scheduledStartDate`/`scheduledEndDate` 为 `YYYY-MM-DD` 字符串（`TextualYearMonthDay`）
+- 请求体：`TemplateCreateRequest` / `TemplateModifyRequest`（add 走 `templates/add.json`、
+  edit 走 `templates/modify.json`；计划账单字段 `omitempty`，普通模板不传）
+- `TransactionTemplate` 模型补 `scheduledFrequency` / `tagIds` 字段
+- 入口：TemplatesView 右上角 `+` 新建、点击行编辑
+
+**改动文件**（源文件 53 → 54）：
+- 新增 `Views/TemplateEditView.swift`
+- 改 `Views/{AccountsView,CategoriesView,TagsView,TemplatesView}.swift`、
+  `Models/{AccountRequests,CategoryRequests,Tag}.swift`、`gen_pbxproj.py`（54 文件）
+
+**待验证**：云端构建通过；真机回归（五处排序、标签组删除、模板/计划账单增改、频率编码正确性）。
+

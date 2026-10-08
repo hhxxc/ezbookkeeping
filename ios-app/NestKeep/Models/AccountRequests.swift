@@ -71,6 +71,15 @@ struct AccountModifyRequest: Codable {
 struct AccountIdRequest: Codable { let id: String }
 struct AccountHideRequest: Codable { let id: String; let hidden: Bool }
 
+/// 账户排序（`POST /api/v1/accounts/move.json`，对齐 Web 拖拽排序）
+struct AccountMoveRequest: Codable {
+    let newDisplayOrders: [AccountNewDisplayOrderRequest]
+}
+struct AccountNewDisplayOrderRequest: Codable {
+    let id: String
+    let displayOrder: Int
+}
+
 /// 移动某账户下的全部账单到另一账户。
 /// `POST /api/v1/transactions/move/all.json`，两个 id 均为 `json:",string"`。
 struct MoveAllTransactionsRequest: Codable {

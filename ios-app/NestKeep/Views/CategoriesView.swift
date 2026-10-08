@@ -77,6 +77,21 @@ final class CategoriesViewModel: ObservableObject {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    /// 保存排序结果（`newDisplayOrders` 按当前顺序重排可见分类）
+    func saveOrder(_ ordered: [TransactionCategory]) async {
+        let req = CategoryMoveRequest(newDisplayOrders: ordered.enumerated().map {
+            CategoryNewDisplayOrderRequest(id: $0.element.id, displayOrder: $0.offset)
+        })
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/categories/move.json", method: .POST, body: req
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
 }
 
 struct CategoriesView: View {
@@ -84,50 +99,93 @@ struct CategoriesView: View {
     @State private var editing: TransactionCategory?
     @State private var addingTo: TransactionCategory?   // 非 nil 表示新增子分类
     @State private var showAddRoot = false
+    @State private var isSorting = false
+    @State private var sortItems: [TransactionCategory] = []
+
+    /// 排序模式下的扁平分类列表（父 + 子，子项带缩进）
+    private func flatSortableCategories() -> [TransactionCategory] {
+        var arr: [TransactionCategory] = []
+        for parent in vm.topLevel {
+            arr.append(parent)
+            if let subs = parent.subCategories {
+                arr.append(contentsOf: subs)
+            }
+        }
+        return arr
+    }
 
     var body: some View {
         List {
-            Picker("类型", selection: $vm.type) {
-                Text("支出").tag(TransactionCategoryType.expense.rawValue)
-                Text("收入").tag(TransactionCategoryType.income.rawValue)
-                Text("转账").tag(TransactionCategoryType.transfer.rawValue)
-            }
-            .pickerStyle(.segmented)
-            .listRowBackground(Color.clear)
-            .onChange(of: vm.type) { _ in Task { await vm.load() } }
+            if isSorting {
+                ForEach(sortItems, id: \.id) { cat in
+                    HStack(spacing: 12) {
+                        if (cat.parentId ?? "0") != "0" {
+                            Spacer().frame(width: 18)
+                        }
+                        Image(systemName: CategoryIconCatalog.symbol(cat.icon))
+                            .foregroundColor(.white)
+                            .font(.system(size: 13))
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color(hex: cat.color ?? "26A69A")))
+                        Text(cat.name)
+                        Spacer()
+                    }
+                }
+                .onMove(perform: moveSortItem)
+            } else {
+                Picker("类型", selection: $vm.type) {
+                    Text("支出").tag(TransactionCategoryType.expense.rawValue)
+                    Text("收入").tag(TransactionCategoryType.income.rawValue)
+                    Text("转账").tag(TransactionCategoryType.transfer.rawValue)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .onChange(of: vm.type) { _ in Task { await vm.load() } }
 
-            ForEach(vm.topLevel, id: \.id) { cat in
-                Section {
-                    categoryRow(cat, isSub: false)
-                    if let subs = cat.subCategories {
-                        ForEach(subs, id: \.id) { sub in
-                            categoryRow(sub, isSub: true)
+                ForEach(vm.topLevel, id: \.id) { cat in
+                    Section {
+                        categoryRow(cat, isSub: false)
+                        if let subs = cat.subCategories {
+                            ForEach(subs, id: \.id) { sub in
+                                categoryRow(sub, isSub: true)
+                            }
+                        }
+                        Button {
+                            addingTo = cat
+                        } label: {
+                            Label("添加子分类", systemImage: "plus.circle")
+                                .font(.subheadline)
                         }
                     }
-                    Button {
-                        addingTo = cat
-                    } label: {
-                        Label("添加子分类", systemImage: "plus.circle")
-                            .font(.subheadline)
-                    }
                 }
-            }
 
-            Section {
-                NavigationLink {
-                    PresetCategoriesView()
-                } label: {
-                    Label("导入默认分类", systemImage: "square.and.arrow.down.on.square")
+                Section {
+                    NavigationLink {
+                        PresetCategoriesView()
+                    } label: {
+                        Label("导入默认分类", systemImage: "square.and.arrow.down.on.square")
+                    }
+                } footer: {
+                    Text("从内置预设分类（对齐 Web）批量导入支出 / 收入 / 转账分类。")
                 }
-            } footer: {
-                Text("从内置预设分类（对齐 Web）批量导入支出 / 收入 / 转账分类。")
             }
         }
         .listStyle(.insetGrouped)
+        .environment(\.editMode, .constant(isSorting ? EditMode.active : EditMode.inactive))
         .navigationTitle("分类管理")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showAddRoot = true } label: { Image(systemName: "plus") }
+                if isSorting {
+                    Button("完成") { finishSorting() }
+                } else {
+                    HStack(spacing: 16) {
+                        Button("排序") {
+                            sortItems = flatSortableCategories()
+                            isSorting = true
+                        }
+                        Button { showAddRoot = true } label: { Image(systemName: "plus") }
+                    }
+                }
             }
         }
         .refreshable { await vm.load() }
@@ -141,6 +199,16 @@ struct CategoriesView: View {
             CategoryEditView(category: nil, type: vm.type, parentId: parent.id)
         }
         .task { await vm.load() }
+    }
+
+    private func moveSortItem(from source: IndexSet, to destination: Int) {
+        sortItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    private func finishSorting() {
+        let ordered = sortItems
+        isSorting = false
+        Task { await vm.saveOrder(ordered) }
     }
 
     private func categoryRow(_ cat: TransactionCategory, isSub: Bool) -> some View {

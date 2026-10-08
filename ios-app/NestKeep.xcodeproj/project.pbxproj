@@ -46,6 +46,7 @@
 		de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e81840588cd05eec8525384e /* PresetCategoriesView.swift */; };
 		ac6cf8561eeb585bada04df5 /* TagsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = d3b273beadb7562abe49da99 /* TagsView.swift */; };
 		0cc66077c49f5afd996b747d /* TemplatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ddb8a5b2c4285100b2995bc5 /* TemplatesView.swift */; };
+		abd03977d96d5c80975f2073 /* TemplateEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159257bbe8c75d6ea1127ea9 /* TemplateEditView.swift */; };
 		62685a5156795bc3b514dff5 /* ProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */; };
 		175a2669d54959038bcfb935 /* TwoFactorAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */; };
 		442ed9f9a15357e284f38184 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3eee32060bec5375b8d67600 /* SessionsView.swift */; };
@@ -103,6 +104,7 @@
 		e81840588cd05eec8525384e /* PresetCategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PresetCategoriesView.swift; sourceTree = "<group>"; };
 		d3b273beadb7562abe49da99 /* TagsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TagsView.swift; sourceTree = "<group>"; };
 		ddb8a5b2c4285100b2995bc5 /* TemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TemplatesView.swift; sourceTree = "<group>"; };
+		159257bbe8c75d6ea1127ea9 /* TemplateEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TemplateEditView.swift; sourceTree = "<group>"; };
 		7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ProfileEditView.swift; sourceTree = "<group>"; };
 		fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TwoFactorAuthView.swift; sourceTree = "<group>"; };
 		3eee32060bec5375b8d67600 /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SessionsView.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 				e81840588cd05eec8525384e /* PresetCategoriesView.swift */,
 				d3b273beadb7562abe49da99 /* TagsView.swift */,
 				ddb8a5b2c4285100b2995bc5 /* TemplatesView.swift */,
+				159257bbe8c75d6ea1127ea9 /* TemplateEditView.swift */,
 				7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */,
 				fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */,
 				3eee32060bec5375b8d67600 /* SessionsView.swift */,
@@ -309,6 +312,7 @@
 				de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */,
 				ac6cf8561eeb585bada04df5 /* TagsView.swift in Sources */,
 				0cc66077c49f5afd996b747d /* TemplatesView.swift in Sources */,
+				abd03977d96d5c80975f2073 /* TemplateEditView.swift in Sources */,
 				62685a5156795bc3b514dff5 /* ProfileEditView.swift in Sources */,
 				175a2669d54959038bcfb935 /* TwoFactorAuthView.swift in Sources */,
 				442ed9f9a15357e284f38184 /* SessionsView.swift in Sources */,

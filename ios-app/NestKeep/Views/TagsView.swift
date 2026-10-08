@@ -96,11 +96,57 @@ final class TagsViewModel: ObservableObject {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    func deleteGroup(_ group: TransactionTagGroup) async {
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/tags/groups/delete.json", method: .POST,
+                body: TagGroupDeleteRequest(id: group.id)
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// 保存标签组排序
+    func saveGroupOrder(_ ordered: [TransactionTagGroup]) async {
+        let req = TagGroupMoveRequest(newDisplayOrders: ordered.enumerated().map {
+            TagGroupNewDisplayOrderRequest(id: $0.element.id, displayOrder: $0.offset)
+        })
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/tags/groups/move.json", method: .POST, body: req
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// 保存某个标签组内标签的排序
+    func saveTagOrder(_ ordered: [TransactionTag]) async {
+        let req = TagMoveRequest(newDisplayOrders: ordered.enumerated().map {
+            TagNewDisplayOrderRequest(id: $0.element.id, displayOrder: $0.offset)
+        })
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/tags/move.json", method: .POST, body: req
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
 }
 
 struct TagsView: View {
     @StateObject private var vm = TagsViewModel()
     @State private var input: TagInput?
+    @State private var isSorting = false
+    @State private var sortGroups: [TransactionTagGroup] = []
+    @State private var sortTags: [TransactionTag] = []
+    @State private var groupToDelete: TransactionTagGroup?
 
     /// 输入弹层上下文（iOS 15 的 alert 不支持 TextField，改用 sheet）
     struct TagInput: Identifiable {
@@ -124,66 +170,130 @@ struct TagsView: View {
         }
     }
 
+    /// 排序模式下所有可见标签（按当前分组顺序拍平）
+    private var flatVisibleTags: [TransactionTag] {
+        vm.sections.flatMap { $0.tags }
+    }
+
     var body: some View {
         List {
-            ForEach(vm.sections) { section in
-                Section(header: Text(section.name)) {
-                    ForEach(section.tags, id: \.id) { tag in
+            if isSorting {
+                Section(header: Text("标签组排序")) {
+                    ForEach(sortGroups, id: \.id) { group in
                         HStack {
-                            Image(systemName: "tag.fill")
-                                .font(.system(size: 11))
+                            Image(systemName: "folder.fill").foregroundColor(Theme.brand).font(.system(size: 13))
+                            Text(group.name)
+                            Spacer()
+                        }
+                    }
+                    .onMove { from, to in sortGroups.move(fromOffsets: from, toOffset: to) }
+                }
+                Section(header: Text("标签排序")) {
+                    ForEach(sortTags, id: \.id) { tag in
+                        HStack {
+                            Image(systemName: "tag.fill").font(.system(size: 11))
                                 .foregroundColor(.white)
                                 .frame(width: 26, height: 26)
                                 .background(Circle().fill(Theme.brand))
                             Text(tag.name)
-                            if tag.hidden ?? false {
-                                Text("已隐藏").font(.caption2).foregroundColor(.secondary)
-                            }
                             Spacer()
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture { input = TagInput(kind: .renameTag(tag)) }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) { Task { await vm.deleteTag(tag) } } label: {
-                                Label("删除", systemImage: "trash")
+                    }
+                    .onMove { from, to in sortTags.move(fromOffsets: from, toOffset: to) }
+                }
+            } else {
+                ForEach(vm.sections) { section in
+                    Section(header: Text(section.name)) {
+                        ForEach(section.tags, id: \.id) { tag in
+                            HStack {
+                                Image(systemName: "tag.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white)
+                                    .frame(width: 26, height: 26)
+                                    .background(Circle().fill(Theme.brand))
+                                Text(tag.name)
+                                if tag.hidden ?? false {
+                                    Text("已隐藏").font(.caption2).foregroundColor(.secondary)
+                                }
+                                Spacer()
                             }
-                            Button { Task { await vm.toggleHideTag(tag) } } label: {
-                                Label(tag.hidden ?? false ? "显示" : "隐藏",
-                                      systemImage: tag.hidden ?? false ? "eye" : "eye.slash")
+                            .contentShape(Rectangle())
+                            .onTapGesture { input = TagInput(kind: .renameTag(tag)) }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { Task { await vm.deleteTag(tag) } } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                                Button { Task { await vm.toggleHideTag(tag) } } label: {
+                                    Label(tag.hidden ?? false ? "显示" : "隐藏",
+                                          systemImage: tag.hidden ?? false ? "eye" : "eye.slash")
+                                }
+                                .tint(.gray)
                             }
-                            .tint(.gray)
+                        }
+                        Button {
+                            input = TagInput(kind: .addTag(groupId: section.id))
+                        } label: {
+                            Label("添加标签", systemImage: "plus.circle").font(.subheadline)
                         }
                     }
-                    Button {
-                        input = TagInput(kind: .addTag(groupId: section.id))
-                    } label: {
-                        Label("添加标签", systemImage: "plus.circle").font(.subheadline)
+                }
+
+                if vm.sections.isEmpty && !vm.isLoading {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "tag").font(.system(size: 34)).foregroundColor(.secondary)
+                            Text("还没有标签").font(.subheadline).foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowBackground(Color.clear)
                     }
                 }
-            }
 
-            if vm.sections.isEmpty && !vm.isLoading {
                 Section {
-                    VStack(spacing: 8) {
-                        Image(systemName: "tag").font(.system(size: 34)).foregroundColor(.secondary)
-                        Text("还没有标签").font(.subheadline).foregroundColor(.secondary)
+                    Button {
+                        input = TagInput(kind: .addGroup)
+                    } label: {
+                        Label("新建标签组", systemImage: "folder.badge.plus")
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .listRowBackground(Color.clear)
                 }
-            }
 
-            Section {
-                Button {
-                    input = TagInput(kind: .addGroup)
-                } label: {
-                    Label("新建标签组", systemImage: "folder.badge.plus")
+                if !vm.groups.isEmpty {
+                    Section(header: Text("标签组")) {
+                        ForEach(vm.groups.sorted { ($0.displayOrder ?? 0) < ($1.displayOrder ?? 0) }, id: \.id) { group in
+                            HStack {
+                                Image(systemName: "folder.fill").foregroundColor(Theme.brand).font(.system(size: 13))
+                                Text(group.name)
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { input = TagInput(kind: .renameGroup(group)) }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { groupToDelete = group } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .environment(\.editMode, .constant(isSorting ? EditMode.active : EditMode.inactive))
         .navigationTitle("标签管理")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if isSorting {
+                    Button("完成") { finishSorting() }
+                } else {
+                    Button("排序") {
+                        sortGroups = vm.groups.sorted { ($0.displayOrder ?? 0) < ($1.displayOrder ?? 0) }
+                        sortTags = flatVisibleTags
+                        isSorting = true
+                    }
+                }
+            }
+        }
         .refreshable { await vm.load() }
         .sheet(item: $input) { ctx in
             TagInputSheet(context: ctx) { name in
@@ -195,7 +305,29 @@ struct TagsView: View {
                 }
             }
         }
+        .confirmationDialog("删除标签组？", isPresented: Binding(
+            get: { groupToDelete != nil },
+            set: { if !$0 { groupToDelete = nil } }
+        ), titleVisibility: .visible) {
+            Button("删除", role: .destructive) {
+                if let g = groupToDelete { Task { await vm.deleteGroup(g) } }
+                groupToDelete = nil
+            }
+            Button("取消", role: .cancel) { groupToDelete = nil }
+        } message: {
+            Text("组内标签不会被删除，会移动到「未分组」。")
+        }
         .task { await vm.load() }
+    }
+
+    private func finishSorting() {
+        let groups = sortGroups
+        let tags = sortTags
+        isSorting = false
+        Task {
+            await vm.saveGroupOrder(groups)
+            await vm.saveTagOrder(tags)
+        }
     }
 }
 

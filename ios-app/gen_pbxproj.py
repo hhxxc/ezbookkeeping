@@ -54,6 +54,7 @@ SWIFT_FILES = [
     "Views/PresetCategoriesView.swift",
     "Views/TagsView.swift",
     "Views/TemplatesView.swift",
+    "Views/TemplateEditView.swift",
     "Views/ProfileEditView.swift",
     "Views/TwoFactorAuthView.swift",
     "Views/SessionsView.swift",

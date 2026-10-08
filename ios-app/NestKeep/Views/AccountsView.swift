@@ -115,6 +115,21 @@ final class AccountsViewModel: ObservableObject {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    /// 保存排序结果（`newDisplayOrders` 按当前顺序重排可见账户）
+    func saveOrder(_ ordered: [Account]) async {
+        let req = AccountMoveRequest(newDisplayOrders: ordered.enumerated().map {
+            AccountNewDisplayOrderRequest(id: $0.element.id, displayOrder: $0.offset)
+        })
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/accounts/move.json", method: .POST, body: req
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
 }
 
 struct AccountsView: View {
@@ -126,6 +141,21 @@ struct AccountsView: View {
     /// 对账单 / 移动全部账单的目标账户
     @State private var statementAccount: Account?
     @State private var moveFromAccount: Account?
+    /// 排序模式
+    @State private var isSorting = false
+    @State private var sortItems: [Account] = []
+
+    /// 排序模式下的扁平账户列表（父 + 可见子账户）
+    private func flatSortableAccounts() -> [Account] {
+        var arr: [Account] = []
+        for acc in vm.topLevelAccounts {
+            arr.append(acc)
+            if let subs = acc.subAccounts {
+                arr.append(contentsOf: subs.filter { !($0.hidden ?? false) })
+            }
+        }
+        return arr
+    }
 
     var body: some View {
         NavigationView {
@@ -134,50 +164,82 @@ struct AccountsView: View {
                     ProgressView()
                 } else {
                     List {
-                        Section {
-                            netAssetsCard
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                .listRowBackground(Color.clear)
-                        }
+                        if isSorting {
+                            Section {
+                                ForEach(sortItems, id: \.id) { account in
+                                    HStack(spacing: 12) {
+                                        Image(systemName: AccountIconCatalog.symbol(account.icon))
+                                            .foregroundColor(.white)
+                                            .font(.system(size: 15))
+                                            .frame(width: 30, height: 30)
+                                            .background(Circle().fill(Color(hex: account.color ?? "26A69A")))
+                                        Text(account.name)
+                                        Spacer()
+                                    }
+                                }
+                                .onMove { from, to in sortItems.move(fromOffsets: from, toOffset: to) }
+                            } footer: {
+                                Text("拖动调整账户顺序，完成后点「完成」。")
+                            }
+                        } else {
+                            Section {
+                                netAssetsCard
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                    .listRowBackground(Color.clear)
+                            }
 
-                        ForEach(vm.groupedAccounts, id: \.category) { group in
-                            Section(header: Text(group.name)) {
-                                ForEach(group.accounts, id: \.id) { account in
-                                    ForEach(rows(for: account).indices, id: \.self) { idx in
-                                        let pair = rows(for: account)[idx]
-                                        accountRow(pair.0, isSub: pair.1)
+                            ForEach(vm.groupedAccounts, id: \.category) { group in
+                                Section(header: Text(group.name)) {
+                                    ForEach(group.accounts, id: \.id) { account in
+                                        ForEach(rows(for: account).indices, id: \.self) { idx in
+                                            let pair = rows(for: account)[idx]
+                                            accountRow(pair.0, isSub: pair.1)
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if vm.groupedAccounts.isEmpty && !vm.isLoading {
-                            Section {
-                                VStack(spacing: 8) {
-                                    Image(systemName: "creditcard").font(.system(size: 34)).foregroundColor(.secondary)
-                                    Text("还没有账户").font(.subheadline).foregroundColor(.secondary)
+                            if vm.groupedAccounts.isEmpty && !vm.isLoading {
+                                Section {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "creditcard").font(.system(size: 34)).foregroundColor(.secondary)
+                                        Text("还没有账户").font(.subheadline).foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 24)
+                                    .listRowBackground(Color.clear)
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 24)
-                                .listRowBackground(Color.clear)
                             }
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .environment(\.editMode, .constant(isSorting ? EditMode.active : EditMode.inactive))
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
             }
             .navigationTitle("账户")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        vm.hideAmounts.toggle()
-                    } label: {
-                        Image(systemName: vm.hideAmounts ? "eye.slash" : "eye")
+                    if isSorting {
+                        Button("完成") { finishSorting() }
+                    } else {
+                        Button {
+                            vm.hideAmounts.toggle()
+                        } label: {
+                            Image(systemName: vm.hideAmounts ? "eye.slash" : "eye")
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showAdd = true } label: { Image(systemName: "plus") }
+                    if !isSorting {
+                        HStack(spacing: 16) {
+                            Button("排序") {
+                                sortItems = flatSortableAccounts()
+                                isSorting = true
+                            }
+                            Button { showAdd = true } label: { Image(systemName: "plus") }
+                        }
+                    }
                 }
             }
             .refreshable { await vm.load() }
@@ -210,6 +272,12 @@ struct AccountsView: View {
             }
         }
         .task { await vm.load() }
+    }
+
+    private func finishSorting() {
+        let ordered = sortItems
+        isSorting = false
+        Task { await vm.saveOrder(ordered) }
     }
 
     // MARK: - 净资产卡（对齐 Web `accounts/ListPage.vue` 的 `.account-overview-card`）
