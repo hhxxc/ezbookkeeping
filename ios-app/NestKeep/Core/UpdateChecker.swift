@@ -75,56 +75,57 @@ enum UpdateChecker {
     }
 
     private static func checkViaBackend(current: String) async -> UpdateCheckResult? {
-        // 优先读本变体专属清单（latest-dev.json / latest-stable.json），
-        // 读不到再回退通用 latest.json（兼容只发布通用清单的旧脚本）。
-        let candidates = [
-            "api/nestkeep/latest-\(channel).json",
-            "api/nestkeep/latest.json",
-        ]
-
-        for path in candidates {
-            guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent(path),
-                                           resolvingAgainstBaseURL: false) else {
-                continue
-            }
-            comp.query = nil
-            guard let url = comp.url else { continue }
-
-            var req = URLRequest(url: url)
-            req.setValue("application/json", forHTTPHeaderField: "Accept")
-            req.timeoutInterval = 10
-
-            guard let (data, resp) = try? await URLSession.shared.data(for: req),
-                  let http = resp as? HTTPURLResponse, http.statusCode == 200,
-                  let manifest = try? JSONDecoder().decode(BackendManifest.self, from: data) else {
-                continue
-            }
-
-            // 通用清单里若带 variant 字段，则必须与本机变体一致才采用（防跨变体误报）。
-            if let variant = manifest.variant, !variant.isEmpty, variant != channel {
-                continue
-            }
-
-            let latest = normalizeVersion(manifest.version)
-            guard isSemanticVersion(latest) else { continue }
-
-            if compareVersion(latest, current) > 0 {
-                return .updateAvailable(
-                    current: current,
-                    latest: latest,
-                    releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
-                    ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
-                )
-            }
-            return .upToDate(current: current)
+        // 后端目前只有一个清单 latest.json（用 variant 字段区分变体，见 NestKeepLatestHandler）。
+        // 直接读它即可；不存在的变体专属清单（latest-dev.json 等）后端没有对应路由，
+        // 请求只会命中 :name 通配返回 404，属于无意义的往返。
+        let path = "api/nestkeep/latest.json"
+        guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent(path),
+                                       resolvingAgainstBaseURL: false) else {
+            return nil
         }
-        return nil
+        comp.query = nil
+        guard let url = comp.url else { return nil }
+
+        var req = URLRequest(url: url)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 10
+
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              let manifest = try? JSONDecoder().decode(BackendManifest.self, from: data) else {
+            return nil
+        }
+
+        // 清单若带 variant 字段，则必须与本机变体一致才采用（防跨变体误报）。
+        // 不带 variant 的旧清单视为通用，但此时 ipaUrl 可能指向任一变体，仍按版本号比对。
+        if let variant = manifest.variant, !variant.isEmpty, variant != channel {
+            return nil
+        }
+
+        let latest = normalizeVersion(manifest.version)
+        guard isSemanticVersion(latest) else { return nil }
+
+        if compareVersion(latest, current) > 0 {
+            return .updateAvailable(
+                current: current,
+                latest: latest,
+                releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
+                ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
+            )
+        }
+        return .upToDate(current: current)
     }
 
     /// 通过 GitHub Releases API 查询最新版本并比对（回退路径）。
+    ///
+    /// 注意变体语义：stable 变体的语义版本 tag 是 `vX.Y.Z-stable`（见 build-native-ios.yml 的
+    /// `Publish semantic version release` 步骤），dev 是 `vX.Y.Z`。这里必须**只认本变体的 tag**，
+    /// 否则 stable 用户会拿到 dev 的 `vX.Y.Z` 当成自己的最新版，一键安装后被装成 dev 变体。
     private static func checkViaGitHub(current: String) async -> UpdateCheckResult {
         do {
-            let url = URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=10")!
+            // per_page 给到 100：历史 Release 里有大量环境 tag（nestkeep-ipa-N / 巢记 v1.6.01.0x），
+            // 若只取前 10 且版本号与 created_at 顺序不一致，会把真正的最新语义版本截断掉。
+            let url = URL(string: "https://api.github.com/repos/\(repo)/releases?per_page=100")!
             var req = URLRequest(url: url)
             req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
             req.setValue("NestKeep-iOS", forHTTPHeaderField: "User-Agent")
@@ -141,17 +142,17 @@ enum UpdateChecker {
                 if (r["draft"] as? Bool) == true { continue }
                 if (r["prerelease"] as? Bool) == true { continue }
                 guard let tag = r["tag_name"] as? String, !tag.isEmpty else { continue }
-                let normalized = normalizeVersion(tag)
-                // 仅考虑形如 x.y.z 的版本（忽略 nestkeep-ipa-N 这类环境 tag）
-                guard isSemanticVersion(normalized) else { continue }
+                // 解析出「核心版本号 + 变体后缀」，只认本 channel 的 tag；
+                // 忽略 nestkeep-ipa-N / 巢记 v1.6.01.0x 等环境 tag。
+                guard let parsed = parseVersionTag(tag), parsed.variant == channel else { continue }
                 let releaseURL = (r["html_url"] as? String).flatMap { URL(string: $0) }
                 let ipaURL = ipaAssetURL(from: r)
                 if let cur = best {
-                    if compareVersion(normalized, cur.tag) > 0 {
-                        best = (normalized, releaseURL, ipaURL)
+                    if compareVersion(parsed.version, cur.tag) > 0 {
+                        best = (parsed.version, releaseURL, ipaURL)
                     }
                 } else {
-                    best = (normalized, releaseURL, ipaURL)
+                    best = (parsed.version, releaseURL, ipaURL)
                 }
             }
 
@@ -201,11 +202,47 @@ enum UpdateChecker {
         return s
     }
 
-    /// 是否形如 1 / 1.2 / 1.2.3（纯数字点分），用于过滤环境 tag
+    /// 是否形如 `x.y.z` 的标准语义版本（三段纯数字点分），用于过滤环境 tag。
+    ///
+    /// 严格限制：**必须恰好三段**、每段**无前导零**（除非该段就是 `0`）。
+    /// 这样能排除历史遗留的 `1.6.01.09`（四段、含前导零）这类旧 Web 壳 tag——它们会被
+    /// 误当成合法版本并污染「取最大版本号」的比较（`Int("01")` 会解析成 `1`）。
     static func isSemanticVersion(_ s: String) -> Bool {
         let parts = s.split(separator: ".", omittingEmptySubsequences: false)
-        guard !parts.isEmpty else { return false }
-        return parts.allSatisfy { !$0.isEmpty && $0.allSatisfy { $0.isNumber } }
+        guard parts.count == 3 else { return false }
+        for p in parts {
+            // 非空、全数字、且（长度 == 1 或 首字符非 '0'）
+            if p.isEmpty || !p.allSatisfy({ $0.isNumber }) { return false }
+            if p.count > 1 && p.first == "0" { return false }
+        }
+        return true
+    }
+
+    /// 从 release tag 解析出「核心版本号 + 变体」。
+    ///
+    /// 支持：`v1.6.5`（dev）、`1.6.5`（dev）、`v1.6.5-stable` / `1.6.5-stable`（stable）。
+    /// 返回 nil 表示不是本 App 的语义版本 tag（环境 tag、旧四段 tag 等）。
+    private struct ParsedTag {
+        let version: String   // 纯 x.y.z
+        let variant: String   // "dev" / "stable"
+    }
+
+    private static func parseVersionTag(_ raw: String) -> ParsedTag? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("v") || s.hasPrefix("V") { s.removeFirst() }
+
+        // 拆分变体后缀：-stable / -dev / 无后缀（缺省 dev）
+        var variant = "dev"
+        if s.hasSuffix("-stable") {
+            variant = "stable"
+            s = String(s.dropLast("-stable".count))
+        } else if s.hasSuffix("-dev") {
+            variant = "dev"
+            s = String(s.dropLast("-dev".count))
+        }
+
+        guard isSemanticVersion(s) else { return nil }
+        return ParsedTag(version: s, variant: variant)
     }
 
     /// 比较两个点分版本号：a > b 返回 1，a < b 返回 -1，相等返回 0
