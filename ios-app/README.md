@@ -104,6 +104,33 @@ cd ios-app
 - 交易编辑/删除、详情
 - AI 识图（multipart 上传）、导入导出、汇率、云同步
 
+## 更新分发（国内网络：走 NAS 中转，不需要能访问 GitHub）
+手机在国内连不上 github.com，所以 App 的「检查更新 / 下载安装包」全部走你自己的域名。
+
+- **后端新增两个无鉴权接口**（`pkg/api/systems.go` + `cmd/webserver.go`）：
+  - `GET /api/nestkeep/latest.json` — 读取 `data/nestkeep/latest.json`，原样返回裸 JSON（不包统一信封）
+  - `GET /api/nestkeep/:name` — 从 `data/nestkeep/` 下发 `.ipa`（防路径穿越）
+- **App 端**：`Core/UpdateChecker.swift` 的 `checkAppUpdate()` 先读
+  `{serverURL}/api/nestkeep/latest.json`；读不到才回退 GitHub Releases API。
+- **发版一步到位**：
+  ```bash
+  python scripts/nas_publish_nestkeep.py --version 1.6.3 \
+      --ipa /path/to/NestKeep-native-ios-app-N.ipa \
+      --notes "本次更新说明"
+  ```
+  脚本会把 IPA 传到 NAS（`/volume2/docker/ezbk/nestkeep/`，该目录挂进容器
+  → `/ezbookkeeping/data/nestkeep/`，重建容器不丢），并原子写 `latest.json`。
+- **手机侧地址**（永远不变）：
+  - 清单：`https://example-server.invalid/api/nestkeep/latest.json`
+  - IPA：`https://example-server.invalid/api/nestkeep/<文件名>.ipa`
+- TrollStore → 右上角 `+` → 从 URL 安装 → 粘贴 IPA 直链即可。
+
+> 注意：后端改动要合到 `main` 才会出镜像（`build-snapshot.yml` 仅 `push main` 触发并推镜像；
+> 非 main 分支的 `build-non-main-branch.yml` 是 `docker-push: false`，不产镜像）。
+
 ## 备注
 - 后端 Go 字段为小驼峰，Swift `Decodable` 用 `.useDefaultKeys` 直接对应。
 - 分类/账户图标的后端编号是自定义图标字体，原生端用 SF Symbols 近似映射（见 `AccountsView.iconName`）。
+- **App 图标**：全套尺寸由 `scripts/gen_nestkeep_appicon.py` 生成（满幅、无内边距——网页版 logo
+  内缩 16px 装到手机上会显示白边）。另注意新版 Xcode 的 `actool` 不再向 `.app` 输出实体图标 PNG，
+  故 `build-native-ios.yml` 在打包阶段会把真实 `icon-*.png` 覆盖进 `Payload/NestKeep.app/`。
