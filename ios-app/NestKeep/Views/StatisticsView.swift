@@ -187,10 +187,13 @@ final class StatisticsViewModel: ObservableObject {
             if !filterCategoryIds.isEmpty, filterCategoryIds.contains(key) {
                 continue
             }
-            if item.amount < 0 {
-                expMap[key, default: 0] += abs(item.amount)
-            } else if item.amount > 0 {
-                incMap[key, default: 0] += item.amount
+            // 后端统计接口的 amount 恒为正数，收支方向由分类类型决定
+            //（对齐 Web：category.type 1=收入→收入桶、2=支出→支出桶、3=转账→跳过）
+            let amount = abs(item.amount)
+            switch categoryType(forKey: key) {
+            case .some(2): expMap[key, default: 0] += amount
+            case .some(1): incMap[key, default: 0] += amount
+            default: break
             }
         }
         totalExpenseCents = expMap.values.reduce(0, +)
@@ -225,6 +228,14 @@ final class StatisticsViewModel: ObservableObject {
         return nil
     }
 
+    /// 分类类型（1=收入 2=支出 3=转账）。
+    /// 关键契约：统计接口的 amount 恒为**正数**，收支方向只能靠分类类型判断
+    /// （后端按交易 type 分别聚合、金额不做符号化；Web 端同样按 category.type 分桶）。
+    /// 找不到分类（含转账项 categoryId 为空/0）返回 nil，跳过不计入。
+    private func categoryType(forKey id: String) -> Int? {
+        findCategory(id)?.type
+    }
+
     /// 汇总区间收支：月模式按「日」聚合，年模式按「月」聚合（对齐 Web 年周期柱状图）
     private func buildDaily(_ items: [StatisticDailyItem]) {
         if isYearMode {
@@ -235,8 +246,12 @@ final class StatisticsViewModel: ObservableObject {
                 guard m >= 1, m <= 12 else { continue }
                 for item in d.items {
                     if shouldExclude(item) { continue }
-                    if item.amount < 0 { exp[m - 1] += abs(item.amount) }
-                    else if item.amount > 0 { inc[m - 1] += item.amount }
+                    let amount = abs(item.amount)
+                    switch categoryType(forKey: item.categoryId ?? "0") {
+                    case .some(2): exp[m - 1] += amount
+                    case .some(1): inc[m - 1] += amount
+                    default: break
+                    }
                 }
             }
             dailyExpense = exp
@@ -254,8 +269,12 @@ final class StatisticsViewModel: ObservableObject {
             let idx = d.day - 1
             for item in d.items {
                 if shouldExclude(item) { continue }
-                if item.amount < 0 { exp[idx] += abs(item.amount) }
-                else if item.amount > 0 { inc[idx] += item.amount }
+                let amount = abs(item.amount)
+                switch categoryType(forKey: item.categoryId ?? "0") {
+                case .some(2): exp[idx] += amount
+                case .some(1): inc[idx] += amount
+                default: break
+                }
             }
         }
         dailyExpense = exp

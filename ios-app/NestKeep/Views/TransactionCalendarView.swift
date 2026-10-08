@@ -14,6 +14,8 @@ final class TransactionCalendarViewModel: ObservableObject {
     @Published var dailyExpense: [Int64] = []
     /// 每日收入（分）
     @Published var dailyIncome: [Int64] = []
+    /// 分类列表（统计接口的 amount 恒为正数，需要靠分类 type 区分收入/支出）
+    private var categories: [TransactionCategory] = []
 
     init() {
         let c = Calendar.current.dateComponents([.year, .month], from: Date())
@@ -44,9 +46,23 @@ final class TransactionCalendarViewModel: ObservableObject {
         return (i >= 0 && i < dailyIncome.count) ? dailyIncome[i] : 0
     }
 
+    /// 分类类型查找（含二级分类）；找不到返回 nil
+    private static func categoryType(forKey id: String, in categories: [TransactionCategory]) -> Int? {
+        for c in categories {
+            if c.id == id { return c.type }
+            if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }) {
+                return hit.type
+            }
+        }
+        return nil
+    }
+
     func load() async {
         isLoading = true
         error = nil
+        if categories.isEmpty {
+            categories = (try? await APIClient.shared.requestCategoryList()) ?? []
+        }
         guard let start = Calendar.current.date(from: DateComponents(year: year, month: month, day: 1)),
               let end = Calendar.current.date(byAdding: .month, value: 1, to: start) else {
             isLoading = false
@@ -68,8 +84,13 @@ final class TransactionCalendarViewModel: ObservableObject {
                 guard d.month == month, d.day >= 1, d.day <= count else { continue }
                 let idx = d.day - 1
                 for item in d.items {
-                    if item.amount < 0 { exp[idx] += abs(item.amount) }
-                    else if item.amount > 0 { inc[idx] += item.amount }
+                    // amount 恒为正数，收支方向由分类 type 决定（1=收入 2=支出，转账/未知跳过）
+                    let amount = abs(item.amount)
+                    switch Self.categoryType(forKey: item.categoryId ?? "0", in: categories) {
+                    case .some(2): exp[idx] += amount
+                    case .some(1): inc[idx] += amount
+                    default: break
+                    }
                 }
             }
             dailyExpense = exp
