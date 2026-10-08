@@ -312,3 +312,47 @@ Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查
 **环境坑**：本机 git 直连 `github.com:443` 不通，代理（`127.0.0.1:9876`）只放行
 `api.github.com`；改用 `gh api` + Git Data API 推送。**注意：API 更新 ref 不会触发
 workflow**，需另做一次真实 push 或手动 dispatch 才能出包。
+
+### 2026-10-08（第二轮）：P1 主体 —— 筛选/搜索、账户管理、分类管理、标签/图片
+
+**1. 账单列表筛选与搜索** ✅
+- 新增 `TransactionFilter`：类型、分类多选、账户多选、日期范围、排序（时间/金额 × 升降）
+- 筛选态走 `transactions/list.json`（`category_ids` / `account_ids` / `type` / `keyword` /
+  `sort_by` / `sort_order`），无筛选仍走 `by_month.json`（按月浏览语义）
+- 关键字搜索 300ms 防抖；空态区分「本月无账单」与「无匹配结果」并给「清除筛选」
+- **契约坑**：`max_time` / `min_time` 是**毫秒级**时间序列 id（`Unix 秒 × 1000`），
+  不是秒；结束日需取当日 23:59:59.999（`次日 0 点 × 1000 - 1`）
+
+**2. 交易编辑补齐标签 / 图片** ✅
+- 标签多选（按标签组分组展示，`transaction/tags/groups/list.json`）
+- 图片上传（`transaction/pictures/upload.json`，multipart，表单字段名 `picture`），
+  新增 `Core/PictureUploader.swift`；选图用 PHPicker（免相册权限）
+- `add` / `modify` 请求补 `tagIds` / `pictureIds` / `geoLocation` / `clientSessionId`
+
+**3. 账户管理** ✅
+- 净资产汇总卡（总资产 / 总负债 / 净资产）+ 金额隐藏开关
+- 按类别分组、子账户缩进展示
+- 新增 / 编辑 / 删除 / 隐藏（`accounts/add|modify|delete|hide.json`）
+- 新增 `Views/AccountEditView.swift`、`Models/AccountRequests.swift`
+  （图标 / 颜色 / 货币 / 初始余额与时间 / 信用卡账单日）
+
+**4. 分类管理** ✅
+- 支出 / 收入 / 转账切换，一级 + 子分类展示
+- 增删改 / 显隐（`categories/add|modify|delete|hide.json`）
+- 「设置 → 分类管理」入口；新增 `Views/CategoriesView.swift`、`Models/CategoryRequests.swift`
+
+**新增/修改的 Swift 文件**（`gen_pbxproj.py` 已同步，共 **27 个源文件**）：
+- 新增 `Core/PictureUploader.swift`、`Models/AccountRequests.swift`、
+  `Models/CategoryRequests.swift`、`Views/AccountEditView.swift`、`Views/CategoriesView.swift`
+- 改 `Views/TransactionsView.swift`（筛选/搜索）、`Views/TransactionEditView.swift`（标签/图片）、
+  `Views/AccountsView.swift`（重写）、`Views/SettingsView.swift`（分类管理入口）、
+  `Models/{Tag,Transaction,ApiModels}.swift`
+
+**iOS 15 编译坑（本轮踩到）**：
+1. `@ViewBuilder` 函数**自递归**（账户行嵌子账户）→ `some View` 自引用、opaque 类型推断失败；
+   改为把「父 + 子」拍平成数组再逐行渲染
+2. `Button.bold()` 是 **iOS 16+**（`View.bold()`）；iOS 15 需 `.font(.body.weight(.semibold))`
+   （`Text.bold()` 才是 iOS 15 可用）
+
+**交付**：IPA `NestKeep-native-ios-app-20.ipa`（1.6.3 构建号 20，817KB，已发 NAS；
+`latest.json` version=1.6.4；GitHub Release `v1.6.4`）。
