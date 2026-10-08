@@ -658,7 +658,7 @@ struct TransactionFilterSheet: View {
                         onApply(filter)
                         dismiss()
                     }
-                    .bold()
+                    .font(.body.weight(.semibold))
                 }
             }
         }

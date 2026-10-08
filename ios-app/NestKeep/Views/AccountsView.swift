@@ -140,7 +140,10 @@ struct AccountsView: View {
                         ForEach(vm.groupedAccounts, id: \.category) { group in
                             Section(header: Text(group.name)) {
                                 ForEach(group.accounts, id: \.id) { account in
-                                    accountRow(account, isSub: false)
+                                    ForEach(rows(for: account).indices, id: \.self) { idx in
+                                        let pair = rows(for: account)[idx]
+                                        accountRow(pair.0, isSub: pair.1)
+                                    }
                                 }
                             }
                         }
@@ -251,6 +254,16 @@ struct AccountsView: View {
 
     // MARK: - 账户行（含子账户嵌套）
 
+    /// 把「父账户 + 可见子账户」拍平成一组行，避免 ViewBuilder 自递归
+    /// （Swift 5 下 `some View` 自引用会导致 opaque 类型推断失败）
+    private func rows(for account: Account) -> [(Account, Bool)] {
+        var arr: [(Account, Bool)] = [(account, false)]
+        if let subs = account.subAccounts, !subs.isEmpty {
+            arr.append(contentsOf: subs.filter { !($0.hidden ?? false) }.map { ($0, true) })
+        }
+        return arr
+    }
+
     @ViewBuilder
     private func accountRow(_ account: Account, isSub: Bool) -> some View {
         HStack(spacing: 12) {
@@ -286,13 +299,6 @@ struct AccountsView: View {
                 Label("隐藏", systemImage: "eye.slash")
             }
             .tint(.gray)
-        }
-
-        // 子账户缩进展示
-        if let subs = account.subAccounts, !subs.isEmpty {
-            ForEach(subs.filter { !($0.hidden ?? false) }, id: \.id) { sub in
-                accountRow(sub, isSub: true)
-            }
         }
     }
 }
