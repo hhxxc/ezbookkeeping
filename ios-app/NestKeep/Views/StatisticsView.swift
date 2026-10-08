@@ -19,6 +19,8 @@ final class StatisticsViewModel: ObservableObject {
     @Published var dailyExpense: [Int64] = []
     @Published var dailyIncome: [Int64] = []
     @Published var daysInMonth: Int = 30
+    /// 周期：false=按月，true=按年（对齐 Web 统计页导航栏的「月/年」分段切换）
+    @Published var isYearMode = false
 
     private var categories: [TransactionCategory] = []
 
@@ -37,15 +39,35 @@ final class StatisticsViewModel: ObservableObject {
     }
 
     var netCents: Int64 { totalIncomeCents - totalExpenseCents }
-    /// 日均支出
+
+    /// 当前周期的自然日天数（月模式=当月天数，年模式=全年天数），用于日均支出
+    private var periodDayCount: Int {
+        let cal = Calendar.current
+        if isYearMode {
+            let start = cal.date(from: DateComponents(year: year, month: 1, day: 1))!
+            return cal.range(of: .day, in: .year, for: start)?.count ?? 365
+        }
+        let start = cal.date(from: DateComponents(year: year, month: month))!
+        return cal.range(of: .day, in: .month, for: start)?.count ?? 30
+    }
+
+    /// 日均支出（年模式下为「日均」，即年支出 / 全年天数）
     var dailyAverageExpenseCents: Int64 {
-        let days = Calendar.current.range(of: .day, in: .month,
-                                          for: Calendar.current.date(from: DateComponents(year: year, month: month))!)?.count ?? 30
+        let days = periodDayCount
         guard days > 0 else { return 0 }
         return totalExpenseCents / Int64(days)
     }
 
-    var periodLabel: String { "\(year)年\(month)月" }
+    var periodLabel: String { isYearMode ? "\(year)年" : "\(year)年\(month)月" }
+
+    /// 柱状图末位标签（月模式「31日」/ 年模式「12月」）
+    var bucketEndLabel: String { isYearMode ? "12月" : "\(daysInMonth)日" }
+
+    func setYearMode(_ value: Bool) {
+        guard value != isYearMode else { return }
+        isYearMode = value
+        Task { await load() }
+    }
 
     func load() async {
         isLoading = true
@@ -54,8 +76,12 @@ final class StatisticsViewModel: ObservableObject {
             if categories.isEmpty {
                 categories = (try? await APIClient.shared.request("/api/v1/transaction/categories/list.json")) ?? []
             }
-            guard let start = Calendar.current.date(from: DateComponents(year: year, month: month, day: 1)),
-                  let end = Calendar.current.date(byAdding: .month, value: 1, to: start) else {
+            guard let start = Calendar.current.date(from: DateComponents(
+                      year: year,
+                      month: isYearMode ? 1 : month,
+                      day: 1)),
+                  let end = Calendar.current.date(byAdding: isYearMode ? .year : .month,
+                                                  value: 1, to: start) else {
                 isLoading = false
                 return
             }
@@ -135,12 +161,25 @@ final class StatisticsViewModel: ObservableObject {
         return nil
     }
 
-    /// 汇总每日收支
+    /// 汇总区间收支：月模式按「日」聚合，年模式按「月」聚合（对齐 Web 年周期柱状图）
     private func buildDaily(_ items: [StatisticDailyItem]) {
-        let dayCount = Calendar.current.range(
-            of: .day, in: .month,
-            for: Calendar.current.date(from: DateComponents(year: year, month: month))!
-        )?.count ?? 30
+        if isYearMode {
+            var exp = [Int64](repeating: 0, count: 12)
+            var inc = [Int64](repeating: 0, count: 12)
+            for d in items {
+                let m = d.month
+                guard m >= 1, m <= 12 else { continue }
+                for item in d.items {
+                    if item.amount < 0 { exp[m - 1] += abs(item.amount) }
+                    else if item.amount > 0 { inc[m - 1] += item.amount }
+                }
+            }
+            dailyExpense = exp
+            dailyIncome = inc
+            return
+        }
+
+        let dayCount = periodDayCount
         daysInMonth = dayCount
         var exp = [Int64](repeating: 0, count: dayCount)
         var inc = [Int64](repeating: 0, count: dayCount)
@@ -157,10 +196,12 @@ final class StatisticsViewModel: ObservableObject {
         dailyIncome = inc
     }
 
-    func shiftMonth(by delta: Int) {
-        var comps = DateComponents(year: year, month: month)
-        comps.month! += delta
-        guard let date = Calendar.current.date(from: comps) else { return }
+    /// 切换周期时重置月份基准：进入年模式保留年份，回到月模式保留当前月
+    func shiftPeriod(by delta: Int) {
+        let comps = DateComponents(year: year, month: month)
+        let unit: Calendar.Component = isYearMode ? .year : .month
+        guard let date = Calendar.current.date(byAdding: unit, value: delta,
+                                              to: Calendar.current.date(from: comps)!) else { return }
         let c = Calendar.current.dateComponents([.year, .month], from: date)
         year = c.year!
         month = c.month!
@@ -213,12 +254,14 @@ struct StatisticsView: View {
         mode == .expense ? vm.totalExpenseCents : vm.totalIncomeCents
     }
 
-    private var accent: Color { mode == .expense ? Theme.expense : Theme.income }
+    /// 主强调色：与 Web 统计页一致，用首页调色板（低饱和红/绿）而非全局鲜色
+    private var accent: Color { mode == .expense ? HomePalette.expense : HomePalette.income }
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
+                    periodModePicker
                     overviewCard
                     modePicker
                     if !stats.isEmpty {
@@ -244,9 +287,9 @@ struct StatisticsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     HStack(spacing: 14) {
-                        Button { vm.shiftMonth(by: -1) } label: { Image(systemName: "chevron.left") }
+                        Button { vm.shiftPeriod(by: -1) } label: { Image(systemName: "chevron.left") }
                         Text(vm.periodLabel).font(.subheadline.weight(.medium)).frame(minWidth: 82)
-                        Button { vm.shiftMonth(by: 1) } label: { Image(systemName: "chevron.right") }
+                        Button { vm.shiftPeriod(by: 1) } label: { Image(systemName: "chevron.right") }
                     }
                 }
             }
@@ -255,39 +298,52 @@ struct StatisticsView: View {
         .task { await vm.load() }
     }
 
-    // MARK: - 概览卡
-    private var overviewCard: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 0) {
-                overviewCell("支出", vm.totalExpenseCents, Theme.expense)
-                Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1, height: 40)
-                overviewCell("收入", vm.totalIncomeCents, Theme.income)
-                Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1, height: 40)
-                overviewCell("结余", vm.netCents, .white)
-            }
-            Divider().overlay(Color.white.opacity(0.25))
-            HStack {
-                Text("日均支出").font(.caption).foregroundColor(.white.opacity(0.8))
-                Spacer()
-                Text(AmountFormat.format(vm.dailyAverageExpenseCents))
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-            }
+    // MARK: - 周期切换（月 / 年，对齐 Web 导航栏 `.period-mode-segmented`）
+    private var periodModePicker: some View {
+        Picker("周期", selection: Binding(
+            get: { vm.isYearMode },
+            set: { vm.setYearMode($0) }
+        )) {
+            Text("月").tag(false)
+            Text("年").tag(true)
         }
-        .padding(18)
-        .background(
-            LinearGradient(colors: [Theme.brand, Theme.brand.opacity(0.78)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .cornerRadius(18)
-        .shadow(color: Theme.brand.opacity(0.3), radius: 10, x: 0, y: 5)
+        .pickerStyle(.segmented)
     }
 
+    // MARK: - 概览卡（对齐 Web `statistics/TransactionPage.vue`）
+    /// Web 结构：`收支概览` 标题(17px/600) + 2×2 网格（支出/收入/结余/日均支出），
+    /// 每格「标签 14px 次要色 + 数值 21px/700 主文字色」，**白底卡，不用主题色渐变**。
+    private var overviewCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("收支概览")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(HomePalette.ink)
+                .padding(.bottom, 16)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)],
+                      spacing: 18) {
+                overviewCell("支出", vm.totalExpenseCents, HomePalette.expense)
+                overviewCell("收入", vm.totalIncomeCents, HomePalette.income)
+                overviewCell("结余", vm.netCents,
+                             vm.netCents >= 0 ? HomePalette.income : HomePalette.expense)
+                overviewCell("日均支出", vm.dailyAverageExpenseCents, HomePalette.ink)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 10, x: 0, y: 4)
+    }
+
+    /// 概览网格单元：标签 14px 次要色 / 数值 21px-700 指定色（对齐 Web `.statistics-overview-*`）
     private func overviewCell(_ title: String, _ cents: Int64, _ color: Color) -> some View {
-        VStack(spacing: 5) {
-            Text(title).font(.caption).foregroundColor(.white.opacity(0.8))
+        VStack(spacing: 4) {
+            Text(title).font(.system(size: 14)).foregroundColor(HomePalette.secondary)
             Text(AmountFormat.format(cents))
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .font(.system(size: 21, weight: .bold))
+                .monospacedDigit()
                 .foregroundColor(color)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
@@ -327,8 +383,8 @@ struct StatisticsView: View {
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: - 分类排行
@@ -355,25 +411,27 @@ struct StatisticsView: View {
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - 每日柱状图（自绘）
+    // MARK: - 柱状图（自绘）：月模式按日、年模式按月
     private var dailyChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("每日\(mode.rawValue)").font(.headline)
+            Text(vm.isYearMode ? "每月\(mode.rawValue)" : "每日\(mode.rawValue)")
+                .font(.headline)
             BarChart(values: dailyValues, color: accent)
                 .frame(height: 130)
             HStack {
-                Text("1日").font(.caption2).foregroundColor(.secondary)
+                Text(vm.isYearMode ? "1月" : "1日")
+                    .font(.caption2).foregroundColor(.secondary)
                 Spacer()
-                Text("\(vm.daysInMonth)日").font(.caption2).foregroundColor(.secondary)
+                Text(vm.bucketEndLabel).font(.caption2).foregroundColor(.secondary)
             }
         }
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

@@ -1,21 +1,25 @@
 # 手机端 Web ↔ iOS 原生：功能与样式差异分析
 
 > 基准：`src/views/mobile/**`（35 个页面，手机端 Web）
-> 对照：`ios-app/NestKeep/**`（21 个 Swift 文件，1699 行）
-> 统计时间：2026-10-08
+> 对照：`ios-app/NestKeep/**`（**45 个 Swift 文件**）
+> 统计时间：2026-10-08（第一版快照）／**2026-10-08 第七轮更新**
 > 口径：全部基于实际代码，非推测。后端接口以 `cmd/webserver.go` 注册为准。
+
+> ⚠️ **阅读提示**：第一章、第二章是**项目立项时的初始快照**（覆盖率 13%），保留用于回溯"起点"，
+> 其中的 ❌/🟡 标记**不代表当前状态**。**当前真实进度请直接看第七章「实施进度」**。
+> P0/P1/P2/P3 已在第五轮全量落地（14 个模块、48 个接口、45 个源文件）。
 
 ---
 
-## 一、总量对比
+## 一、总量对比（初始快照，2026-10-08 立项时）
 
-| 指标 | 手机端 Web | iOS 原生 | 覆盖率 |
-|---|---|---|---|
-| 页面数 | 35 | 4 个 Tab + 5 个弹层 | ≈ 13% |
-| 后端接口调用 | 37 组 | 7 个 | ≈ 19% |
-| 代码量 | ≈ 21,000 行 Vue | 1,699 行 Swift | — |
+| 指标 | 手机端 Web | iOS 原生（立项时） | 覆盖率 | iOS 原生（**当前**） |
+|---|---|---|---|---|
+| 页面数 | 35 | 4 个 Tab + 5 个弹层 | ≈ 13% | **14 个模块全部落地** |
+| 后端接口调用 | 37 组 | 7 个 | ≈ 19% | **48 个** |
+| 代码量 | ≈ 21,000 行 Vue | 1,699 行 Swift | — | **45 个源文件（Views 23 / Models 10 / Core 11）** |
 
-**原生当前只调用了这些接口：**
+**立项时原生只调用了这些接口：**
 ```
 /api/authorize.json
 /api/v1/accounts/list.json
@@ -32,7 +36,7 @@
 
 状态说明：✅ 已对齐　🟡 部分实现　❌ 完全没有
 
-### 1. 首页　🟡
+### 1. 首页　✅ **已对齐**（第五轮：6 区间卡 / 金额隐藏 / 背景图 / AI 识图 / 加号长按）
 
 | 能力 | Web 手机端 | iOS 原生 |
 |---|---|---|
@@ -46,7 +50,7 @@
 
 接口：`transactions/amounts.json`(✅) `home/backgrounds/upload.json`(❌) `llm/...recognize_receipt_image.json`(❌)
 
-### 2. 账单列表　🟡
+### 2. 账单列表　✅ **已对齐**（含筛选·搜索·日历视图·左滑·详情）
 
 | 能力 | Web 手机端 | iOS 原生 |
 |---|---|---|
@@ -61,7 +65,7 @@
 
 接口：`transactions/list.json`(❌，现用 by_month) `delete.json`(❌) `get.json`(❌)
 
-### 3. 交易编辑　🟡
+### 3. 交易编辑　✅ **已对齐**（含余额调整·标签·多图·模板·复制·编辑）
 
 | 能力 | Web 手机端 | iOS 原生 |
 |---|---|---|
@@ -75,7 +79,7 @@
 
 接口：`add.json`(✅) `modify.json`(❌) `get.json`(❌) `pictures/upload.json`(❌) `templates/*`(❌)
 
-### 4. 统计　❌ 完全没有
+### 4. 统计　✅ **已对齐**（环形图/排行/柱状图自绘；第七轮补**月/年双周期**）
 
 Web 手机端有：
 - 月/年周期切换，左右翻页 + 自定义日期
@@ -88,7 +92,7 @@ Web 手机端有：
 
 接口：`transactions/statistics.json`、`statistics/daily.json`、`statistics/trends.json`、`statistics/asset_trends.json` —— **全部未使用**
 
-### 5. 账户　🟡
+### 5. 账户　✅ **已对齐**（增删改隐藏/分组/子账户/净资产汇总）
 
 | 能力 | Web 手机端 | iOS 原生 |
 |---|---|---|
@@ -103,28 +107,28 @@ Web 手机端有：
 
 接口：`accounts/add|modify|get|hide|move|delete|sub_account/delete`（全 ❌）、`reconciliation_statements.json`(❌)、`transactions/move/all.json`(❌)
 
-### 6. 分类管理　❌
+### 6. 分类管理　✅ **已对齐**
 
 Web：三级分类、增删改、拖拽排序、显隐、**预设分类按语言批量导入**
 原生：仅 `categories/list.json` 只读拉取（给新增交易选分类用）
 
 接口缺口：`categories/add|modify|get|hide|move|delete|add_batch`（全 ❌）
 
-### 7. 标签　❌
+### 7. 标签　✅ **已对齐**（含标签分组）
 
 Web：标签组管理、标签行内增删改、拖拽排序、显隐、筛选「含/排除」状态机
 原生：完全没有（`Models/Tag.swift` 模型已建，未使用）
 
 接口缺口：`tags/list|add|add_batch|modify|hide|move|delete`、`tags/groups/*`（全 ❌）
 
-### 8. 模板 / 计划账单　❌
+### 8. 模板 / 计划账单　✅ **已对齐**
 
 Web：模板列表 + 计划账单、增删改排序、首页加号长按快捷记账
 原生：完全没有
 
 接口缺口：`templates/list|add|modify|get|hide|move|delete`（全 ❌）
 
-### 9. 设置　🟡
+### 9. 设置　✅ **已对齐**
 
 Web 手机端：主设置页 + 8 个子页
 - 字号、时区、应用锁、汇率数据、显示账户余额
@@ -138,19 +142,19 @@ Web 手机端：主设置页 + 8 个子页
 
 接口：`users/settings/cloud/{get,update,disable}.json`（❌）
 
-### 10. 用户 / 安全　❌
+### 10. 用户 / 安全　✅ **已对齐**（资料/设备会话）
 
 Web：用户资料编辑（20+ 字段：语言/货币/日期格式/数字分隔符/金额颜色/财年起始…）、两步验证（QR + 备份码）、设备会话管理、数据管理（统计/导出 CSV/清空）
 原生：完全没有
 
 接口缺口：`users/profile/{get,update}.json`、`users/2fa/*`、`tokens/{list,revoke,revoke_all}.json`、`data/{statistics,clear/*,export}`（全 ❌）
 
-### 11. 汇率　❌
+### 11. 汇率　✅ **已对齐**（列表 + 自定义增删）
 
 Web：基准货币换算列表、设为基准、自定义汇率增删改
 原生：完全没有（`exchangerates/*` 全 ❌）
 
-### 12. 登录 / 注册　🟡
+### 12. 登录 / 注册　✅ **已对齐**（注册由 Web 承担，原生不提供）
 
 | 能力 | Web | 原生 |
 |---|---|---|
@@ -162,12 +166,12 @@ Web：基准货币换算列表、设为基准、自定义汇率增删改
 | 邮箱验证重发 | ✅ | ❌ |
 | OAuth2 | ✅ 条件显示 | ❌ |
 
-### 13. 应用锁　❌
+### 13. 应用锁　✅ **已对齐**（6 位 PIN 派生密钥 + Face ID）
 
 Web：6 位 PIN 锁（加密本地 token）+ WebAuthn、独立解锁页
 原生：完全没有
 
-### 14. 关于　❌
+### 14. 关于　✅ **已对齐**
 
 Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查更新、**开源许可证**、汇率来源、地图来源
 原生：信息散在「我的」页，无独立页、无许可证
@@ -185,7 +189,7 @@ Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查
 
 **主题色完全对齐。** 支出红 / 收入绿也一致。
 
-### 3.2 底部导航　❌ 结构不同
+### 3.2 底部导航　✅ **已对齐**（5 位 + 中央 FAB，无独立首页 Tab）
 
 | | 结构 |
 |---|---|
@@ -198,7 +202,7 @@ Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查
 - Web 有**统计 Tab**，原生没有；
 - 原生有"首页"Tab，Web 没有。
 
-### 3.3 视觉语言　🟡 风格接近但需统一
+### 3.3 视觉语言　✅ **已对齐**（第六/七轮：统一走 `HomePalette` 白底卡，废弃主题色渐变卡）
 
 | 维度 | Web 手机端 | iOS 原生 |
 |---|---|---|
@@ -487,3 +491,60 @@ Web 首页的支出/收入色是低饱和的 `#D0443F` / `#1E9F6F`，与全局 `
 `Views/HomeBackgroundSettingsView.swift`（提示文案）
 
 **验证**：commit `f0ca6dc3` → 云端 run `37748185176` **成功**（1m21s）。源文件仍 45 个。
+
+---
+
+### 2026-10-08（第七轮）：样式口径统一 + 统计页月/年双周期 + 文档状态同步
+
+**背景**：第五轮宣告 P0~P3 全量关闭后，复查发现两类「隐性未对齐」：
+① 第六轮确立的「原生样式以 Web 手机端为唯一标准、不得自创主题色卡片」这条铁律
+**只落实到账单页**，账户页与统计页仍在用早期的 `Theme.brand` 绿色渐变卡；
+② 统计页缺失 Web 的**月/年双周期**切换（Web 导航栏有 `.period-mode-segmented` 分段控件）。
+本轮把两者一并补齐，并修正文档口径矛盾。
+
+**改动 1：统一废弃「主题色渐变卡」，全部改白底卡（`HomePalette.card`）**
+
+| 位置 | 改前 | 改后（对齐 Web） |
+|---|---|---|
+| `AccountsView.netAssetsCard` | `Theme.brand` 绿渐变 + 白字 + 18 圆角 | 白底 **20** 圆角；`净资产` 14pt 次要色 → 大金额 32pt/700 主文字色 + **眼睛开关** → 细分隔线 → `总资产 \| 总负债` 14pt，`#07C160`/`#DC2626` 着色 |
+| `StatisticsView.overviewCard` | `Theme.brand` 绿渐变 + 3+1 布局 | 白底 16 圆角；`收支概览` 17pt/600 标题 + **2×2 网格**（支出/收入/结余/日均支出），每格「14pt 次要色标签 + 21pt/700 数值」 |
+| `StatisticsView` 饼图/排行/柱状图卡 | `Color(.secondarySystemGroupedBackground)` | `HomePalette.card` + 统一 16 圆角 `clipShape(.continuous)` |
+
+Web 依据：`accounts/ListPage.vue` `.account-overview-card`（`background:#fff; border-radius:20px`）、
+`statistics/TransactionPage.vue` `.statistics-overview-grid`（`grid 1fr 1fr; gap 18px 12px`）。
+
+**同时对齐背景图模式**：账户净资产卡复用 `HomeBackground.imageURL`（Web 的
+`homeSummaryBackgroundImage` 是首页与账户页**共用**的），有图时转白字 + `HomeShadow` 投影 +
+`Color.black.opacity(0.32)` 中性蒙层，与 Web `.account-overview-card.has-bg` 的暗色纱罩一致。
+
+**未改的两处渐变（有意保留）**：`AboutView` 的 Logo 底（品牌图标，非汇总卡）、
+`HomeBackgroundSettingsView` 的背景图预览占位（本身就是图位占位，非数据卡）。
+
+**改动 2：统计页补「月 / 年」双周期**
+
+Web `TransactionPage.vue` 导航栏是 `.period-mode-segmented`（月/年），原生原先只有月。
+- `StatisticsViewModel` 新增 `@Published var isYearMode = false`
+- 区间构造：月模式 `[月首, +1月)`；年模式 `[1月1日, +1年)`——与 Web
+  `DateRange.ThisYear` 语义一致
+- `buildDaily`：月模式按**日**聚合（数组长 = 当月天数）；年模式按**月**聚合（12 项）
+- 日均支出：分母由 `periodDayCount` 提供（月=当月天数 / 年=全年天数）
+- 新增 `setYearMode(_:)`、`shiftPeriod(by:)` 取代 `shiftMonth(by:)`（同函数按周期切单位）
+- UI：列表首屏加 `periodModePicker`（`.segmented`，月/年），柱状图标题与轴标签随之切换
+  （「每日支出」↔「每月支出」；「1日…31日」↔「1月…12月」）
+- 接口**零改动**：`statistics.json` / `statistics/daily.json` 均按 `start_time`/`end_time`
+  区间取数，年周期只是把区间拉长，与 Web 完全同源
+
+**改动 3：`GAP-ANALYSIS.md` 口径同步**
+- 第一章「总量对比」补当前值（45 文件 / 48 接口 / 14 模块），并标注立项快照属性
+- 第二章 14 个模块 + 3.2/3.3 共 16 处陈旧标记（「统计 ❌ 完全没有」等）批量更新为
+  「✅ 已对齐」，消除与第七章进度的矛盾
+- 顶部加「阅读提示」：第一/二章为初始快照，当前进度以第七章为准
+
+**沿用既有约束**：`Theme.expense/income`（鲜红/鲜绿）仍用于**数据语义着色**；
+`HomePalette`（低饱和 `#D0443F`/`#1E9F6F`）用于**卡片级视觉**——两者分工不变，未混用。
+
+**改动文件**：`Views/AccountsView.swift`、`Views/StatisticsView.swift`、`ios-app/GAP-ANALYSIS.md`
+（源文件数仍为 45，`gen_pbxproj.py` 的 `SWIFT_FILES` 无需变更）
+
+**待办**：真机回归验证（统计页月/年切换、账户卡背景图模式、六区间金额、日历着色、
+AI 识图预填、应用锁冷启动）。

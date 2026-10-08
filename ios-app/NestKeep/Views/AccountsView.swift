@@ -202,49 +202,87 @@ struct AccountsView: View {
         .task { await vm.load() }
     }
 
-    // MARK: - 净资产卡
-
+    // MARK: - 净资产卡（对齐 Web `accounts/ListPage.vue` 的 `.account-overview-card`）
+    /// Web 结构：`净资产` 小标签(.88em 半透明) → `net-assets` 2em/700 大金额 + 眼睛开关
+    /// → 细分隔线 → `总资产 | 总负债`(.85em，绿/红着色)。
+    /// 卡片为**白底 20px 圆角**（深色 #1c1c1e），**不使用主题色渐变**。
     private var netAssetsCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("净资产").font(.subheadline.weight(.medium)).foregroundColor(.white.opacity(0.85))
-                Spacer()
-                Image(systemName: "chart.pie.fill").foregroundColor(.white.opacity(0.85))
+        let bgURL = HomeBackground.imageURL
+        let hasBG = bgURL != nil
+        let primaryText: Color = hasBG ? .white : HomePalette.ink
+        let labelColor: Color = hasBG ? Color.white.opacity(0.82) : HomePalette.secondary
+        let assetColor: Color = hasBG ? Color(hex: "#7FF0C0") : Color(hex: "#07C160")
+        let liabilityColor: Color = hasBG ? Color(hex: "#FFB4AB") : Color(hex: "#DC2626")
+
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("净资产")
+                .font(.system(size: 14))
+                .foregroundColor(labelColor)
+                .modifier(HomeShadow(active: hasBG))
+
+            // 大金额 + 眼睛开关
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(masked(AmountFormat.format(vm.netAssetsCents)))
+                    .font(.system(size: 32, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundColor(primaryText)
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                    .modifier(HomeShadow(active: hasBG))
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
+                } label: {
+                    Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 17))
+                        .foregroundColor(labelColor)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            Text(masked(AmountFormat.format(vm.netAssetsCents)))
-                .font(.system(size: 32, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
+            .padding(.top, 4)
 
-            Divider().overlay(Color.white.opacity(0.25))
+            Rectangle()
+                .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
+                .frame(height: 1)
+                .padding(.vertical, 10)
 
-            HStack(spacing: 0) {
-                assetCell("总资产", vm.totalAssetsCents)
-                Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1, height: 28)
-                assetCell("总负债", vm.totalLiabilitiesCents)
+            HStack(spacing: 8) {
+                Text("总资产").font(.system(size: 14)).foregroundColor(labelColor)
+                    .modifier(HomeShadow(active: hasBG))
+                Text(masked(AmountFormat.format(vm.totalAssetsCents)))
+                    .font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                    .foregroundColor(assetColor).lineLimit(1).minimumScaleFactor(0.6)
+                    .modifier(HomeShadow(active: hasBG))
+                Text("|").font(.system(size: 14))
+                    .foregroundColor(hasBG ? Color.white.opacity(0.4) : Color.black.opacity(0.15))
+                Text("总负债").font(.system(size: 14)).foregroundColor(labelColor)
+                    .modifier(HomeShadow(active: hasBG))
+                Text(masked(AmountFormat.format(vm.totalLiabilitiesCents)))
+                    .font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                    .foregroundColor(liabilityColor).lineLimit(1).minimumScaleFactor(0.6)
+                    .modifier(HomeShadow(active: hasBG))
+                Spacer(minLength: 0)
             }
         }
-        .padding(18)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            LinearGradient(colors: [Theme.brand, Theme.brand.opacity(0.78)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            ZStack {
+                HomePalette.card
+                if let url = bgURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let img): img.resizable().scaledToFill()
+                        default: Color.clear
+                        }
+                    }
+                    Color.black.opacity(0.32)
+                }
+            }
         )
-        .cornerRadius(18)
-        .shadow(color: Theme.brand.opacity(0.30), radius: 10, x: 0, y: 5)
-    }
-
-    private func assetCell(_ title: String, _ cents: Int64) -> some View {
-        VStack(spacing: 4) {
-            Text(title).font(.caption).foregroundColor(.white.opacity(0.8))
-            Text(masked(AmountFormat.format(cents)))
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
     }
 
     /// 金额隐藏时显示 ****
