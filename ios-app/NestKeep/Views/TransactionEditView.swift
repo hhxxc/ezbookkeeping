@@ -1,5 +1,7 @@
 import SwiftUI
 import Combine
+import UIKit
+import PhotosUI
 
 /// 编辑模式
 enum TransactionEditMode {
@@ -30,6 +32,24 @@ final class TransactionEditViewModel: ObservableObject {
     @Published var error: String?
     @Published var didSave = false
 
+    // 标签 / 图片
+    @Published var tags: [TransactionTag] = []
+    @Published var tagGroups: [TransactionTagGroup] = []
+    @Published var selectedTagIds: Set<String> = []
+    /// 已上传的图片（pictureId + 本地预览图，用于编辑页缩略图）
+    @Published var pictures: [UploadedPictureItem] = []
+    @Published var isUploadingPicture = false
+
+    /// 单张已上传图片
+    struct UploadedPictureItem: Identifiable, Equatable {
+        let id: String          // pictureId
+        let image: UIImage?
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    }
+
+    /// 编辑模式进入时的幂等会话 id（新增/复制每次保存唯一）
+    private var clientSessionId = UUID().uuidString
+
     init(transaction: Transaction?, mode: TransactionEditMode = .add) {
         self.originalId = transaction?.id
         self.mode = mode
@@ -53,8 +73,12 @@ final class TransactionEditViewModel: ObservableObject {
         do {
             async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
             async let cats: [TransactionCategory] = APIClient.shared.request("/api/v1/transaction/categories/list.json")
+            async let tagList: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
+            async let groupList: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
             accounts = try await accs
             categories = try await cats
+            tags = (try? await tagList) ?? []
+            tagGroups = (try? await groupList) ?? []
 
             if let tx = pending {
                 type = tx.transactionType
@@ -63,6 +87,7 @@ final class TransactionEditViewModel: ObservableObject {
                 categoryId = tx.categoryId ?? ""
                 date = tx.date
                 comment = tx.comment ?? ""
+                selectedTagIds = Set(tx.tagIds ?? [])
                 if tx.transactionType == .transfer {
                     destinationAccountId = tx.destinationAccountId ?? ""
                     if let d = tx.destinationAmount { amountText = AmountFormat.centsToText(d) }
@@ -76,6 +101,23 @@ final class TransactionEditViewModel: ObservableObject {
             isLoading = false
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    /// 上传一张图片并加入列表（编辑页选图后调用）
+    func uploadPicture(_ data: Data) async {
+        isUploadingPicture = true
+        defer { isUploadingPicture = false }
+        do {
+            let uploaded = try await PictureUploader.upload(imageData: data)
+            let img = UIImage(data: data)
+            pictures.append(UploadedPictureItem(id: uploaded.pictureId, image: img))
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func removePicture(_ id: String) {
+        pictures.removeAll { $0.id == id }
     }
 
     private func defaultCategoryId() -> String {
@@ -116,6 +158,8 @@ final class TransactionEditViewModel: ObservableObject {
         error = nil
 
         do {
+            let tagIdList = Array(selectedTagIds)
+            let pictureIdList = pictures.map { $0.id }
             if mode == .edit, let id = originalId {
                 // 编辑已有交易：走 modify.json
                 let req = TransactionModifyRequest(
@@ -128,9 +172,10 @@ final class TransactionEditViewModel: ObservableObject {
                     sourceAmount: cents,
                     destinationAmount: type == .transfer ? cents : 0,
                     hideAmount: false,
-                    tagIds: [],
-                    pictureIds: [],
-                    comment: comment
+                    tagIds: tagIdList,
+                    pictureIds: pictureIdList,
+                    comment: comment,
+                    geoLocation: nil
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
                     "/api/v1/transactions/modify.json", method: .POST, body: req
@@ -146,7 +191,11 @@ final class TransactionEditViewModel: ObservableObject {
                     destinationAccountId: type == .transfer ? destinationAccountId : nil,
                     sourceAmount: cents,
                     destinationAmount: type == .transfer ? cents : nil,
-                    comment: comment.isEmpty ? nil : comment
+                    comment: comment.isEmpty ? nil : comment,
+                    tagIds: tagIdList,
+                    pictureIds: pictureIdList,
+                    geoLocation: nil,
+                    clientSessionId: clientSessionId
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
                     "/api/v1/transactions/add.json", method: .POST, body: req
@@ -230,6 +279,16 @@ struct TransactionEditView: View {
                         .labelsHidden()
                 }
 
+                if !vm.tags.isEmpty {
+                    Section(header: Text("标签")) {
+                        TagSelector(tags: vm.tags, groups: vm.tagGroups, selected: $vm.selectedTagIds)
+                    }
+                }
+
+                Section(header: Text("图片")) {
+                    PicturePickerSection(vm: vm)
+                }
+
                 Section(header: Text("备注")) {
                     TextField("可选", text: $vm.comment)
                 }
@@ -269,6 +328,157 @@ struct TransactionEditView: View {
             if vm.type == .income { return cat.type == TransactionCategoryType.income.rawValue }
             if vm.type == .expense { return cat.type == TransactionCategoryType.expense.rawValue }
             return true
+        }
+    }
+}
+
+// MARK: - 标签多选
+
+/// 标签多选：按标签组分组，点击切换选中（chip 风格，与 Web 一致）
+struct TagSelector: View {
+    let tags: [TransactionTag]
+    let groups: [TransactionTagGroup]
+    @Binding var selected: Set<String>
+
+    private let columns = [GridItem(.adaptive(minimum: 76), spacing: 8)]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(TagGrouping.sections(tags: tags, groups: groups)) { section in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(section.name)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
+                        ForEach(section.tags) { tag in
+                            chip(tag)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func chip(_ tag: TransactionTag) -> some View {
+        let on = selected.contains(tag.id)
+        return Button {
+            if on { selected.remove(tag.id) } else { selected.insert(tag.id) }
+        } label: {
+            HStack(spacing: 4) {
+                if on { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)) }
+                Text(tag.name).lineLimit(1)
+            }
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity)
+            .background(on ? Theme.brand : Color(.tertiarySystemFill))
+            .foregroundColor(on ? .white : .primary)
+            .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 图片选择与预览
+
+/// 图片区：已上传缩略图（可删）+ 添加按钮（相册选图）
+struct PicturePickerSection: View {
+    @ObservedObject var vm: TransactionEditViewModel
+    @State private var showPicker = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !vm.pictures.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(vm.pictures) { p in
+                            ZStack(alignment: .topTrailing) {
+                                Group {
+                                    if let img = p.image {
+                                        Image(uiImage: img).resizable().scaledToFill()
+                                    } else {
+                                        Color(.tertiarySystemFill)
+                                            .overlay(Image(systemName: "photo").foregroundColor(.secondary))
+                                    }
+                                }
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                Button {
+                                    vm.removePicture(p.id)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.white)
+                                        .background(Circle().fill(Color.black.opacity(0.5)))
+                                }
+                                .buttonStyle(.plain)
+                                .offset(x: 5, y: -5)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+
+            Button {
+                showPicker = true
+            } label: {
+                HStack(spacing: 6) {
+                    if vm.isUploadingPicture {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "photo.badge.plus")
+                    }
+                    Text(vm.isUploadingPicture ? "上传中…" : "添加图片")
+                }
+                .font(.subheadline)
+            }
+            .disabled(vm.isUploadingPicture)
+        }
+        .sheet(isPresented: $showPicker) {
+            PhotoPicker { imageData in
+                Task { await vm.uploadPicture(imageData) }
+            }
+        }
+    }
+}
+
+// MARK: - 相册选图（PHPicker，免权限）
+
+/// 最小化的 PHPicker 封装：单选一张，回调 JPEG 数据。
+/// 用 PHPickerViewController 而非 UIImagePickerController，避免相册权限弹窗。
+struct PhotoPicker: UIViewControllerRepresentable {
+    let onPicked: (Data) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPicked: onPicked) }
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let onPicked: (Data) -> Void
+        init(onPicked: @escaping (Data) -> Void) { self.onPicked = onPicked }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            guard let provider = results.first?.itemProvider,
+                  provider.canLoadObject(ofClass: UIImage.self) else { return }
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                guard let image = object as? UIImage,
+                      let data = image.jpegData(compressionQuality: 0.8) else { return }
+                DispatchQueue.main.async { self.onPicked(data) }
+            }
         }
     }
 }

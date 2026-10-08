@@ -34,6 +34,16 @@ struct SettingsView: View {
                     }
                 }
 
+                // 数据管理
+                Section(header: Text("数据管理")) {
+                    NavigationLink {
+                        CategoriesView()
+                            .safeAreaInset(edge: .bottom) { Color.clear.frame(height: tabBarInset) }
+                    } label: {
+                        Label("分类管理", systemImage: "square.grid.2x2")
+                    }
+                }
+
                 // 版本与更新
                 Section(header: Text("关于")) {
                     HStack {

@@ -84,4 +84,5 @@ struct TransactionModifyRequest: Codable {
     let tagIds: [String]
     let pictureIds: [String]
     let comment: String
+    let geoLocation: TransactionGeoLocation?
 }

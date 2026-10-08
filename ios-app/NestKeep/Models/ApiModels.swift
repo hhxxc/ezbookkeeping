@@ -23,6 +23,12 @@ struct TransactionPage2: Codable {
 
 // MARK: - 写操作请求体
 
+/// 地理位置（对应 Go TransactionGeoLocationRequest）
+struct TransactionGeoLocation: Codable, Hashable {
+    let latitude: Double
+    let longitude: Double
+}
+
 /// POST /transactions/add.json 的请求体
 struct TransactionCreateRequest: Codable {
     let type: Int
@@ -34,6 +40,11 @@ struct TransactionCreateRequest: Codable {
     let sourceAmount: Int64
     let destinationAmount: Int64?
     let comment: String?
+    let tagIds: [String]
+    let pictureIds: [String]
+    let geoLocation: TransactionGeoLocation?
+    /// 幂等去重用的客户端会话 id（后端 EnableDuplicateSubmissionsCheck 时生效）
+    let clientSessionId: String
 }
 
 /// 无返回体的成功响应占位
