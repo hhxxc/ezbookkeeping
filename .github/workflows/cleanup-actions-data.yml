@@ -1,0 +1,177 @@
+name: Cleanup Actions Data
+
+# 定时清理 GitHub Actions 的 artifact 与历史 Release 附件。
+# 策略：
+#   1) Artifacts —— 按名称前缀分组，每组保留最新 N 个，超出的从最旧删；
+#      docker buildx 的临时缓存（*.dockerbuild）一律直接清掉。
+#   2) Releases —— 保留最新 N 个（永不动最新一个），更早的连 tag 一起删。
+# 全程跑在 GitHub runner 上，与本机 Windows 无关。
+
+on:
+  schedule:
+    # 每天 UTC 19:30（北京时间次日 03:30）跑一次
+    - cron: '30 19 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_artifacts:
+        description: '每组 artifact 保留数量'
+        required: false
+        default: '20'
+      keep_releases:
+        description: 'Release 保留数量'
+        required: false
+        default: '10'
+      dry_run:
+        description: '只打印将要删除的内容，不实际删除'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: cleanup-actions-data
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Cleanup artifacts & releases
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEEP_ARTIFACTS: ${{ github.event.inputs.keep_artifacts || '20' }}
+      KEEP_RELEASES: ${{ github.event.inputs.keep_releases || '10' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+    steps:
+      - name: Cleanup artifacts
+        run: |
+          set -euo pipefail
+          echo "== 清理 artifacts（每组保留 ${KEEP_ARTIFACTS} 个，dry_run=${DRY_RUN}）=="
+
+          # 拉取全部 artifact（分页 100/页）
+          : > /tmp/artifacts.tsv
+          for page in $(seq 1 100); do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&page=${page}" \
+              --jq '.artifacts[] | [.id, .name, .created_at, (.size_in_bytes|tostring)] | @tsv' \
+              > /tmp/artifacts_page.tsv
+            cat /tmp/artifacts_page.tsv >> /tmp/artifacts.tsv
+            cnt=$(wc -l < /tmp/artifacts_page.tsv | tr -d ' ')
+            [ "$cnt" -lt 100 ] && break
+          done
+          total=$(wc -l < /tmp/artifacts.tsv | tr -d ' ')
+          echo "仓库共 ${total} 个 artifact。"
+
+          # 分组并选出待删（纯 awk 实现，避免 shell 循环不稳定）
+          # 输出 tsv: group \t created \t id \t size \t name
+          awk -F'\t' -v keep="${KEEP_ARTIFACTS}" '
+            {
+              name=$2;
+              if (name ~ /\.dockerbuild$/) { key="__DOCKERBUILD__"; k=0 }
+              else {
+                key=name;
+                sub(/[.-][0-9][0-9A-Za-z._-]*$/, "", key);
+                sub(/[.-][0-9]+$/, "", key);
+                k=keep;
+              }
+              printf "%s\t%s\t%s\t%s\t%s\n", key, $3, $1, $4, name;
+            }' /tmp/artifacts.tsv > /tmp/artifacts_keyed.tsv
+
+          # 组内统计
+          echo ""
+          echo "== 分组结果（组名 / 数量 / 占用MB）=="
+          awk -F'\t' '{c[$1]++; s[$1]+=$4} END {for (k in c) printf "%-55s %4d  %8.1f MB\n", k, c[k], s[k]/1048576}' \
+            /tmp/artifacts_keyed.tsv | sort
+
+          # 每组按 created 倒序，保留前 N，其余列为待删
+          : > /tmp/to_delete.tsv
+          for key in $(cut -f1 /tmp/artifacts_keyed.tsv | sort -u); do
+            keep="${KEEP_ARTIFACTS}"
+            [ "$key" = "__DOCKERBUILD__" ] && keep=0
+            awk -F'\t' -v k="$key" '$1==k' /tmp/artifacts_keyed.tsv \
+              | sort -t$'\t' -k2,2r \
+              | awk -F'\t' -v keep="$keep" 'NR>keep {print $3"\t"$1"\t"$2"\t"$4"\t"$5}' \
+              >> /tmp/to_delete.tsv
+          done
+
+          del_count=$(wc -l < /tmp/to_delete.tsv | tr -d ' ')
+          del_size=$(awk -F'\t' '{s+=$4} END {printf "%.1f", s/1048576}' /tmp/to_delete.tsv)
+          echo ""
+          echo "将删除 ${del_count} 个 artifact，释放约 ${del_size} MB。"
+          head -40 /tmp/to_delete.tsv | awk -F'\t' '{printf "  [%s] %s  (%s)\n", $2, $5, $1}'
+          [ "$del_count" -gt 40 ] && echo "  ... 其余 $((del_count-40)) 条略"
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo ""
+            echo "dry_run=true，跳过实际删除。"
+          else
+            echo ""
+            echo "== 执行删除 =="
+            ok=0; fail=0
+            while IFS=$'\t' read -r id key created size name; do
+              [ -z "${id:-}" ] && continue
+              if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}" >/dev/null 2>&1; then
+                ok=$((ok+1))
+              else
+                fail=$((fail+1)); echo "  删除失败: id=${id} name=${name}"
+              fi
+            done < /tmp/to_delete.tsv
+            echo "删除完成：成功 ${ok}，失败 ${fail}。"
+          fi
+
+      - name: Cleanup old releases
+        run: |
+          set -euo pipefail
+          echo ""
+          echo "== 清理 Release（保留最新 ${KEEP_RELEASES} 个，dry_run=${DRY_RUN}）=="
+
+          # 输出 tsv: id \t tag \t created \t name，按创建时间倒序（新的在前）
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq 'sort_by(.created_at) | reverse | .[] | [.id, .tag_name, .created_at, .name] | @tsv' \
+            > /tmp/releases.tsv
+
+          total=$(wc -l < /tmp/releases.tsv | tr -d ' ')
+          echo "共 ${total} 个 Release。"
+
+          awk -F'\t' -v keep="${KEEP_RELEASES}" 'NR>keep {print}' /tmp/releases.tsv > /tmp/rel_delete.tsv
+
+          # 兜底：永远不删最新一个
+          newest=$(head -1 /tmp/releases.tsv | cut -f1)
+          if [ -n "$newest" ]; then
+            grep -v -F "$newest" /tmp/rel_delete.tsv > /tmp/rel_delete2.tsv || true
+            mv /tmp/rel_delete2.tsv /tmp/rel_delete.tsv
+          fi
+
+          dc=$(wc -l < /tmp/rel_delete.tsv | tr -d ' ')
+          echo "将删除 ${dc} 个 Release（含其 tag）。"
+          [ "$dc" -gt 0 ] && awk -F'\t' '{printf "  %s  (%s)  %s\n", $2, $3, $4}' /tmp/rel_delete.tsv
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "dry_run=true，跳过实际删除。"
+          else
+            ok=0; fail=0
+            while IFS=$'\t' read -r rid tag created name; do
+              [ -z "${rid:-}" ] && continue
+              # 用 release id 删除（避免 tag 含中文/空格时的 URL 编码问题）
+              if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${rid}" >/dev/null 2>&1; then
+                gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" >/dev/null 2>&1 || true
+                ok=$((ok+1)); echo "  已删除 Release: ${tag}"
+              else
+                fail=$((fail+1)); echo "  删除失败: ${tag}"
+              fi
+            done < /tmp/rel_delete.tsv
+            echo "Release 删除完成：成功 ${ok}，失败 ${fail}。"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Cleanup 完成"
+            echo ""
+            echo "- artifact 每组保留：\`${KEEP_ARTIFACTS}\`（\`.dockerbuild\` 临时缓存全清）"
+            echo "- Release 保留：\`${KEEP_RELEASES}\`（永不动最新一个）"
+            echo "- dry_run：\`${DRY_RUN}\`"
+          } >> $GITHUB_STEP_SUMMARY
