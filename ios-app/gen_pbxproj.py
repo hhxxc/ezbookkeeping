@@ -26,6 +26,7 @@ SWIFT_FILES = [
     "Core/ServerSettings.swift",
     "Core/ReceiptRecognizer.swift",
     "Core/HomeBackground.swift",
+    "Core/CachedImage.swift",
     "Core/AppLockManager.swift",
     "Core/CloudSettingsStore.swift",
     "Models/User.swift",

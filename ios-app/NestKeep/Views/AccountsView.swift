@@ -349,11 +349,10 @@ struct AccountsView: View {
             ZStack {
                 HomePalette.card
                 if let url = bgURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img): img.resizable().scaledToFill()
-                        default: Color.clear
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.clear
                     }
                     Color.black.opacity(0.32)
                 }

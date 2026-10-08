@@ -162,7 +162,8 @@ extension EnvironmentValues {
     }
 }
 
-/// 底部 5 位导航栏。完全透明背景、无顶部分隔线，与手机端 Web 一致；
+/// 底部 5 位导航栏。毛玻璃胶囊浮层（现代理财 App 风格）：
+/// 圆角胶囊容器 + `.ultraThinMaterial` 毛玻璃 + 选中项高亮胶囊；
 /// 中央加号是上探 28pt 的主色圆钮（56×56）。
 struct MainTabBar: View {
     @Binding var selection: MainTab
@@ -179,17 +180,20 @@ struct MainTabBar: View {
                 }
             }
         }
-        .frame(height: 52)
-        .padding(.horizontal, 4)
-        // 与 Web 一致：完全透明背景、无顶部分隔线。
-        // 用 safeAreaInset 把导航行抬到 Home Indicator 之上；加号上探部分由下方 padding 兜住。
-        .padding(.bottom, 8)
+        .frame(height: 54)
+        .padding(.horizontal, 6)
+        // 毛玻璃胶囊底：圆角胶囊 + 材质 + 细描边 + 柔阴影
         .background(
-            // 透明但撑满底部安全区，避免上探的加号被裁切，同时保持视觉透明
-            Color.clear
-                .ignoresSafeArea(edges: .bottom)
-                .allowsHitTesting(false)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                )
+                .shadow(color: Color.black.opacity(0.14), radius: 16, x: 0, y: 6)
         )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
     }
 
     private func tabButton(_ tab: MainTab) -> some View {
@@ -198,12 +202,19 @@ struct MainTabBar: View {
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: tab.icon)
-                    .font(.system(size: 22, weight: .regular))
+                    .font(.system(size: 20, weight: .medium))
                 Text(tab.title)
                     .font(.system(size: 10, weight: .medium))
             }
             .foregroundColor(selection == tab ? Theme.brand : Color.secondary)
             .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            // 选中项高亮胶囊
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(selection == tab ? Theme.brand.opacity(0.13) : Color.clear)
+            )
+            .padding(.horizontal, 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -220,10 +231,13 @@ struct MainTabBar: View {
                 .frame(width: 56, height: 56)
                 .background(
                     Circle()
-                        .fill(Theme.brand)
-                        .shadow(color: Theme.brand.opacity(0.35), radius: 6, x: 0, y: 3)
+                        .fill(
+                            LinearGradient(colors: [Theme.brand, Theme.brand.opacity(0.82)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .shadow(color: Theme.brand.opacity(0.38), radius: 8, x: 0, y: 4)
                 )
-                .offset(y: -28)
+                .offset(y: -20)
         }
         .buttonStyle(.plain)
         .frame(width: 64)

@@ -145,9 +145,38 @@ final class TransactionsViewModel: ObservableObject {
         month = comps.month!
     }
 
-    var totalAssetsCents: Int64 {
-        accounts.filter { !($0.hidden ?? false) }.reduce(0) { $0 + $1.balance }
+    /// 拍平可见账户（含子账户），与账户页 `AccountsView` 同一口径
+    private func flattenAccounts(visibleOnly: Bool) -> [Account] {
+        var result: [Account] = []
+        for acc in accounts {
+            if visibleOnly && (acc.hidden ?? false) { continue }
+            if let subs = acc.subAccounts, !subs.isEmpty {
+                for sub in subs where !(visibleOnly && (sub.hidden ?? false)) {
+                    result.append(sub)
+                }
+            } else {
+                result.append(acc)
+            }
+        }
+        return result
     }
+
+    /// 总资产（isAsset 或按类别推断，含子账户拍平，口径对齐账户页净资产卡）
+    var totalAssetsCents: Int64 {
+        flattenAccounts(visibleOnly: true)
+            .filter { $0.category.map { AccountCategoryConst.isAsset($0) } ?? ($0.isAsset ?? false) }
+            .reduce(0) { $0 + $1.balance }
+    }
+
+    /// 总负债（取绝对值累加）
+    var totalLiabilitiesCents: Int64 {
+        flattenAccounts(visibleOnly: true)
+            .filter { $0.category.map { AccountCategoryConst.isLiability($0) } ?? ($0.isLiability ?? false) }
+            .reduce(0) { $0 + abs($1.balance) }
+    }
+
+    /// 净资产 = 总资产 - 总负债
+    var netAssetsCents: Int64 { totalAssetsCents - totalLiabilitiesCents }
 
     var monthNetCents: Int64 { monthIncomeCents - monthExpenseCents }
 
@@ -537,25 +566,20 @@ struct TransactionsView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
 
-                // 汇总卡（Web `.home-summary-card`）—— 列表首行，白底独立卡片
+                // 首页卡片区：汇总卡 + 日期范围卡 + 日历 + AI 识图入口 统一放在一个 Section 内，
+                // 用紧凑的自定义间距（12pt），消除 `.insetGrouped` Section 之间的默认大间隙。
                 Section {
                     summaryCard
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 12, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                }
 
-                // 日期范围卡：今日/昨日/本周/本月/上月/今年（6 行，点击进对应区间）
-                Section {
                     periodCard
                         .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
-                }
 
-                // 日历视图（对齐 Web 的「账单日历」）：点某天 → 按该日筛选
-                if showCalendar {
-                    Section {
+                    if showCalendar {
                         TransactionCalendarView(vm: calendarVM) { date in
                             vm.selectDay(date)
                             showCalendar = false
@@ -564,19 +588,16 @@ struct TransactionsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
                     }
-                }
 
-                // AI 识图入口（仅后端开启该能力时展示）
-                if serverSettings.enableImageRecognition {
-                    Section {
+                    if serverSettings.enableImageRecognition {
                         aiEntryCard
-                            .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16))
+                            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 0, trailing: 16))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
                 }
 
-                // 搜索框（对齐 Web 的描述/金额关键字搜索，防抖）
+                // 搜索框（对齐 Web 的描述/金额关键字搜索，防抖；胶囊样式）
                 Section {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
@@ -590,7 +611,13 @@ struct TransactionsView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(HomePalette.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
@@ -691,42 +718,100 @@ struct TransactionsView: View {
     /// 极简顶部工具行：月份切换 + 搜索/清筛选 + 列表·日历切换 + 筛选 + 新增。
     /// 用 `overlay` 悬浮在列表之上（透明底、无导航栏），与 Web 的无导航栏观感一致。
     private var topBar: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             if vm.isFiltering {
-                Button("清除筛选") { vm.clearFilter() }
-                    .font(.subheadline)
+                // 筛选态：左侧「清除筛选」胶囊
+                Button {
+                    vm.clearFilter()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark")
+                        Text("清除筛选")
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Theme.brand)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
             } else {
-                Button { vm.shiftMonth(by: -1) } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
+                // 月份切换胶囊：左箭头 · 月份 · 右箭头
+                HStack(spacing: 14) {
+                    Button { vm.shiftMonth(by: -1) } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+
+                    Text("\(vm.year)年\(vm.month)月")
+                        .font(.system(size: 15, weight: .semibold))
+                        .monospacedDigit()
+                        .frame(minWidth: 78)
+
+                    Button { vm.shiftMonth(by: 1) } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
                 }
-                Text("\(vm.year)年\(vm.month)月")
-                    .font(.subheadline.weight(.medium))
-                    .frame(minWidth: 76)
-                Button { vm.shiftMonth(by: 1) } label: {
-                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
-                }
+                .foregroundColor(HomePalette.ink)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                )
             }
+
             Spacer()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { showCalendar.toggle() }
-            } label: {
-                Image(systemName: showCalendar ? "list.bullet" : "calendar")
+
+            // 右侧图标组：日历/列表切换 · 筛选 · 新增（统一胶囊底）
+            HStack(spacing: 6) {
+                iconBarButton(
+                    icon: showCalendar ? "list.bullet" : "calendar",
+                    active: showCalendar
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) { showCalendar.toggle() }
+                }
+
+                iconBarButton(
+                    icon: vm.filter.isActive
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle",
+                    active: vm.filter.isActive
+                ) {
+                    showFilter = true
+                }
+
+                iconBarButton(icon: "plus", active: false) {
+                    showAdd = true
+                }
             }
-            Button { showFilter = true } label: {
-                Image(systemName: vm.filter.isActive
-                      ? "line.3.horizontal.decrease.circle.fill"
-                      : "line.3.horizontal.decrease.circle")
-            }
-            Button { showAdd = true } label: { Image(systemName: "plus") }
         }
-        .font(.system(size: 16))
-        .foregroundColor(Theme.brand)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
         .background(
             Color(.systemGroupedBackground)
                 .ignoresSafeArea(edges: .top)
         )
+    }
+
+    /// 顶部工具行的单个胶囊图标按钮
+    private func iconBarButton(icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(active ? Theme.brand : HomePalette.ink)
+                .frame(width: 34, height: 34)
+                .background(
+                    Circle()
+                        .fill(active ? Theme.brand.opacity(0.14) : Color.primary.opacity(0.05))
+                )
+        }
+        .buttonStyle(.plain)
     }
 
     /// AI 识图入口卡（对齐 Web 的 `.home-ai-entry-card`）：
@@ -764,8 +849,8 @@ struct TransactionsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - 汇总卡（对齐 Web `.home-summary-card`）
-    /// 白底卡 + 左上「十月」+ 支出徽标 + 大号支出金额（含眼睛开关）+ 当月收入 / 月结余双列。
+    // MARK: - 汇总卡（对齐 Web `.home-summary-card`，并补净资产/总资产概览）
+    /// 三段式：① 净资产概览（大金额 + 总资产/总负债） ② 分隔线 ③ 本月支出 + 收入/结余。
     /// 设置背景图后转为白字 + 投影（对应 Web 的 `.has-bg`）。
     private var summaryCard: some View {
         // 依赖 backgroundToken：用户更换/移除背景图后触发重建
@@ -775,18 +860,63 @@ struct TransactionsView: View {
         // 有背景图时统一走白色系
         let primaryText: Color = hasBG ? .white : HomePalette.ink
         let secondaryText: Color = hasBG ? Color.white.opacity(0.9) : HomePalette.secondary
-        let blance = vm.monthNetCents
+        let balance = vm.monthNetCents
 
         return VStack(alignment: .leading, spacing: 0) {
-            // 月份 + 支出徽标
+            // ① 净资产概览
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("净资产")
+                        .font(.system(size: 13))
+                        .foregroundColor(secondaryText)
+                        .modifier(HomeShadow(active: hasBG))
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.netAssetsCents))
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundColor(primaryText)
+                            .minimumScaleFactor(0.55)
+                            .lineLimit(1)
+                            .modifier(HomeShadow(active: hasBG))
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
+                        } label: {
+                            Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
+                                .font(.system(size: 17))
+                                .foregroundColor(secondaryText)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text("总资产  \(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.totalAssetsCents))")
+                        .font(.system(size: 12))
+                        .foregroundColor(secondaryText)
+                        .modifier(HomeShadow(active: hasBG))
+                    Text("总负债  \(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.totalLiabilitiesCents))")
+                        .font(.system(size: 12))
+                        .foregroundColor(secondaryText)
+                        .modifier(HomeShadow(active: hasBG))
+                }
+            }
+            .padding(.bottom, 14)
+
+            // 分隔线
+            Rectangle()
+                .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
+                .frame(height: 1)
+                .padding(.bottom, 14)
+
+            // ② 月份 + 支出徽标
             HStack(spacing: 8) {
                 Text(vm.summaryMonthTitle)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(primaryText)
                 Text("支出")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(hasBG ? .white : HomePalette.expense)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 9)
                     .padding(.vertical, 2)
                     .background(hasBG ? Color.white.opacity(0.22) : HomePalette.expenseBg)
                     .cornerRadius(8)
@@ -794,27 +924,18 @@ struct TransactionsView: View {
             }
             .padding(.bottom, 6)
 
-            // 大金额 + 眼睛开关
+            // 大支出金额
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.monthExpenseCents))
-                    .font(.system(size: 34, weight: .semibold))
+                    .font(.system(size: 30, weight: .semibold))
                     .foregroundColor(primaryText)
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
                     .modifier(HomeShadow(active: hasBG))
-                Button {
-                    withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
-                } label: {
-                    Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 19))
-                        .foregroundColor(secondaryText)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
             }
             .padding(.bottom, 12)
 
-            // 当月收入 · 月结余
+            // ③ 当月收入 · 月结余
             HStack(alignment: .top, spacing: 0) {
                 metricCell(
                     label: "当月收入",
@@ -829,8 +950,8 @@ struct TransactionsView: View {
                     .padding(.trailing, 16)
                 metricCell(
                     label: "月结余",
-                    value: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(blance),
-                    valueColor: hasBG ? .white : (blance >= 0 ? HomePalette.income : HomePalette.expense),
+                    value: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(balance),
+                    valueColor: hasBG ? .white : (balance >= 0 ? HomePalette.income : HomePalette.expense),
                     labelColor: secondaryText,
                     shadow: hasBG
                 )
@@ -838,19 +959,18 @@ struct TransactionsView: View {
             }
             .padding(.top, 12)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 18)
         .padding(.top, 16)
-        .padding(.bottom, 14)
+        .padding(.bottom, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
                 HomePalette.card
                 if let url = bgURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img): img.resizable().scaledToFill()
-                        default: Color.clear
-                        }
+                    CachedAsyncImage(url: url) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.clear
                     }
                     // 图片上再压一层中性蒙层，保证白字可读（不使用主色渐变，
                     // 以免与 Web 的「原图 + 白字」观感不符）

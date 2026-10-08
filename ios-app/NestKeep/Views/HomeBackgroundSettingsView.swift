@@ -20,12 +20,10 @@ struct HomeBackgroundSettingsView: View {
                 // 当前预览
                 ZStack {
                     if let url = previewURL {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let img): img.resizable().scaledToFill()
-                            case .failure: placeholder
-                            default: ProgressView()
-                            }
+                        CachedAsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            ProgressView()
                         }
                     } else {
                         placeholder
