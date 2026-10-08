@@ -133,14 +133,16 @@ struct UpdateResultSheet: View {
                                 UIPasteboard.general.string = ipaURL.absoluteString
                                 copied = true
                             } label: {
-                                Label(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链",
-                                      systemImage: copied ? "checkmark.circle.fill" : "doc.on.doc")
-                                    .bold()
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Theme.brand)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
+                                HStack {
+                                    Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
+                                    Text(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链")
+                                }
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Theme.brand)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
                             }
                             .padding(.horizontal, 32)
                             Text("TrollStore → 右上角 + → 从 URL 安装，粘贴即装。")

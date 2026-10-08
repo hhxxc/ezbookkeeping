@@ -213,8 +213,8 @@ struct HomeView: View {
         let v = AmountFormat.format(tx.sourceAmount, currency: tx.currency)
         switch tx.transactionType {
         case .income: return "+\(v)"
-        case .expense: return "-\(v)"
         case .transfer: return v
+        case .expense, .modifyBalance: return "-\(v)"
         }
     }
 
