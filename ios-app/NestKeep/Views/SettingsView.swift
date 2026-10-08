@@ -144,7 +144,19 @@ struct UpdateResultSheet: View {
                                 .cornerRadius(12)
                             }
                             .padding(.horizontal, 32)
-                            Text("TrollStore → 右上角 + → 从 URL 安装，粘贴即装。")
+
+                            // 次按钮：用 Safari 直接打开下载页（走自有域名中转，无需访问 GitHub）
+                            Link(destination: ipaURL) {
+                                Text("打开下载链接")
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Theme.brand.opacity(0.12))
+                                    .foregroundColor(Theme.brand)
+                                    .cornerRadius(12)
+                            }
+                            .padding(.horizontal, 32)
+
+                            Text("TrollStore → 右上角 + → 从 URL 安装，粘贴即装。下载走你自己的服务器中转，不需要能访问 GitHub。")
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)

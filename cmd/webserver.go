@@ -364,6 +364,11 @@ func startWebServer(c *core.CliContext) error {
 			api.Systems.NestKeepLatestHandler(core.WrapWebContext(ginCtx))
 		})
 
+		// NestKeep IPA 静态下发（无鉴权）：手机在国内可从自有域名下载安装包，不经 github.com
+		apiRoute.GET("/nestkeep/:name", func(ginCtx *gin.Context) {
+			api.Systems.NestKeepIpaHandler(core.WrapWebContext(ginCtx))
+		})
+
 		apiV1Route := apiRoute.Group("/v1")
 		apiV1Route.Use(bindMiddleware(middlewares.JWTAuthorization(config)))
 		apiV1Route.Use(bindMiddleware(middlewares.APITokenIpLimit(config)))
