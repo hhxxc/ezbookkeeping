@@ -570,16 +570,6 @@ struct TransactionsView: View {
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
 
-                    if showCalendar {
-                        TransactionCalendarView(vm: calendarVM) { date in
-                            vm.selectDay(date)
-                            showCalendar = false
-                        }
-                        .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
-
                     if serverSettings.enableImageRecognition {
                         aiEntryCard
                             .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
@@ -663,6 +653,18 @@ struct TransactionsView: View {
             .refreshable { await vm.load() }
             // 固定顶栏：占据真实布局空间，列表从其下方开始，滚动内容滑入其下被遮住
             .safeAreaInset(edge: .top, spacing: 0) { topBar }
+
+            // 账单日历独立页：从右侧滑入（push 观感），替代旧的内联展开卡片
+            if showCalendar {
+                CalendarPageView(vm: calendarVM) {
+                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = false }
+                } onSelectDay: { date in
+                    vm.selectDay(date)
+                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = false }
+                }
+                .zIndex(2)
+                .transition(.move(edge: .trailing))
+            }
         }
         .sheet(isPresented: $showAI) { AIReceiptView() }
         .sheet(isPresented: $showBackgroundSheet) {
@@ -762,13 +764,13 @@ struct TransactionsView: View {
 
             Spacer()
 
-            // 右侧图标组：日历/列表切换 · 筛选 · 新增（统一胶囊底）
+            // 右侧图标组：日历/筛选/新增（统一胶囊底）
             HStack(spacing: 6) {
                 iconBarButton(
-                    icon: showCalendar ? "list.bullet" : "calendar",
+                    icon: "calendar",
                     active: showCalendar
                 ) {
-                    withAnimation(.easeInOut(duration: 0.2)) { showCalendar.toggle() }
+                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = true }
                 }
 
                 iconBarButton(

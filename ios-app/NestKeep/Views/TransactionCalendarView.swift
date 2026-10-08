@@ -95,6 +95,64 @@ final class TransactionCalendarViewModel: ObservableObject {
     }
 }
 
+/// 账单日历**独立页面**：从首页右侧滑入（push 观感），替代旧的内联展开卡片。
+/// 顶栏：返回按钮 + 标题；内容：月历卡片（含月份切换）。
+/// 点击某天 → 回调给账单页按该日筛选并滑回首页。
+struct CalendarPageView: View {
+    @ObservedObject var vm: TransactionCalendarViewModel
+    let onBack: () -> Void
+    /// 点击某天：传回该日 00:00 的 Date
+    let onSelectDay: (Date) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // 页面顶栏：返回 + 标题（页面自身尊重安全区，状态栏下方开始）
+            HStack(spacing: 10) {
+                Button {
+                    onBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(HomePalette.ink)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color.primary.opacity(0.05)))
+                }
+                .buttonStyle(.plain)
+
+                Text("账单日历")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 10)
+            .background(
+                // 顶栏底色与页面同色并延伸进状态栏，底部细分隔线
+                VStack(spacing: 0) {
+                    Color(.systemGroupedBackground)
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.06))
+                        .frame(height: 0.5)
+                }
+                .ignoresSafeArea(edges: .top)
+            )
+
+            ScrollView {
+                TransactionCalendarView(vm: vm) { date in
+                    onSelectDay(date)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 24)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+}
+
 /// 账单日历视图：自绘月历网格，每个日期格内显示当日支出/收入，
 /// 点击某天 → 回调给账单页按该日筛选。
 /// iOS 15 无原生日历组件，全部用 GeometryReader + LazyVGrid 自绘。
