@@ -61,8 +61,9 @@ final class AppLockManager: ObservableObject {
         biometricEnabled = UserDefaults.standard.bool(forKey: biometricKey)
     }
 
-    /// 是否存有「应用锁加密过的凭证」（供 AuthManager 判断启动时是否算已登录）
-    static var hasStoredCredential: Bool {
+    /// 是否存有「应用锁加密过的凭证」（供 AuthManager 在非隔离上下文中判断启动时是否算已登录）。
+    /// 只读 UserDefaults，不碰实例状态，故标记 nonisolated。
+    nonisolated static var hasStoredCredential: Bool {
         let encrypted = UserDefaults.standard.string(forKey: "nestkeep.appLock.encryptedToken")
         return UserDefaults.standard.bool(forKey: "nestkeep.appLock.enabled")
             && !(encrypted ?? "").isEmpty
