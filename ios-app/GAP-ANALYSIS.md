@@ -548,3 +548,36 @@ Web `TransactionPage.vue` 导航栏是 `.period-mode-segmented`（月/年），�
 
 **待办**：真机回归验证（统计页月/年切换、账户卡背景图模式、六区间金额、日历着色、
 AI 识图预填、应用锁冷启动）。
+
+---
+
+### 2026-10-08（第九轮）：补齐对照缺失的最后一批页面（源文件 45 → 52）
+
+第五轮宣称「14 模块全部落地」后，复查第二章仍发现 **9 个 Web 页面无原生对应**。
+本轮一次性补齐，原生 App 与 Web 手机端**页面级对齐完成**。
+
+| 新增文件 | 对齐 Web | 说明 |
+|---|---|---|
+| `Views/MoveAllTransactionsView.swift` | `accounts/MoveAllTransactionsPage.vue` | 选目标账户 + **二次输入账户名确认**；抽出通用 `AccountPickerSheet` |
+| `Views/ReconciliationStatementView.swift` | `accounts/ReconciliationStatementPage.vue` | 日期范围 6 档 + 统计汇总 + 日分组明细（**逐笔账户余额**）+ 余额趋势自绘柱状图 |
+| `Views/TwoFactorAuthView.swift` | `users/TwoFactorAuthPage.vue` | 状态 / 启用（扫码 + 动态码）/ 关闭 / 重生成备份码 |
+| `Views/PresetCategoriesView.swift` | `categories/PresetPage.vue` | 预设分类勾选导入（`add_batch`） |
+| `Models/PresetCategory.swift` | `src/consts/category.ts` | 预设数据（简体中文；支出 11/42、收入 3/11、转账 3/10） |
+| `Views/SettingsPagesView.swift` | `settings/*`（7 页） | 页面设置 / 字号 / 账户·分类·标签过滤器 / 账户类别顺序 / 云同步 / 缓存管理 |
+| `Core/CloudSettingsStore.swift` | `stores/setting.ts` | 云同步设置 + 白名单键 |
+
+**改动**：`Core/APIClient.swift`（补 `requestRaw`，用于 result 可能是 `false` 的接口）、
+`Models/AccountRequests.swift`（`MoveAllTransactionsRequest`）、`Views/SettingsView.swift`
+（新增「页面与显示」分区 + 2FA/缓存/云同步入口）、`Views/CategoriesView.swift`（导入默认分类入口）、
+`Views/AccountsView.swift`（每账户左滑「对账单 / 移动账单」）、`gen_pbxproj.py`（45 → 52）。
+
+**契约**：`move/all`（两 id 字符串；同账户/隐藏/多子账户父账户/**跨币种**均被后端拒绝）、
+`reconciliation_statements`（GET，`account_id` 字符串，返回逐笔 `accountClosingBalance`）、
+`users/2fa/*`、`categories/add_batch`（`icon` 为字符串）。
+
+**验证**：`gen_pbxproj.py` 重跑（52 文件，脚本与磁盘双向校验一致）；括号平衡自检通过；
+提交 `0b5dbc50` 已 push；CI run `37751500040`。
+
+**待办**：真机回归验证（对账单余额列、移动账单二次确认、2FA 扫码、预设分类导入、
+页面设置落云同步、字号预览）。
+
