@@ -137,8 +137,9 @@ echo "==> 使用镜像 $IMAGE_NAME (created: ${IMAGE_CREATED:-unknown} ${IMAGE_V
 
 # -------------------------------------------------------------- 重建容器
 echo "==> 停止并删除旧容器 $CONTAINER_NAME"
-$DOCKER stop "$CONTAINER_NAME" >/dev/null 2>&1
-$DOCKER rm "$CONTAINER_NAME" >/dev/null 2>&1
+# 用 rm -f 一次性强制停止并删除（stop + rm 分开时，若容器处于 restarting/停止超时等
+# 异常态，plain rm 会因「容器仍在运行」而失败且被静默吞掉，导致下一步 run 报 name 冲突）
+$DOCKER rm -f "$CONTAINER_NAME" >/dev/null 2>&1
 
 # 确保 storage 目录存在且权限正确（容器以 user 1000 运行）
 mkdir -p "${DATA_DIR}/storage"
