@@ -86,8 +86,7 @@ struct SettingsView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("我的")
             .sheet(isPresented: $showUpdateSheet) {
-                UpdateResultSheet()
-                    .environmentObject(updateStore)
+                UpdateResultSheet(updateStore: updateStore)
             }
             .confirmationDialog("确认退出登录？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("退出登录", role: .destructive) { auth.logout() }
