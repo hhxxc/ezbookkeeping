@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - main
+      - native-ios-app
     paths:
       - 'ios-app/**'
       - '.github/workflows/build-native-ios.yml'
