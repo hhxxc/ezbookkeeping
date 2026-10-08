@@ -46,6 +46,32 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: Inject app version into Info.plist
+        working-directory: ios-app
+        run: |
+          # 版本号必须真实写进 App 包，否则 App 内「我的」永远显示基线值，
+          # 用户无法判断自己装的是哪一版（此前 app_version 只用于给 Release 打 tag）。
+          PLIST="NestKeep/Info.plist"
+          V="${{ github.event.inputs.app_version }}"
+          if [ -z "$V" ]; then
+            # push 触发时用「基线版本 + 运行号」：1.6.3.15 形式，便于区分每次构建
+            V="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST").${{ github.run_number }}"
+            B="1"
+          else
+            V="${V#v}"
+            B="${{ github.run_number }}"
+          fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $V" "$PLIST" \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $V" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $B" "$PLIST" \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $B" "$PLIST"
+          echo "==> App 版本注入为 $V ($B)"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST"
+          # 同步到工程设置，避免 MARKETING_VERSION 与 Info.plist 不一致
+          sed -i '' "s/MARKETING_VERSION = [0-9.]*;/MARKETING_VERSION = $V;/g" NestKeep.xcodeproj/project.pbxproj
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $B;/g" NestKeep.xcodeproj/project.pbxproj
+
       - name: Build app (ad-hoc signed, no Apple cert needed)
         working-directory: ios-app
         run: |

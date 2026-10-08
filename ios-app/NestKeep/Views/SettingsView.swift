@@ -107,6 +107,27 @@ struct UpdateResultSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
 
+    /// 跳转 TrollStore 安装：不依赖 canOpenURL（实测该判断在装了 TrollStore 但
+    /// scheme 未接住的设备上仍返回 true，导致直接打开系统「放大器」）。
+    /// 做法：把 scheme 交给系统打开，由 completion 的 opened 参数判定是否真的有人接住；
+    /// 未接住时静默兜底——复制直链并提示去 TrollStore 粘贴安装。
+    private func installToTrollStore(ipaURL: URL) {
+        var comp = URLComponents()
+        comp.scheme = "apple-magnifier"
+        comp.host = "install"
+        comp.queryItems = [URLQueryItem(name: "url", value: ipaURL.absoluteString)]
+        guard let trollURL = comp.url else { return }
+
+        UIApplication.shared.open(trollURL, options: [:]) { opened in
+            guard !opened else { return }   // 真的跳走了，交给 TrollStore
+            // 未能跳转（没人接住 scheme）：兜底复制直链，用户去 TrollStore 粘贴安装
+            DispatchQueue.main.async {
+                UIPasteboard.general.string = ipaURL.absoluteString
+                copied = true
+            }
+        }
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
@@ -134,21 +155,7 @@ struct UpdateResultSheet: View {
                         // 主按钮：一键唤起 TrollStore 安装（走 apple-magnifier scheme）
                         if let ipaURL = ipaURL {
                             Button {
-                                // TrollStore 覆盖了系统「放大器」的 URL scheme（为规避越狱检测）。
-                                // 点它会直接唤起 TrollStore 下载并弹出安装确认；
-                                // 未装 TrollStore 的设备只会打开放大器，无副作用。
-                                var comp = URLComponents()
-                                comp.scheme = "apple-magnifier"
-                                comp.host = "install"
-                                comp.queryItems = [URLQueryItem(name: "url",
-                                                                value: ipaURL.absoluteString)]
-                                if let trollURL = comp.url, UIApplication.shared.canOpenURL(trollURL) {
-                                    UIApplication.shared.open(trollURL)
-                                } else {
-                                    // 兜底：复制直链，手动去 TrollStore 粘贴
-                                    UIPasteboard.general.string = ipaURL.absoluteString
-                                    copied = true
-                                }
+                                installToTrollStore(ipaURL: ipaURL)
                             } label: {
                                 HStack {
                                     Image(systemName: "arrow.down.app.fill")
@@ -162,9 +169,11 @@ struct UpdateResultSheet: View {
                             }
                             .padding(.horizontal, 32)
 
-                            Text("会直接跳转 TrollStore 并弹出安装确认，下载走你自己的服务器中转，不需要能访问 GitHub。")
+                            Text(copied
+                                 ? "已复制安装链接。打开 TrollStore → 右上角「+」→ 从 URL 安装 → 粘贴即可，下载走你自己的服务器中转。"
+                                 : "会尝试直接跳转 TrollStore 并弹出安装确认；若跳转失败会自动复制安装链接，去 TrollStore 粘贴安装即可。下载走你自己的服务器中转，不需要能访问 GitHub。")
                                 .font(.footnote)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(copied ? Theme.brand : .secondary)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 32)
 
@@ -222,7 +231,9 @@ struct UpdateResultSheet: View {
                 }
             }
             .onChange(of: updateStore.isChecking) { checking in
-                if !checking { copied = false }
+                // 新一轮检查开始时才重置复制状态；结束时不重置，
+                // 否则会清掉「一键安装」兜底刚设置的 copied=true 提示。
+                if checking { copied = false }
             }
         }
     }
