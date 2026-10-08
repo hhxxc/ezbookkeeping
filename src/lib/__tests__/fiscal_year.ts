@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, expect, test, beforeAll } from '@jest/globals';
-import moment from 'moment-timezone';
+import moment from '@/lib/moment-timezone';
 
 // Import all the fiscal year functions from the lib
 import type { TextualYearMonth } from '@/core/datetime.ts';

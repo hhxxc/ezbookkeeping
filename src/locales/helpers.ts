@@ -1,5 +1,5 @@
 import { useI18n as useVueI18n } from 'vue-i18n';
-import moment from 'moment-timezone';
+import moment from '@/lib/moment-timezone';
 
 import {
     type NameValue,
