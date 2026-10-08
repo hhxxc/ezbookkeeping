@@ -544,79 +544,83 @@ struct TransactionsView: View {
         _showAdd = showAdd
     }
 
-    /// 从右侧滑入账单列表页（与日历页同款 push 观感动画）
+    /// 进入账单列表页（系统原生 push 动画）
     private func openListPage() {
-        withAnimation(.easeOut(duration: 0.28)) { showListPage = true }
+        showListPage = true
     }
 
     var body: some View {
-        // 对齐 Web 手机端首页：**没有导航栏**，固定顶栏（月份切换等入口）挂在
-        // safeAreaInset(edge: .top) 上占据真实布局空间，卡片不会顶入顶栏。
-        ZStack(alignment: .top) {
-            Color(.systemGroupedBackground).ignoresSafeArea()
-            List {
-                // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
-                // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡滑入。
-                Section {
-                    summaryCard
-                        // leading/trailing 0：只留 insetGrouped 自带的系统分组边距（约 17pt），
-                        // 此前再叠 16pt 导致两侧黑边过大
-                        .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                        .contentShape(Rectangle())
-                        // 点汇总卡 → 滑入账单列表页（内部的小按钮如隐藏金额/换背景不受影响）
-                        .onTapGesture { openListPage() }
-
-                    periodCard
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-
-                    if serverSettings.enableImageRecognition {
-                        aiEntryCard
-                            .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
+        // 首页包在 NavigationView 里：日历页/账单列表页/区间详情页改为**系统原生 push**
+        //（NavigationLink 编程式跳转），获得标准视差滑动、边缘阴影与左滑跟手返回。
+        // 首页本身仍隐藏系统导航栏，继续用自绘固定顶栏。
+        NavigationView {
+            ZStack(alignment: .top) {
+                Color(.systemGroupedBackground).ignoresSafeArea()
+                List {
+                    // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
+                    // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
+                    Section {
+                        summaryCard
+                            // leading/trailing 0：只留 insetGrouped 自带的系统分组边距（约 17pt），
+                            // 此前再叠 16pt 导致两侧黑边过大
+                            .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            // 点汇总卡 → 原生 push 账单列表页（内部的小按钮如隐藏金额/换背景不受影响）
+                            .onTapGesture { openListPage() }
+
+                        periodCard
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+
+                        if serverSettings.enableImageRecognition {
+                            aiEntryCard
+                                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                        }
                     }
                 }
+                .listStyle(.insetGrouped)
+                // 让列表内容从安全区上方开始（Web 的 `calc(safe-area-top + 24px)`）
+                .environment(\.defaultMinListRowHeight, 0)
+                .refreshable { await vm.load() }
+                // 固定顶栏：占据真实布局空间，列表从其下方开始，滚动内容滑入其下被遮住
+                .safeAreaInset(edge: .top, spacing: 0) { topBar }
+                // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
+                .navigationBarHidden(true)
             }
-            .listStyle(.insetGrouped)
-            // 让列表内容从安全区上方开始（Web 的 `calc(safe-area-top + 24px)`）
-            .environment(\.defaultMinListRowHeight, 0)
-            .refreshable { await vm.load() }
-            // 固定顶栏：占据真实布局空间，列表从其下方开始，滚动内容滑入其下被遮住
-            .safeAreaInset(edge: .top, spacing: 0) { topBar }
+            // 隐藏的编程式导航链接（iOS 15 手法）：三个二级页全部走系统 push
+            .background(
+                VStack {
+                    NavigationLink(
+                        destination: CalendarPageView(vm: calendarVM) { date in
+                            // 选定日期：pop 日历页，落定后再 push 账单列表页看当日账单
+                            vm.selectDay(date)
+                            showCalendar = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                                showListPage = true
+                            }
+                        },
+                        isActive: $showCalendar
+                    ) { EmptyView() }
 
-            // 账单日历独立页：从右侧滑入（push 观感），替代旧的内联展开卡片
-            if showCalendar {
-                CalendarPageView(vm: calendarVM) {
-                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = false }
-                } onSelectDay: { date in
-                    // 选定日期后滑回首页并直接进入账单列表页看当日账单
-                    vm.selectDay(date)
-                    withAnimation(.easeOut(duration: 0.28)) {
-                        showCalendar = false
-                        showListPage = true
-                    }
+                    NavigationLink(
+                        destination: BillListPageView(vm: vm, onEdit: { tx in
+                            editing = tx
+                        }, onDetail: { tx in
+                            detail = tx
+                        }),
+                        isActive: $showListPage
+                    ) { EmptyView() }
+
+                    NavigationLink(destination: detailDestination, isActive: detailActive) { EmptyView() }
                 }
-                .zIndex(2)
-                .transition(.move(edge: .trailing))
-            }
-
-            // 账单列表独立页：点击首页汇总卡从右侧滑入（与日历页同款动画）
-            if showListPage {
-                BillListPageView(vm: vm, onBack: {
-                    withAnimation(.easeOut(duration: 0.28)) { showListPage = false }
-                }, onEdit: { tx in
-                    editing = tx
-                }, onDetail: { tx in
-                    detail = tx
-                })
-                .zIndex(3)
-                .transition(.move(edge: .trailing))
-            }
+            )
         }
+        .navigationViewStyle(.stack)
         .sheet(isPresented: $showAI) { AIReceiptView() }
         .sheet(isPresented: $showBackgroundSheet) {
             NavigationView {
@@ -634,10 +638,6 @@ struct TransactionsView: View {
         .sheet(item: $detail) { tx in
             TransactionDetailView(transaction: tx)
         }
-        // 点区间行 → 区间详情页（对齐 Web：首页点「今天/昨天/…」推入 /transaction/list?dateType=...）
-        .fullScreenCover(item: $detailContext) { ctx in
-            RangeDetailView(context: ctx, mainVM: vm)
-        }
         .task {
             await ServerSettings.shared.loadIfNeeded()
             await vm.load()
@@ -646,13 +646,32 @@ struct TransactionsView: View {
             // 切背景图后刷新汇总卡底图
             backgroundToken = UUID()
         }
-        // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选并滑入账单列表页
+        // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选并原生 push 账单列表页
         .onChange(of: router.pendingTransactionFilter) { request in
             guard let request = request else { return }
             vm.applyFilterRequest(request)
             router.pendingTransactionFilter = nil
             openListPage()
         }
+    }
+
+    /// 区间详情页的 push 目标（detailContext 非空时才有内容）
+    private var detailDestination: some View {
+        Group {
+            if let ctx = detailContext {
+                RangeDetailView(context: ctx, mainVM: vm)
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
+    /// 由 RangeDetailContext 派生的 isActive 绑定（pop 时清空 context）
+    private var detailActive: Binding<Bool> {
+        Binding(
+            get: { detailContext != nil },
+            set: { if !$0 { detailContext = nil } }
+        )
     }
 
     /// 极简顶部工具行：月份切换 + 搜索/清筛选 + 列表·日历切换 + 筛选 + 新增。
@@ -714,7 +733,7 @@ struct TransactionsView: View {
                     icon: "calendar",
                     active: showCalendar
                 ) {
-                    withAnimation(.easeOut(duration: 0.28)) { showCalendar = true }
+                    showCalendar = true
                 }
             }
         }
@@ -1030,9 +1049,9 @@ struct TransactionsView: View {
 // MARK: - 账单列表独立页（点击首页汇总卡从右侧滑入）
 /// 承载原首页的交易列表：搜索 / 加载与空态 / 日分组 / 左滑编辑删除；
 /// 筛选面板与搜索框也收在该页（首页只留总览卡片）。
+/// 通过 NavigationLink 原生 push 进入，导航栏由系统提供（左滑跟手返回）。
 private struct BillListPageView: View {
     @ObservedObject var vm: TransactionsViewModel
-    let onBack: () -> Void
     let onEdit: (Transaction) -> Void
     let onDetail: (Transaction) -> Void
     @State private var showFilter = false
@@ -1119,7 +1138,24 @@ private struct BillListPageView: View {
             .listStyle(.insetGrouped)
             .environment(\.defaultMinListRowHeight, 0)
             .refreshable { await vm.load() }
-            .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        }
+        .navigationTitle(vm.isFiltering ? "已筛选账单" : "账单明细")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(false)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if vm.isFiltering {
+                    Button("清除筛选") { vm.clearFilter() }
+                        .font(.footnote)
+                }
+                Button {
+                    showFilter = true
+                } label: {
+                    Image(systemName: vm.filter.isActive
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle")
+                }
+            }
         }
         .sheet(isPresented: $showFilter) {
             TransactionFilterSheet(
@@ -1129,71 +1165,6 @@ private struct BillListPageView: View {
                 onApply: { vm.applyFilter($0) }
             )
         }
-    }
-
-    /// 顶栏：返回 + 标题（筛选中带「清除筛选」胶囊）+ 筛选入口
-    private var topBar: some View {
-        HStack(spacing: 10) {
-            Button {
-                onBack()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(HomePalette.ink)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(Color.primary.opacity(0.05)))
-            }
-            .buttonStyle(.plain)
-
-            Text(vm.isFiltering ? "已筛选账单" : "账单明细")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(HomePalette.ink)
-
-            if vm.isFiltering {
-                Button {
-                    vm.clearFilter()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "xmark")
-                        Text("清除筛选")
-                    }
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Theme.brand)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-
-            Spacer()
-
-            Button {
-                showFilter = true
-            } label: {
-                Image(systemName: vm.filter.isActive
-                        ? "line.3.horizontal.decrease.circle.fill"
-                        : "line.3.horizontal.decrease.circle")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(vm.filter.isActive ? Theme.brand : HomePalette.ink)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(Color.primary.opacity(0.05)))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 8)
-        .background(
-            VStack(spacing: 0) {
-                Color(.systemGroupedBackground)
-                Rectangle()
-                    .fill(Color.primary.opacity(0.06))
-                    .frame(height: 0.5)
-            }
-            .ignoresSafeArea(edges: .top)
-        )
     }
 
     /// 日分组头：日期 + 当日支出/收入合计（对齐 Web 的当日合计）
@@ -1302,7 +1273,7 @@ struct RangeDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar
+            summaryRow
 
             if vm.isLoading && vm.transactions.isEmpty {
                 Spacer()
@@ -1339,6 +1310,9 @@ struct RangeDetailView: View {
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle(vm.context.period.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(false)
         .task { await vm.load() }
         .sheet(item: $editing, onDismiss: {
             // 编辑保存后同步刷新详情列表 + 主页面的列表与区间汇总
@@ -1354,27 +1328,13 @@ struct RangeDetailView: View {
         }
     }
 
-    /// 自绘顶栏（返回胶囊 + 标题/日期副标题 + 收支合计，风格对齐账单页 topBar）
-    private var topBar: some View {
-        HStack(spacing: 10) {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(HomePalette.ink)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(Color.primary.opacity(0.05)))
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(vm.context.period.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(HomePalette.ink)
-                Text(mainVM.rangeSubtitle(vm.context.period))
-                    .font(.system(size: 11))
-                    .foregroundColor(HomePalette.secondary)
-                    .lineLimit(1)
-            }
+    /// 系统导航栏下方的摘要行：日期范围副标题 + 收支合计
+    private var summaryRow: some View {
+        HStack(spacing: 8) {
+            Text(mainVM.rangeSubtitle(vm.context.period))
+                .font(.system(size: 11))
+                .foregroundColor(HomePalette.secondary)
+                .lineLimit(1)
 
             Spacer(minLength: 8)
 
@@ -1390,7 +1350,7 @@ struct RangeDetailView: View {
             .minimumScaleFactor(0.7)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.vertical, 7)
         .background(Color(.systemGroupedBackground))
     }
 
