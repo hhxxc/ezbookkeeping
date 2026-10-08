@@ -100,7 +100,7 @@ struct HomeView: View {
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("总资产").font(.subheadline).fontWeight(.medium)
+                Text("总资产").font(.subheadline.weight(.medium))
                     .foregroundColor(.white.opacity(0.85))
                 Spacer()
                 Image(systemName: "house.lodge.fill")

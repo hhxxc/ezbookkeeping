@@ -117,14 +117,14 @@ struct UpdateResultSheet: View {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 56))
                             .foregroundColor(Theme.income)
-                        Text("已是最新版本").font(.title3).bold()
+                        Text("已是最新版本").font(.title3.bold())
                         Text("当前版本 \(current)").foregroundColor(.secondary)
 
                     case .updateAvailable(let current, let latest, let releaseURL, let ipaURL):
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.system(size: 56))
                             .foregroundColor(Theme.brand)
-                        Text("发现新版本 \(latest)").font(.title3).bold()
+                        Text("发现新版本 \(latest)").font(.title3.bold())
                         Text("当前版本 \(current)").foregroundColor(.secondary)
 
                         // 主按钮：复制 IPA 直链（TrollStore「从 URL 安装」用）
@@ -135,9 +135,8 @@ struct UpdateResultSheet: View {
                             } label: {
                                 HStack {
                                     Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
-                                    Text(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链")
+                                    Text(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链").bold()
                                 }
-                                .fontWeight(.bold)
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(Theme.brand)
@@ -169,7 +168,7 @@ struct UpdateResultSheet: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 56))
                             .foregroundColor(.orange)
-                        Text("检查失败").font(.title3).bold()
+                        Text("检查失败").font(.title3.bold())
                         Text(message)
                             .font(.footnote)
                             .foregroundColor(.secondary)
