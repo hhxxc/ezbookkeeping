@@ -68,13 +68,14 @@ struct MainTabView: View {
     @State private var showAI = false
     @ObservedObject private var serverSettings = ServerSettings.shared
 
-    /// 各页面底部需要避让的高度 = 导航条内容 52pt + 条下方 8pt 内边距 + 额外 12pt 呼吸位。
-    /// 通过环境值下发；同时在 `MainTabView` 层统一给**整页容器**加同高的 `safeAreaInset`，
-    /// 这样无论页面是否包在 `NavigationView` 里，滚动内容都不会被浮层导航条遮住。
-    static let barContentHeight: CGFloat = 72
+    /// 底部导航条内容高度（不含底部安全区）。
+    /// 通过环境值下发，供从页面内推入的二级页 / sheet 复用（它们自身在 tab 层级之外）。
+    /// 页面滚动内容的避让不再依赖此值：底栏本体挂在 `safeAreaInset(edge: .bottom)` 上，
+    /// SwiftUI 自动为所有滚动内容留出「栏高 + 底部安全区」。
+    static let barContentHeight: CGFloat = 49
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）
             ZStack {
                 TransactionsView(showAdd: $showAdd)
@@ -96,21 +97,18 @@ struct MainTabView: View {
                     .allowsHitTesting(router.selection == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // 关键：在**整页容器**上加底部安全区避让（而不是各页内层 List），
-            // 这样无论页面是否包在 NavigationView 里，滚动内容都不会被浮层导航条遮住。
-            // 同时把高度下发为环境值，供各页内部（如 sheet 内的列表）复用。
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: Self.barContentHeight)
-            }
-            .environment(\.mainTabBarInset, Self.barContentHeight)
 
-            // 底部导航浮层：自身撑满底部安全区，中央加号上探不被裁切
+            // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
+            // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             MainTabBar(selection: $router.selection) {
                 showAdd = true
             } onAddLongPress: {
                 showAddMenu = true
             }
         }
+        .environment(\.mainTabBarInset, Self.barContentHeight)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         // 新增交易（短按加号 / 各页里的新增入口共用）
         .sheet(isPresented: $showAdd) {
@@ -162,38 +160,44 @@ extension EnvironmentValues {
     }
 }
 
-/// 底部 5 位导航栏。毛玻璃胶囊浮层（现代理财 App 风格）：
-/// 圆角胶囊容器 + `.ultraThinMaterial` 毛玻璃 + 选中项高亮胶囊；
-/// 中央加号是上探 28pt 的主色圆钮（56×56）。
+/// 底部导航栏的固定底色（亮色纯白 / 暗色 #1C1C1E，随系统主题切换）
+private let tabBarBackgroundColor = Color(UIColor { tc in
+    tc.userInterfaceStyle == .dark
+        ? UIColor(red: 28/255, green: 28/255, blue: 30/255, alpha: 1)
+        : .white
+})
+
+/// 底部 5 位导航栏。**固定式**底栏（对齐系统 Tab Bar 形态，非悬浮胶囊）：
+/// 全宽不透明背景 + 顶部细分隔线，5 等分布局；
+/// 中央加号是内嵌的主色圆钮（42×42），长按弹模板快捷菜单。
 struct MainTabBar: View {
     @Binding var selection: MainTab
     let onAddTap: () -> Void
     let onAddLongPress: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(MainTab.allCases, id: \.rawValue) { tab in
-                if tab == .add {
-                    addButton
-                } else {
-                    tabButton(tab)
+        VStack(spacing: 0) {
+            // 顶部分隔细线（与页面内容分界）
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(height: 0.5)
+
+            HStack(spacing: 0) {
+                ForEach(MainTab.allCases, id: \.rawValue) { tab in
+                    if tab == .add {
+                        addButton
+                    } else {
+                        tabButton(tab)
+                    }
                 }
             }
+            .frame(height: 48)
+            .padding(.horizontal, 4)
         }
-        .frame(height: 54)
-        .padding(.horizontal, 6)
-        // 毛玻璃胶囊底：圆角胶囊 + 材质 + 细描边 + 柔阴影
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-                )
-                .shadow(color: Color.black.opacity(0.14), radius: 16, x: 0, y: 6)
+            tabBarBackgroundColor
+                .ignoresSafeArea(edges: .bottom)
         )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
     }
 
     private func tabButton(_ tab: MainTab) -> some View {
@@ -209,38 +213,32 @@ struct MainTabBar: View {
             .foregroundColor(selection == tab ? Theme.brand : Color.secondary)
             .frame(maxWidth: .infinity)
             .frame(height: 44)
-            // 选中项高亮胶囊
-            .background(
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(selection == tab ? Theme.brand.opacity(0.13) : Color.clear)
-            )
-            .padding(.horizontal, 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 
-    /// 中央加号：主色圆钮，上探 28pt（对应 Web 的 `margin-top: -28px`）
+    /// 中央加号：主色圆钮，内嵌在栏内（不再上探悬浮）
     private var addButton: some View {
         Button {
             onAddTap()
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 26, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundColor(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: 42, height: 42)
                 .background(
                     Circle()
                         .fill(
                             LinearGradient(colors: [Theme.brand, Theme.brand.opacity(0.82)],
                                            startPoint: .topLeading, endPoint: .bottomTrailing)
                         )
-                        .shadow(color: Theme.brand.opacity(0.38), radius: 8, x: 0, y: 4)
+                        .shadow(color: Theme.brand.opacity(0.32), radius: 5, x: 0, y: 3)
                 )
-                .offset(y: -20)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .frame(width: 64)
+        .frame(maxWidth: .infinity)
         // 长按弹出模板快捷菜单（对应 Web 的 @taphold）
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.4)

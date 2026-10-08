@@ -551,23 +551,16 @@ struct TransactionsView: View {
     }
 
     var body: some View {
-        // 对齐 Web 手机端首页：**没有导航栏**，汇总卡直接位于安全区下方 24pt 开始。
-        // 月份切换、搜索、筛选等入口收进页面内的轻量工具行，视觉上不再出现系统大标题。
+        // 对齐 Web 手机端首页：**没有导航栏**，固定顶栏（月份切换等入口）挂在
+        // safeAreaInset(edge: .top) 上占据真实布局空间，卡片不会顶入顶栏。
         ZStack(alignment: .top) {
             Color(.systemGroupedBackground).ignoresSafeArea()
             List {
-                // 顶部工具行占位（月份切换等入口用 overlay 悬浮，这里只留高度）
-                Color.clear
-                    .frame(height: 30)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-
                 // 首页卡片区：汇总卡 + 日期范围卡 + 日历 + AI 识图入口 统一放在一个 Section 内，
                 // 用紧凑的自定义间距（12pt），消除 `.insetGrouped` Section 之间的默认大间隙。
                 Section {
                     summaryCard
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 12, trailing: 16))
+                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 12, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
 
@@ -664,12 +657,11 @@ struct TransactionsView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            // 让列表内容从安全区上方 24pt 开始（Web 的 `calc(safe-area-top + 24px)`）
+            // 让列表内容从安全区上方开始（Web 的 `calc(safe-area-top + 24px)`）
             .environment(\.defaultMinListRowHeight, 0)
             .refreshable { await vm.load() }
-            // 底部避让由 MainTabView 在整页容器上统一施加（见 MainTabView.barContentHeight），
-            // 这里不再重复加，避免叠加成双倍留白。
-            .overlay(alignment: .top) { topBar }
+            // 固定顶栏：占据真实布局空间，列表从其下方开始，滚动内容滑入其下被遮住
+            .safeAreaInset(edge: .top, spacing: 0) { topBar }
         }
         .sheet(isPresented: $showAI) { AIReceiptView() }
         .sheet(isPresented: $showBackgroundSheet) {
@@ -789,10 +781,17 @@ struct TransactionsView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        // 固定顶栏背景：与页面同底色并延伸进状态栏区域，底部一条细分隔线
         .background(
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea(edges: .top)
+            VStack(spacing: 0) {
+                Color(.systemGroupedBackground)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(height: 0.5)
+            }
+            .ignoresSafeArea(edges: .top)
         )
     }
 
