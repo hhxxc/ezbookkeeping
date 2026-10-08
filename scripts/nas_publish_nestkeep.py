@@ -146,24 +146,30 @@ def main():
     ap.add_argument("--notes", default="", help="更新说明")
     ap.add_argument("--cred", default=CRED_FILE, help="NAS 凭据文件")
     ap.add_argument("--host", default=DEFAULT_SSH_HOST, help="NAS SSH 地址")
+    ap.add_argument("--flavor", default="dev", choices=["dev", "stable"],
+                    help="变体：dev=巢记+ / stable=巢记+ 稳定版。各自写 latest-<flavor>.json，"
+                         "App 按自身 Bundle ID 读取本变体清单，避免跨变体互相提示更新")
     ap.add_argument("--no-upload-ipa", action="store_true",
-                    help="只更新 latest.json，不上传 IPA 文件")
+                    help="只更新清单，不上传 IPA 文件")
     args = ap.parse_args()
 
     version = args.version.lstrip("vV")
-    tag = "v" + version
+    flavor = args.flavor
+    # stable 变体的 Release tag 带 -stable 后缀（见 build-native-ios.yml）
+    tag = "v" + version + ("-stable" if flavor == "stable" else "")
 
     # 1) 准备本地 IPA
     ipa_path = args.ipa
     if not ipa_path and not args.no_upload_ipa:
-        ipa_path = download_ipa_from_release(version, os.path.join(os.getcwd(), "dist-ipa"))
+        ipa_path = download_ipa_from_release(tag, os.path.join(os.getcwd(), "dist-ipa"))
     if ipa_path and not os.path.isfile(ipa_path):
         raise SystemExit(f"找不到 IPA：{ipa_path}")
 
     # 2) 组装清单
-    ipa_gh_url = args.github_ipa_url or release_ipa_url(version)
+    ipa_gh_url = args.github_ipa_url or release_ipa_url(tag)
     manifest = {
         "version": version,
+        "variant": flavor,
         "releaseUrl": f"https://github.com/{GITHUB_REPO}/releases/tag/{tag}",
         "notes": args.notes,
     }

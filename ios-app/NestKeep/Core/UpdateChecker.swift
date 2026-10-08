@@ -28,6 +28,17 @@ enum UpdateChecker {
     /// Releases 下载页（供「去下载」按钮打开）
     static let releasesPageURL = URL(string: "https://github.com/\(repo)/releases")!
 
+    /// 本机 App 变体（channel）。
+    ///
+    /// dev 与 stable 是两个 Bundle ID 不同、可同时安装的变体，**必须各查各的清单**：
+    /// 否则 dev 会拿到 stable 的版本号并提示更新，用户「一键更新」后会被装成另一个
+    /// 变体（或因为 Bundle ID 不符而装上第二个 App）。判定依据是 Bundle ID 后缀。
+    static var channel: String {
+        let bid = Bundle.main.bundleIdentifier ?? ""
+        if bid.hasSuffix(".stable") { return "stable" }
+        return "dev"
+    }
+
     /// 本机 App 版本号
     static var currentAppVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
@@ -53,43 +64,61 @@ enum UpdateChecker {
         return await checkViaGitHub(current: current)
     }
 
-    /// 后端中转清单结构（由发版脚本写入 NAS）：{ version, ipaUrl, releaseUrl?, notes? }
+    /// 后端中转清单结构（由发版脚本写入 NAS）：{ version, ipaUrl, releaseUrl?, notes?, variant? }
+    /// variant 为可选：区分 dev / stable 变体，缺省表示通用（不带变体语义）。
     private struct BackendManifest: Decodable {
         let version: String
         let ipaUrl: String?
         let releaseUrl: String?
         let notes: String?
+        let variant: String?
     }
 
     private static func checkViaBackend(current: String) async -> UpdateCheckResult? {
-        guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent("api/nestkeep/latest.json"), resolvingAgainstBaseURL: false) else {
-            return nil
+        // 优先读本变体专属清单（latest-dev.json / latest-stable.json），
+        // 读不到再回退通用 latest.json（兼容只发布通用清单的旧脚本）。
+        let candidates = [
+            "api/nestkeep/latest-\(channel).json",
+            "api/nestkeep/latest.json",
+        ]
+
+        for path in candidates {
+            guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent(path),
+                                           resolvingAgainstBaseURL: false) else {
+                continue
+            }
+            comp.query = nil
+            guard let url = comp.url else { continue }
+
+            var req = URLRequest(url: url)
+            req.setValue("application/json", forHTTPHeaderField: "Accept")
+            req.timeoutInterval = 10
+
+            guard let (data, resp) = try? await URLSession.shared.data(for: req),
+                  let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                  let manifest = try? JSONDecoder().decode(BackendManifest.self, from: data) else {
+                continue
+            }
+
+            // 通用清单里若带 variant 字段，则必须与本机变体一致才采用（防跨变体误报）。
+            if let variant = manifest.variant, !variant.isEmpty, variant != channel {
+                continue
+            }
+
+            let latest = normalizeVersion(manifest.version)
+            guard isSemanticVersion(latest) else { continue }
+
+            if compareVersion(latest, current) > 0 {
+                return .updateAvailable(
+                    current: current,
+                    latest: latest,
+                    releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
+                    ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
+                )
+            }
+            return .upToDate(current: current)
         }
-        comp.query = nil
-        guard let url = comp.url else { return nil }
-
-        var req = URLRequest(url: url)
-        req.setValue("application/json", forHTTPHeaderField: "Accept")
-        req.timeoutInterval = 10
-
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse, http.statusCode == 200,
-              let manifest = try? JSONDecoder().decode(BackendManifest.self, from: data) else {
-            return nil
-        }
-
-        let latest = normalizeVersion(manifest.version)
-        guard isSemanticVersion(latest) else { return nil }
-
-        if compareVersion(latest, current) > 0 {
-            return .updateAvailable(
-                current: current,
-                latest: latest,
-                releaseURL: manifest.releaseUrl.flatMap { URL(string: $0) },
-                ipaURL: manifest.ipaUrl.flatMap { URL(string: $0) }
-            )
-        }
-        return .upToDate(current: current)
+        return nil
     }
 
     /// 通过 GitHub Releases API 查询最新版本并比对（回退路径）。

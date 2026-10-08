@@ -440,3 +440,50 @@ workflow**，需另做一次真实 push 或手动 dispatch 才能出包。
 
 **待验证**：云端构建（`build-native-ios.yml`，push `native-ios-app` 触发）需通过；
 真机验证 6 区间金额、日历着色、AI 识图预填、应用锁冷启动流程。
+
+---
+
+### 2026-10-08（第六轮）：账单页「照 Web 重做视觉」
+
+用户对比截图后反馈「差异太大 样式也是」，遂把原生账单页顶部（原首页内容）**逐项复刻**
+Web 手机端 `HomePage.vue` 的视觉规格，而不是沿用早期的「主题色卡片」自创样式。
+
+**逐项对照表**
+
+| 元素 | Web 规格（`HomePage.vue`） | 原生实现 |
+|---|---|---|
+| 汇总卡底 | `--hp-card:#FFFFFF`（暗 `#252530`），圆角 `--ebk-card-border-radius` | `HomePalette.card`，圆角 16 |
+| 卡外边距 | `calc(safe-area-top + 24px) 16px 16px` | List 首行占位 30 + insets 16 |
+| 左上标题 | `.home-summary-label` 18px/600，`thisMonth.displayTime`（「十月」） | 18pt semibold，「10月」 |
+| 支出徽标 | `.expense-badge`：`#FCEBEA` 底 / `#D0443F` 字，13px/600，`padding:2px 10px`，圆角 8 | 完全一致 |
+| 大金额 | `.home-summary-amount` `font-size:2em;font-weight:600`，色 `--hp-ink` | 34pt semibold，`HomePalette.ink` |
+| 眼睛图标 | `.ebk-hide-icon` 19px，色 `--hp-secondary`，位于金额**之后** | 19pt，secondary，金额右侧 |
+| 底部指标 | `.home-summary-metrics`：当月收入（`--hp-income:#1E9E6F`）· `.home-summary-metric-divider` · 月结余；label 13px、value 15px/600 | 13pt / 15pt semibold，`.monospacedDigit` |
+| 右上按钮 | `.home-card-gallery-btn` 30×30 圆角8，`rgba(0,0,0,0.04)` 底 | 一致 |
+| 导航栏 | **无**（F7 首页不用 navbar） | 去掉 `NavigationView`，月份/筛选/新增改悬浮 `topBar` |
+| 背景图态 | `.has-bg`：文字转白 + `text-shadow`，`gallery-btn` 转 `rgba(0,0,0,0.3)` | `HomeShadow` + 白色系 + `black.opacity(0.3)` |
+| 区间行 | `.overview-period-icon` 32×32 圆角10 同色 13~16% 透明底；标题 17px；footer 13px；金额 `small` 14px | 一致 |
+| 区间副标题 | `displayDateRange`：today/yesterday=`formatDateTimeToLongDate`；week/month/lastMonth=`startTime`–`endTime`(`formatDateTimeToLongMonthDay`)；year=`…LongYear` | 完全按此格式化 |
+| AI 卡 | `.home-ai-entry-card`：icon 40×40 圆角12 主色 13% 底；标题 15px/600；副标题 12px | 一致 |
+| 底部 Tab | Details / Accounts / + / Statistics / Settings | 「详情」/「账户」/ + /「统计」/「设置」 |
+
+**关键决策：新增 `HomePalette` 而不是复用 `Theme`**
+Web 首页的支出/收入色是低饱和的 `#D0443F` / `#1E9F6F`，与全局 `Theme.expense/income`
+（鲜红/鲜绿）**不是同一套**。之前原生把两者混用，是「看起来不像」的主因之一。
+`HomePalette` 用 `UIColor { $0.userInterfaceStyle == .dark ? ... }` 生成动态色，
+同时覆盖深色变体（`#252530` / `#E8EAED` / `#F87171` / `#34D399`）。
+
+**移除 `NavigationView` 的连带影响**
+原 `.toolbar` 里的月份切换、列表/日历切换、筛选、新增按钮随之失效，改为自建 `topBar`
+用 `.overlay(alignment: .top)` 悬浮；`List` 首行插入 30pt 透明占位行避免内容被遮挡，
+`topBar` 背景用**不透明**分组底色（半透明会导致滚动文字透出、观感脏）。
+
+**背景图蒙层修正**
+旧实现是「主色渐变压暗」，与 Web 的「原图 + 白字 + 投影」不符 → 改为中性
+`Color.black.opacity(0.28)` 压暗 + 文字投影。
+
+**改动文件**：`Core/UI.swift`（新增 `HomePalette`、`import UIKit`）、
+`Views/TransactionsView.swift`（主重构）、`Views/MainTabView.swift`（文案与注释）、
+`Views/HomeBackgroundSettingsView.swift`（提示文案）
+
+**验证**：commit `f0ca6dc3` → 云端 run `37748185176` **成功**（1m21s）。源文件仍 45 个。

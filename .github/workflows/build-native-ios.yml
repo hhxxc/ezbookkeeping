@@ -14,6 +14,9 @@ on:
     branches:
       - main
       - native-ios-app
+    # 注意：paths 里写 'ios-app/**' 只匹配该目录下的文件，
+    # 但为避免「改了关键文件却没触发构建」这类静默失败（曾导致改名/白名单改动
+    # 没进包，用户装上去被旧版覆盖），这里把关键文件显式列全。
     paths:
       - 'ios-app/**'
       - '.github/workflows/build-native-ios.yml'
@@ -29,6 +32,14 @@ on:
         required: false
         type: string
         default: ''
+      flavor:
+        description: '构建哪个变体：dev=巢记+（开发版，com.nestkeep.app.dev）/ stable=巢记+ 稳定版（com.nestkeep.app.stable）。两者可同时安装，互不覆盖'
+        required: false
+        type: choice
+        options:
+          - dev
+          - stable
+        default: dev
 
 permissions:
   contents: write
@@ -38,13 +49,59 @@ jobs:
   build:
     runs-on: macos-latest
     env:
-      IPA_NAME: NestKeep-${{ github.ref_name }}-${{ github.run_number }}.ipa
+      FLAVOR: ${{ github.event.inputs.flavor || 'dev' }}
+      IPA_NAME: NestKeep-${{ github.event.inputs.flavor || 'dev' }}-${{ github.ref_name }}-${{ github.run_number }}.ipa
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Show Xcode version
         run: xcodebuild -version
+
+      - name: Resolve flavor (bundle id / display name)
+        id: flavor
+        run: |
+          # dev / stable 两个变体必须用不同 Bundle ID，否则 iOS 按 ID 识别会互相覆盖，
+          # 无法同时安装（这正是「一键更新会覆盖旧版」的根因之一）。
+          case "$FLAVOR" in
+            stable)
+              echo "bundle_id=com.nestkeep.app.stable" >> "$GITHUB_OUTPUT"
+              echo "display_name=巢记+ 稳定版" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "bundle_id=com.nestkeep.app.dev" >> "$GITHUB_OUTPUT"
+              echo "display_name=巢记+" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+          echo "==> 变体 $FLAVOR"
+
+      - name: Apply bundle id & display name into Info.plist / pbxproj
+        working-directory: ios-app
+        run: |
+          # 直接写 Info.plist 与 pbxproj 的取值，而不是依赖仓库里的静态值，
+          # 保证无论仓库当前是什么状态，产物一定是本变体应有的 ID 与显示名。
+          PLIST="NestKeep/Info.plist"
+          BID="${{ steps.flavor.outputs.bundle_id }}"
+          NAME="${{ steps.flavor.outputs.display_name }}"
+
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName $NAME" "$PLIST" \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string $NAME" "$PLIST"
+
+          # LSApplicationQueriesSchemes 必须含 apple-magnifier，否则 canOpenURL 恒 false；
+          # 即便当前代码不依赖它做判断，也一并保证存在（TrollStore 安装入口用）。
+          /usr/libexec/PlistBuddy -c "Print :LSApplicationQueriesSchemes" "$PLIST" >/dev/null 2>&1 || \
+            /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes array" "$PLIST"
+          if ! /usr/libexec/PlistBuddy -c "Print :LSApplicationQueriesSchemes" "$PLIST" | grep -q "apple-magnifier"; then
+            /usr/libexec/PlistBuddy -c "Add :LSApplicationQueriesSchemes:0 string apple-magnifier" "$PLIST"
+          fi
+
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = $BID;/g" \
+            NestKeep.xcodeproj/project.pbxproj
+
+          echo "==> Info.plist:"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$PLIST"
+          echo "==> pbxproj:"
+          grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' NestKeep.xcodeproj/project.pbxproj
 
       - name: Inject app version into Info.plist
         working-directory: ios-app
@@ -115,10 +172,42 @@ jobs:
           rm -rf Payload
           ls -la "$IPA_NAME"
 
+      # 产物断言：把「包里真实生效的键」打出来并校验，避免出错包（曾发生改名被旧值覆盖）。
+      - name: Verify IPA关键键（Bundle ID / 显示名 / scheme 白名单）
+        working-directory: ios-app
+        run: |
+          mkdir -p verify && cd verify
+          unzip -q "../$IPA_NAME" -d .
+          P="Payload/NestKeep.app/Info.plist"
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$P")
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$P")
+          VER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$P")
+          echo "  Bundle ID      : $BID"
+          echo "  显示名         : $NAME"
+          echo "  版本           : $VER"
+          echo "  scheme 白名单  :"
+          /usr/libexec/PlistBuddy -c 'Print :LSApplicationQueriesSchemes' "$P"
+
+          fail=0
+          if [ "$BID" != "${{ steps.flavor.outputs.bundle_id }}" ]; then
+            echo "::error::Bundle ID 不符：期望 ${{ steps.flavor.outputs.bundle_id }}，实际 $BID（会导致覆盖安装！）"
+            fail=1
+          fi
+          if [ "$NAME" != "${{ steps.flavor.outputs.display_name }}" ]; then
+            echo "::error::显示名不符：期望 ${{ steps.flavor.outputs.display_name }}，实际 $NAME"
+            fail=1
+          fi
+          if ! /usr/libexec/PlistBuddy -c 'Print :LSApplicationQueriesSchemes' "$P" | grep -q apple-magnifier; then
+            echo "::error::缺少 LSApplicationQueriesSchemes: apple-magnifier"
+            fail=1
+          fi
+          cd .. && rm -rf verify
+          exit $fail
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NestKeep-ipa
+          name: NestKeep-ipa-${{ env.FLAVOR }}
           path: ios-app/${{ env.IPA_NAME }}
           retention-days: 90
 
@@ -127,10 +216,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="nestkeep-ipa-${{ github.run_number }}"
+          TAG="nestkeep-${{ env.FLAVOR }}-ipa-${{ github.run_number }}"
           gh release create "$TAG" "ios-app/${{ env.IPA_NAME }}" \
-            --title "NestKeep IPA #${{ github.run_number }}" \
-            --notes "原生 iOS App 构建产物（${{ env.IPA_NAME }}）。用 TrollStore 打开该 IPA 安装（会重新签名、永久驻留）。"
+            --title "NestKeep ${FLAVOR} IPA #${{ github.run_number }}" \
+            --notes "原生 iOS App（${{ env.FLAVOR }} 变体，显示名「${{ steps.flavor.outputs.display_name }}」，Bundle ID ${{ steps.flavor.outputs.bundle_id }}）。产物 ${{ env.IPA_NAME }}。用 TrollStore 打开该 IPA 安装（会重新签名、永久驻留）。"
 
       - name: Publish semantic version release (for in-app update check)
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.app_version != ''
@@ -138,8 +227,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           V="${{ github.event.inputs.app_version }}"
-          # 去掉可能的 v 前缀，统一成 vX.Y.Z
+          # 去掉可能的 v 前缀；stable 变体加后缀避免与 dev 的 tag 撞车
           V="${V#v}"
-          gh release create "v$V" "ios-app/${{ env.IPA_NAME }}" \
-            --title "NestKeep v$V" \
-            --notes "原生 iOS App v$V（${{ env.IPA_NAME }}）。App 内「我的 > 检查更新」会自动识别此版本号并提示升级。下载后用 TrollStore 打开 IPA 覆盖安装。"
+          SUFFIX=""
+          if [ "$FLAVOR" = "stable" ]; then SUFFIX="-stable"; fi
+          gh release create "v$V$SUFFIX" "ios-app/${{ env.IPA_NAME }}" \
+            --title "NestKeep ${FLAVOR} v$V" \
+            --notes "原生 iOS App（$FLAVOR 变体）v$V（${{ env.IPA_NAME }}）。显示名「${{ steps.flavor.outputs.display_name }}」，Bundle ID ${{ steps.flavor.outputs.bundle_id }}，与另一变体可同时安装。用 TrollStore 打开 IPA 覆盖安装（同变体才会覆盖）。"
