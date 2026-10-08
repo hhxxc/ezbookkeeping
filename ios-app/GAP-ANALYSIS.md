@@ -213,6 +213,8 @@ Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查
 
 ## 四、优先级建议
 
+> **进度更新（2026-10-08）**：P0 主体已完成（见文末「七、实施进度」）。
+
 ### P0 — 记账核心闭环（不做就不算能用）
 1. **账单列表增强**：筛选（日期/分类/账户/类型）+ 搜索 + 左滑删除 + 编辑入口
 2. **交易编辑增强**：余额调整、编辑已有交易、复制
@@ -259,3 +261,54 @@ Web：独立页 —— 版本、构建时间、官网、反馈、帮助、检查
 - 视觉语言骨架已对（主题色/卡片），但**交互层（筛选、左滑、拖拽）全缺**
 
 **好消息**：主题色、卡片风格、金额格式化、后端契约这些"地基"已经打对，后续是**量的堆叠**而非架构返工。
+
+---
+
+## 七、实施进度
+
+### 2026-10-08：P0 主体 + 导航结构对齐（已完成，待真机验证）
+
+**1. 底部导航改为 5 位（结构级对齐）** ✅
+- 账单 / 账户 / 中央加号 / 统计 / 设置，与 Web `main-tabbar` 一致
+- 首页内容并入账单页顶部，删除独立的 `HomeView.swift`（Web 本就没有首页 Tab）
+- 中央加号 56×56 主色圆钮、上探 28pt；短按新增交易、长按出模板快捷菜单
+- 视觉与 Web 对齐：完全透明背景、无顶部分隔线
+- 采用 `ZStack + opacity` 保活各页，切 Tab 不丢滚动位置与状态
+- 浮层导航避让：环境值 `mainTabBarInset` + 各页 `safeAreaInset(edge: .bottom)`
+
+**2. 账单列表增强** ✅
+- 顶部汇总卡：总资产 + 本月支出/收入/结余（原首页内容）
+- 日分组头显示当日支出/收入合计
+- 左滑删除（`POST /transactions/delete.json`）、左滑编辑
+- 点击行进入交易详情页
+
+**3. 交易编辑增强** ✅
+- 支持编辑已有交易（`POST /transactions/modify.json`）
+- 支持复制为新交易（`mode: .duplicate`，不带 id 走 add）
+- 新增「余额调整」类型；分类按收支类型过滤
+- 金额换算统一 `NSDecimalNumber`，规避 Xcode 26 下 `Decimal * 100` 被推断为 Float16
+
+**4. 新增交易详情页** ✅ `TransactionDetailView.swift`
+- 展示类型/金额/分类/账户/时间/备注，提供「复制为新交易」「编辑」入口
+
+**5. 新增统计页** ✅ `StatisticsView.swift`
+- 收支概览（支出/收入/结余/日均支出），月份左右切换
+- 支出/收入切换，分类占比环形图（`Canvas` 自绘）+ 分类排行
+- 每日收支柱状图（`Path` 自绘）
+- iOS 15 无原生 Charts，全部自绘实现
+
+**新增/修改的 Swift 文件**（`gen_pbxproj.py` 已同步，共 22 个源文件）：
+- 新增 `Views/StatisticsView.swift`、`Views/TransactionDetailView.swift`
+- 删除 `Views/HomeView.swift`
+- 改 `Views/MainTabView.swift`、`TransactionsView.swift`、`TransactionEditView.swift`、
+  `AccountsView.swift`、`SettingsView.swift`、`Models/Transaction.swift`
+
+**后端契约**（本轮核对）：
+- `id` / `categoryId` / `sourceAccountId` / `destinationAccountId` 均为字符串
+- `destinationAccountId` 非转账时传 `"0"`，`destinationAmount` 传 `0`
+- 统计项 `amount` 带符号：负=支出、正=收入
+- `statistics.json` / `statistics/daily.json` 需 `use_transaction_timezone=true`
+
+**环境坑**：本机 git 直连 `github.com:443` 不通，代理（`127.0.0.1:9876`）只放行
+`api.github.com`；改用 `gh api` + Git Data API 推送。**注意：API 更新 ref 不会触发
+workflow**，需另做一次真实 push 或手动 dispatch 才能出包。
