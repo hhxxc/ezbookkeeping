@@ -107,6 +107,8 @@ struct MainTabView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.easeOut(duration: 0.28), value: router.selection)
+            // 统一隐藏滚动指示条（上下滑动时右侧不出现滚动条），对容器内所有 List/ScrollView 生效
+            .indicator(.hidden)
 
             // 固定式底部导航：挂在 safeAreaInset 上占据真实布局空间（非悬浮），
             // 滚动内容自动避让，背景延伸进底部安全区（Home 指示条区域同色）。
@@ -170,12 +172,8 @@ extension EnvironmentValues {
     }
 }
 
-/// 底部导航栏的固定底色（亮色纯白 / 暗色 #1C1C1E，随系统主题切换）
-private let tabBarBackgroundColor = Color(UIColor { tc in
-    tc.userInterfaceStyle == .dark
-        ? UIColor(red: 28/255, green: 28/255, blue: 30/255, alpha: 1)
-        : .white
-})
+/// 底部导航栏的固定底色（与页面背景 systemGroupedBackground 同色：亮 #F2F2F7 / 暗 #1C1C1E）
+private let tabBarBackgroundColor = Color(UIColor.systemGroupedBackground)
 
 /// 底部 5 位导航栏。**固定式**底栏（对齐系统 Tab Bar 形态，非悬浮胶囊）：
 /// 全宽不透明背景 + 顶部细分隔线，5 等分布局；
