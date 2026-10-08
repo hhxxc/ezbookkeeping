@@ -30,12 +30,36 @@ enum MainTab: Int, CaseIterable {
     }
 }
 
+/// 跨 Tab 的账单筛选请求（统计页「查看账单明细」/ 点图表项 → 跳账单列表应用筛选）
+struct TransactionFilterRequest: Equatable {
+    var type: Int = 0
+    var categoryIds: [String] = []
+    var accountIds: [String] = []
+    var startDate: Date?
+    var endDate: Date?
+    var keyword: String = ""
+}
+
+/// 跨 Tab 路由：持有当前选中 Tab 与「待应用到账单列表的筛选」。
+/// 统计页发起「查看账单明细」时写入 pending 请求并切到账单 Tab，账单页监听后应用筛选。
+final class TabRouter: ObservableObject {
+    @Published var selection: MainTab = .list
+    /// 待应用筛选（每次写一个新的 struct，账单页 onChange 检测到非 nil 就应用并清空）
+    @Published var pendingTransactionFilter: TransactionFilterRequest?
+
+    /// 发起「切换到账单列表并应用筛选」
+    func routeToTransactionList(_ request: TransactionFilterRequest) {
+        pendingTransactionFilter = request
+        selection = .list
+    }
+}
+
 /// 主界面：底部 5 位导航（详情 / 账户 / 中央加号 / 统计 / 设置）。
 /// 结构与手机端 Web 的 `HomePage.vue` 底部 tabbar 完全对齐：
 /// 启动落在「详情」页（Web 的首页内容并入该页顶部），中央加号是记账主入口，
 /// 短按新增交易、长按弹出模板快捷菜单。
 struct MainTabView: View {
-    @State private var selection: MainTab = .list
+    @StateObject private var router = TabRouter()
     @State private var showAdd = false
     /// 长按中央加号弹出的模板菜单
     @State private var showAddMenu = false
@@ -54,20 +78,22 @@ struct MainTabView: View {
             // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）
             ZStack {
                 TransactionsView(showAdd: $showAdd)
-                    .opacity(selection == .list ? 1 : 0)
-                    .allowsHitTesting(selection == .list)
+                    .environmentObject(router)
+                    .opacity(router.selection == .list ? 1 : 0)
+                    .allowsHitTesting(router.selection == .list)
 
                 AccountsView()
-                    .opacity(selection == .accounts ? 1 : 0)
-                    .allowsHitTesting(selection == .accounts)
+                    .opacity(router.selection == .accounts ? 1 : 0)
+                    .allowsHitTesting(router.selection == .accounts)
 
                 StatisticsView()
-                    .opacity(selection == .statistics ? 1 : 0)
-                    .allowsHitTesting(selection == .statistics)
+                    .environmentObject(router)
+                    .opacity(router.selection == .statistics ? 1 : 0)
+                    .allowsHitTesting(router.selection == .statistics)
 
                 SettingsView()
-                    .opacity(selection == .settings ? 1 : 0)
-                    .allowsHitTesting(selection == .settings)
+                    .opacity(router.selection == .settings ? 1 : 0)
+                    .allowsHitTesting(router.selection == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // 关键：在**整页容器**上加底部安全区避让（而不是各页内层 List），
@@ -79,7 +105,7 @@ struct MainTabView: View {
             .environment(\.mainTabBarInset, Self.barContentHeight)
 
             // 底部导航浮层：自身撑满底部安全区，中央加号上探不被裁切
-            MainTabBar(selection: $selection) {
+            MainTabBar(selection: $router.selection) {
                 showAdd = true
             } onAddLongPress: {
                 showAddMenu = true

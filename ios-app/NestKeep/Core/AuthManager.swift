@@ -6,6 +6,18 @@ struct LoginRequest: Codable {
     let password: String
 }
 
+/// 登录结果：要么直接成功（已注入 token），要么 need2FA（返回临时 token 待二次验证）
+enum LoginResult {
+    case success
+    case need2FA(tempToken: String)
+}
+
+/// 2FA 验证请求体（对应 Web authorize2FA / authorize2FAByBackupCode）
+struct TwoFactorAuthorizeRequest: Codable {
+    let passcode: String?
+    let recoveryCode: String?
+}
+
 struct AuthResponse: Codable {
     let token: String
     let need2FA: Bool
@@ -41,20 +53,48 @@ final class AuthManager: ObservableObject {
     }
 
     @MainActor
-    func login(loginName: String, password: String) async throws {
+    func login(loginName: String, password: String) async throws -> LoginResult {
         let resp: AuthResponse = try await APIClient.shared.request(
             "/api/authorize.json",
             method: .POST,
             body: LoginRequest(loginName: loginName, password: password)
         )
         if resp.need2FA {
-            throw APIError.twoFactorRequired
+            // 后端返回的是临时 token，需二次验证后才换成正式 token
+            return .need2FA(tempToken: resp.token)
         }
         guard !resp.token.isEmpty else { throw APIError.invalidResponse }
+        applyAuthResponse(resp)
+        return .success
+    }
+
+    /// 2FA 二次验证：用临时 token + 动态码 / 备份码换取正式 token。
+    /// - Parameters:
+    ///   - tempToken: 登录时后端下发的临时 token
+    ///   - passcode: 认证器 App 的 6 位动态码（与 recoveryCode 二选一）
+    ///   - recoveryCode: 备份码（与 passcode 二选一）
+    @MainActor
+    func verify2FA(tempToken: String, passcode: String?, recoveryCode: String?) async throws {
+        let path = recoveryCode != nil ? "/api/2fa/recovery.json" : "/api/2fa/authorize.json"
+        let body = TwoFactorAuthorizeRequest(passcode: passcode, recoveryCode: recoveryCode)
+        // 2fa 接口用临时 token 鉴权，且 noAuth（不注入当前 token）
+        let resp: AuthResponse = try await APIClient.shared.request(
+            path,
+            method: .POST,
+            body: body,
+            overrideToken: tempToken
+        )
+        guard !resp.token.isEmpty else { throw APIError.invalidResponse }
+        applyAuthResponse(resp)
+    }
+
+    /// 应用登录响应（注入 token 与用户信息）
+    @MainActor
+    private func applyAuthResponse(_ resp: AuthResponse) {
         self.token = resp.token
         self.currentUser = resp.user
         self.isLoggedIn = true
-        UserDefaults.standard.set(token, forKey: tokenKey)
+        UserDefaults.standard.set(resp.token, forKey: tokenKey)
         if let user = resp.user, let data = try? JSONEncoder().encode(user) {
             UserDefaults.standard.set(data, forKey: userKey)
         }

@@ -39,7 +39,17 @@ final class CloudSettingsStore: ObservableObject {
         "exchangeRatesDataCacheExpiration",
         "homeSummaryBackgroundImage",
         "homeGalleryBackgroundId",
-        "pageBackgroundImage"
+        "pageBackgroundImage",
+        // 统计设置（对齐 Web statistics/* 设置）
+        "statistics.defaultChartDataType",
+        "statistics.defaultTimezoneType",
+        "statistics.defaultAccountFilter",
+        "statistics.defaultTransactionCategoryFilter",
+        "statistics.defaultSortingType",
+        "statistics.defaultCategoricalChartType",
+        "statistics.defaultCategoricalChartDataRangeType",
+        "statistics.defaultTrendChartDataRangeType",
+        "statistics.defaultAssetTrendsChartDataRangeType"
     ]
 
     func load() async {

@@ -243,6 +243,28 @@ final class TransactionsViewModel: ObservableObject {
         Task { await load() }
     }
 
+    /// 应用跨 Tab 跳转带来的筛选请求（统计页「查看账单明细」等）。
+    /// 与本地筛选不同：直接按请求里的日期/账户/分类/关键词构造筛选态。
+    func applyFilterRequest(_ req: TransactionFilterRequest) {
+        var f = TransactionFilter()
+        f.type = req.type
+        f.categoryIds = req.categoryIds
+        f.accountIds = req.accountIds
+        f.startDate = req.startDate
+        f.endDate = req.endDate
+        filter = f
+        searchKeyword = req.keyword
+        // 跳转过来的日期区间通常不是「本月」，若落在某月则同步年份月份标题
+        if let start = req.startDate {
+            let comps = Calendar.current.dateComponents([.year, .month], from: start)
+            if let y = comps.year, let m = comps.month {
+                year = y
+                month = m
+            }
+        }
+        Task { await load() }
+    }
+
     func clearFilter() {
         filter = TransactionFilter()
         searchKeyword = ""
@@ -478,6 +500,8 @@ struct TransactionsView: View {
     @Binding var showAdd: Bool
     // 底部避让由 MainTabView 统一施加；本页不再需要读取 mainTabBarInset
     @ObservedObject private var serverSettings = ServerSettings.shared
+    /// 跨 Tab 路由（统计页跳转时应用筛选）
+    @EnvironmentObject private var router: TabRouter
     @State private var editing: Transaction?
     @State private var detail: Transaction?
     @State private var showFilter = false
@@ -655,6 +679,12 @@ struct TransactionsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
             // 切背景图后刷新汇总卡底图
             backgroundToken = UUID()
+        }
+        // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选
+        .onChange(of: router.pendingTransactionFilter) { request in
+            guard let request = request else { return }
+            vm.applyFilterRequest(request)
+            router.pendingTransactionFilter = nil
         }
     }
 

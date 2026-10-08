@@ -39,6 +39,8 @@ struct Transaction: Codable, Identifiable {
     let tagIds: [String]?
     let comment: String?
     let editable: Bool?
+    /// 地理位置（对应 Go TransactionGeoLocationResponse）
+    let geoLocation: TransactionGeoLocation?
 
     var transactionType: TransactionType { TransactionType(rawValue: type) ?? .expense }
     var date: Date { Date(timeIntervalSince1970: TimeInterval(time)) }

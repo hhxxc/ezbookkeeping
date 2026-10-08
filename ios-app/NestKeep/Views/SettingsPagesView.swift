@@ -131,6 +131,8 @@ struct TextSizeSettingsView: View {
 struct AccountFilterSettingsView: View {
     let type: String   // homePageOverview / statistics / ...
     let title: String
+    /// 显式覆盖设置键（不传则按 `{type}AccountFilterInHomePage` 规则生成）
+    var explicitKey: String? = nil
 
     @ObservedObject private var store = CloudSettingsStore.shared
     @Environment(\.mainTabBarInset) private var tabBarInset
@@ -140,7 +142,7 @@ struct AccountFilterSettingsView: View {
     @State private var isLoading = true
 
     private var settingKey: String {
-        "\(type)AccountFilterInHomePage"
+        explicitKey ?? "\(type)AccountFilterInHomePage"
     }
 
     var body: some View {
@@ -226,6 +228,8 @@ struct AccountFilterSettingsView: View {
 struct CategoryFilterSettingsView: View {
     let type: String
     let title: String
+    /// 显式覆盖设置键（不传则按 `{type}TransactionCategoryFilterInHomePage` 规则生成）
+    var explicitKey: String? = nil
 
     @ObservedObject private var store = CloudSettingsStore.shared
     @Environment(\.mainTabBarInset) private var tabBarInset
@@ -234,7 +238,7 @@ struct CategoryFilterSettingsView: View {
     @State private var selection: [String: Bool] = [:]
     @State private var isLoading = true
 
-    private var settingKey: String { "\(type)TransactionCategoryFilterInHomePage" }
+    private var settingKey: String { explicitKey ?? "\(type)TransactionCategoryFilterInHomePage" }
 
     /// 拍平一级 + 子分类
     private var flat: [TransactionCategory] {

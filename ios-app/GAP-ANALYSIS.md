@@ -619,3 +619,69 @@ AI 识图预填、应用锁冷启动）。
   排序/分类图表类型/分类图表日期范围/趋势日期范围/资产趋势日期范围）
 - 登录页**登录时两步验证**（passcode / 备份码）与忘记密码
 - 交易编辑时区 / 地理位置（`geoLocation` 当前恒 nil）
+
+---
+
+### 2026-10-08（第十二轮）：补齐最后一轮对照缺失（明细链接 / 多条件筛选 / 统计设置 / 登录 2FA / 交易时区定位）
+
+第十一轮结尾的 5 项「对照仍缺」全部落地，原生 App 与 Web 手机端**功能级对齐完成**。
+
+**1. 统计页「查看账单明细」链接（跨 Tab）** ✅
+- 新增 `TabRouter`（`ObservableObject`，放 `MainTabView.swift`）：持有 `selection` +
+  `pendingTransactionFilter`，`routeToTransactionList(_:)` 写入请求并切到账单 Tab
+- `StatisticsView` 底部新增「查看账单明细」链接：把当前统计的日期区间（闭区间）+
+  账户/分类筛选 + 关键词打包成 `TransactionFilterRequest` 交 `router`
+- `TransactionsView` 用 `.onChange(of: router.pendingTransactionFilter)` 监听并
+  `vm.applyFilterRequest(_:)`（构造筛选态 + 同步年月标题 + 重载），实现统计 → 账单跨 Tab 跳转
+- `MainTabView` 的 `selection` 从本地 `@State` 改为 `router.selection`，`TabRouter` 作为
+  `@EnvironmentObject` 注入 `TransactionsView` / `StatisticsView`
+
+**2. 统计页多条件筛选** ✅
+- `StatisticsViewModel` 新增筛选态：`filterAccountIds` / `filterCategoryIds`（本地过滤，
+  按统计项 `accountId`/`categoryId` 逐项排除，对齐 Web `filterAccountIds`/`filterCategoryIds`）、
+  `filterTagIds` / `filterKeyword`（走后端 `tag_filter` / `keyword` 参数）
+- 导航栏右上角「更多」菜单（`confirmationDialog`）：筛选账户 / 分类 / 标签 / 描述 + 清除筛选 + 统计设置
+- 新增 `StatisticsFilterSheet`：账户（多选）/ 分类（拍平多选）/ 标签（多选）/ 描述（关键词）四段表单
+- **契约坑**：`tag_filter` 格式是 `"类型:ID列表"`（`0`=HAS_ANY 包含 / `1`=HAS_ALL /
+  `2`=NOT_HAS_ANY 排除 / `3`=NOT_HAS_ALL），**不是** `include:/exclude:` 字符串；
+  「包含」语义用 `0:id1,id2`
+
+**3. 统计设置页（9 项）** ✅
+- 新增 `Views/StatisticsSettingsView.swift`：通用设置（默认图表数据类型 / 统计时区 /
+  默认账户过滤 / 默认分类过滤 / 默认排序）+ 分类分析（图表类型 / 日期范围）+ 趋势分析（日期范围）+
+  资产趋势（日期范围），全部写入云同步 `statistics.*` 键
+- `CloudSettingsStore.allowedKeys` 补 9 个 `statistics.*` 白名单键（与 Web 一致）
+- `AccountFilterSettingsView` / `CategoryFilterSettingsView` 加 `explicitKey` 参数，
+  默认账户/分类过滤用正确键 `statistics.defaultAccountFilter` / `statistics.defaultTransactionCategoryFilter`
+- 入口：统计页「更多」菜单 → 统计设置
+
+**4. 登录页两步验证 + 忘记密码** ✅
+- `AuthManager.login` 返回 `LoginResult`（`.success` / `.need2FA(tempToken:)`），不再抛
+  `twoFactorRequired`；新增 `verify2FA(tempToken:passcode:recoveryCode:)` 走
+  `POST /api/2fa/authorize.json`（passcode）或 `/api/2fa/recovery.json`（备份码）
+- `APIClient.request` 新增 `overrideToken` 参数（2FA 接口用临时 token 鉴权，不注入当前 token）
+- `LoginView`：检测 `need2FA` 后弹 2FA sheet（动态码 / 备份码切换）；新增「忘记密码？」入口
+  走 `POST /api/forget_password/request.json`（body `{email}`）
+- **契约**：passcode 请求体 `{passcode}`（6 位）、备份码 `{recoveryCode}`（11 位），
+  两接口均带 `Bearer <临时token>`、noAuth
+
+**5. 交易编辑时区 + 地理位置** ✅
+- `TransactionEditViewModel` 新增 `timeZoneIdentifier`（默认设备时区）与 `geoLocation`；
+  编辑回填时由 `utcOffset` 反推时区；保存时用选中时区算 `utcOffset`（`secondsFromGMT(for: date)/60`）
+- `Transaction` 模型补 `geoLocation` 响应字段（对应 Go `TransactionGeoLocationResponse`）
+- 编辑页新增「时区」选择器（常用时区列表，上海排最前，显示 `中文名 (UTC±X)`）与「地理位置」行
+  （CoreLocation 单次定位 + 经纬度展示 + 清除）；`geoLocation` 不再恒 nil
+- 新增 `LocationHelper`（iOS 15 无 async CLLocationManager，用 delegate 回调）；
+  `Info.plist` 补 `NSLocationWhenInUseUsageDescription`
+
+**改动文件**（源文件 52 → 53）：
+- 新增 `Views/StatisticsSettingsView.swift`
+- 改 `Views/StatisticsView.swift`（明细链接 + 筛选）、`Views/MainTabView.swift`（TabRouter）、
+  `Views/TransactionsView.swift`（跨 Tab 应用筛选）、`Views/LoginView.swift`（2FA + 忘记密码）、
+  `Views/TransactionEditView.swift`（时区 + 定位）、`Views/SettingsPagesView.swift`（explicitKey）、
+  `Core/{AuthManager,APIClient,CloudSettingsStore,APIError}.swift`、`Models/Transaction.swift`、
+  `Info.plist`、`gen_pbxproj.py`
+
+**待验证**：云端构建（`build-native-ios.yml`，push `native-ios-app` 触发）需通过；
+真机回归（统计明细跳转、统计筛选、统计设置落云、登录 2FA、交易定位）。
+

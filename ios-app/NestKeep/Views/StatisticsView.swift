@@ -23,6 +23,19 @@ final class StatisticsViewModel: ObservableObject {
     @Published var isYearMode = false
 
     private var categories: [TransactionCategory] = []
+    /// 账户列表（用于账户过滤）
+    @Published var accounts: [Account] = []
+    /// 标签列表（用于标签过滤）
+    @Published var tagList: [TransactionTag] = []
+
+    /// 多条件筛选（对齐 Web 统计页「更多」菜单）：
+    /// - 账户/分类：本地过滤（统计响应里的 accountId/categoryId）
+    /// - 标签/关键词：走后端 tag_filter / keyword 参数
+    @Published var filterAccountIds: Set<String> = []
+    @Published var filterCategoryIds: Set<String> = []
+    /// 标签过滤（Web 的 tagFilter，形如 "include:1,2|exclude:3" 之类；这里简化为「包含的标签 id 集合」）
+    @Published var filterTagIds: Set<String> = []
+    @Published var filterKeyword = ""
 
     struct CategoryStat: Identifiable {
         let id: String
@@ -39,6 +52,12 @@ final class StatisticsViewModel: ObservableObject {
     }
 
     var netCents: Int64 { totalIncomeCents - totalExpenseCents }
+
+    /// 是否处于筛选态（账户/分类/标签/关键词任一非空）
+    var hasFilter: Bool {
+        !filterAccountIds.isEmpty || !filterCategoryIds.isEmpty ||
+        !filterTagIds.isEmpty || !filterKeyword.isEmpty
+    }
 
     /// 当前周期的自然日天数（月模式=当月天数，年模式=全年天数），用于日均支出
     private var periodDayCount: Int {
@@ -95,6 +114,9 @@ final class StatisticsViewModel: ObservableObject {
             if categories.isEmpty {
                 categories = (try? await APIClient.shared.request("/api/v1/transaction/categories/list.json")) ?? []
             }
+            if accounts.isEmpty {
+                accounts = (try? await APIClient.shared.request("/api/v1/accounts/list.json")) ?? []
+            }
             guard let start = Calendar.current.date(from: DateComponents(
                       year: year,
                       month: isYearMode ? 1 : month,
@@ -107,21 +129,35 @@ final class StatisticsViewModel: ObservableObject {
             let startTs = Int(start.timeIntervalSince1970)
             let endTs = Int(end.timeIntervalSince1970)
 
+            // 构造后端筛选参数（tag_filter / keyword）
+            var statQuery: [URLQueryItem] = [
+                URLQueryItem(name: "start_time", value: "\(startTs)"),
+                URLQueryItem(name: "end_time", value: "\(endTs)"),
+                URLQueryItem(name: "use_transaction_timezone", value: "true")
+            ]
+            var dailyQuery: [URLQueryItem] = [
+                URLQueryItem(name: "start_time", value: "\(startTs)"),
+                URLQueryItem(name: "end_time", value: "\(endTs)"),
+                URLQueryItem(name: "use_transaction_timezone", value: "true")
+            ]
+            if !filterTagIds.isEmpty {
+                // tag_filter 形如 "0:id1,id2"（0=HAS_ANY 包含任一标签，对齐 Web「包含」语义）
+                let tf = "0:\(filterTagIds.sorted().joined(separator: ","))"
+                statQuery.append(URLQueryItem(name: "tag_filter", value: tf))
+                dailyQuery.append(URLQueryItem(name: "tag_filter", value: tf))
+            }
+            if !filterKeyword.isEmpty {
+                statQuery.append(URLQueryItem(name: "keyword", value: filterKeyword))
+                dailyQuery.append(URLQueryItem(name: "keyword", value: filterKeyword))
+            }
+
             async let statResp: StatisticResponse = APIClient.shared.request(
                 "/api/v1/transactions/statistics.json",
-                query: [
-                    URLQueryItem(name: "start_time", value: "\(startTs)"),
-                    URLQueryItem(name: "end_time", value: "\(endTs)"),
-                    URLQueryItem(name: "use_transaction_timezone", value: "true")
-                ]
+                query: statQuery
             )
             async let dailyResp: [StatisticDailyItem] = APIClient.shared.request(
                 "/api/v1/transactions/statistics/daily.json",
-                query: [
-                    URLQueryItem(name: "start_time", value: "\(startTs)"),
-                    URLQueryItem(name: "end_time", value: "\(endTs)"),
-                    URLQueryItem(name: "use_transaction_timezone", value: "true")
-                ]
+                query: dailyQuery
             )
 
             let stats = try await statResp
@@ -136,12 +172,21 @@ final class StatisticsViewModel: ObservableObject {
         }
     }
 
-    /// 把统计项聚合成分类维度（支出 / 收入分开）
+    /// 把统计项聚合成分类维度（支出 / 收入分开），并应用本地账户/分类过滤
     private func buildCategoryStats(_ items: [StatisticResponseItem]) {
         var expMap: [String: Int64] = [:]
         var incMap: [String: Int64] = [:]
         for item in items {
+            // 本地账户过滤
+            if !filterAccountIds.isEmpty,
+               let accountId = item.accountId, filterAccountIds.contains(accountId) {
+                continue
+            }
+            // 本地分类过滤
             let key = item.categoryId ?? "0"
+            if !filterCategoryIds.isEmpty, filterCategoryIds.contains(key) {
+                continue
+            }
             if item.amount < 0 {
                 expMap[key, default: 0] += abs(item.amount)
             } else if item.amount > 0 {
@@ -189,6 +234,7 @@ final class StatisticsViewModel: ObservableObject {
                 let m = d.month
                 guard m >= 1, m <= 12 else { continue }
                 for item in d.items {
+                    if shouldExclude(item) { continue }
                     if item.amount < 0 { exp[m - 1] += abs(item.amount) }
                     else if item.amount > 0 { inc[m - 1] += item.amount }
                 }
@@ -207,12 +253,25 @@ final class StatisticsViewModel: ObservableObject {
             guard d.month == month, d.day >= 1, d.day <= dayCount else { continue }
             let idx = d.day - 1
             for item in d.items {
+                if shouldExclude(item) { continue }
                 if item.amount < 0 { exp[idx] += abs(item.amount) }
                 else if item.amount > 0 { inc[idx] += item.amount }
             }
         }
         dailyExpense = exp
         dailyIncome = inc
+    }
+
+    /// 本地账户/分类过滤（用于日报表/柱状图的逐项过滤）
+    private func shouldExclude(_ item: StatisticResponseItem) -> Bool {
+        if !filterAccountIds.isEmpty, let accountId = item.accountId, filterAccountIds.contains(accountId) {
+            return true
+        }
+        let key = item.categoryId ?? "0"
+        if !filterCategoryIds.isEmpty, filterCategoryIds.contains(key) {
+            return true
+        }
+        return false
     }
 
     /// 切换周期时重置月份基准：进入年模式保留年份，回到月模式保留当前月
@@ -225,6 +284,35 @@ final class StatisticsViewModel: ObservableObject {
         year = c.year!
         month = c.month!
         Task { await load() }
+    }
+
+    /// 清空筛选
+    func clearFilter() {
+        filterAccountIds = []
+        filterCategoryIds = []
+        filterTagIds = []
+        filterKeyword = ""
+        Task { await load() }
+    }
+
+    /// 应用筛选后重载
+    func applyFilter() {
+        Task { await load() }
+    }
+
+    /// 供筛选面板使用的拍平分类列表
+    var categoriesForFilter: [TransactionCategory] {
+        categories.flatMap { c -> [TransactionCategory] in
+            var arr = [c]
+            if let subs = c.subCategories { arr.append(contentsOf: subs) }
+            return arr
+        }
+    }
+
+    /// 按需加载标签列表（筛选面板打开时调用）
+    func loadTagListIfNeeded() async {
+        guard tagList.isEmpty else { return }
+        tagList = (try? await APIClient.shared.request("/api/v1/transaction/tags/list.json")) ?? []
     }
 }
 
@@ -253,11 +341,18 @@ struct StatisticDailyItem: Codable {
 
 struct StatisticsView: View {
     @StateObject private var vm = StatisticsViewModel()
+    @EnvironmentObject private var router: TabRouter
     @State private var mode: Mode = .expense
     /// 日收支图维度（支出/收入/全部）——独立于分类饼图维度，对齐 Web `dailyChartMode`
     @State private var dailyMode: DailyMode = .expense
     /// 日收支图类型（柱状/折线）——对齐 Web `dailyChartType`
     @State private var dailyChartType: ChartType = .bar
+    /// 更多菜单（筛选 / 设置）
+    @State private var showMoreSheet = false
+    /// 筛选面板
+    @State private var showFilterSheet = false
+    /// 统计设置页
+    @State private var showSettings = false
 
     enum Mode: String, CaseIterable {
         case expense = "支出"
@@ -302,6 +397,7 @@ struct StatisticsView: View {
                         dailyChartCard
                     }
                     dailyReportCard
+                    viewDetailsLink
                     if let error = vm.error {
                         Text(error).font(.footnote).foregroundColor(.red)
                     }
@@ -321,8 +417,38 @@ struct StatisticsView: View {
                         Button { vm.shiftPeriod(by: 1) } label: { Image(systemName: "chevron.right") }
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showMoreSheet = true } label: {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .foregroundColor(vm.hasFilter ? Theme.brand : .primary)
+                    }
+                }
             }
             .refreshable { await vm.load() }
+            .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
+                Button("筛选账户") { showFilterSheet = true }
+                Button("筛选分类") { showFilterSheet = true }
+                Button("筛选标签") { showFilterSheet = true }
+                Button("筛选描述") { showFilterSheet = true }
+                if vm.hasFilter {
+                    Button("清除筛选", role: .destructive) { vm.clearFilter() }
+                }
+                Button("统计设置") { showMoreSheet = false; showSettings = true }
+                Button("取消", role: .cancel) {}
+            }
+            .sheet(isPresented: $showFilterSheet) {
+                StatisticsFilterSheet(vm: vm)
+            }
+            .sheet(isPresented: $showSettings) {
+                NavigationView {
+                    StatisticsSettingsView()
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("完成") { showSettings = false }
+                            }
+                        }
+                }
+            }
         }
         .task { await vm.load() }
     }
@@ -581,6 +707,139 @@ struct StatisticsView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .frame(maxWidth: .infinity, alignment: alignment)
+    }
+
+    // MARK: - 查看账单明细（跨 Tab 跳账单列表，对齐 Web `viewTransactionDetails`）
+
+    /// 底部「查看账单明细」链接：把当前统计的日期区间 + 筛选条件带到账单列表。
+    private var viewDetailsLink: some View {
+        Button {
+            // periodEnd 是开区间（下月 1 日 / 次年 1 日 00:00），
+            // 账单列表的筛选是闭区间（当日 23:59:59），需回退 1 秒避免多算一天
+            let closedEnd = vm.periodEnd.addingTimeInterval(-1)
+            let req = TransactionFilterRequest(
+                type: 0,
+                categoryIds: Array(vm.filterCategoryIds),
+                accountIds: Array(vm.filterAccountIds),
+                startDate: vm.periodStart,
+                endDate: closedEnd,
+                keyword: vm.filterKeyword
+            )
+            router.routeToTransactionList(req)
+        } label: {
+            HStack {
+                Spacer()
+                Text("查看账单明细")
+                    .font(.footnote)
+                    .foregroundColor(Theme.brand)
+                Spacer()
+            }
+            .padding(.vertical, 6)
+        }
+    }
+}
+
+// MARK: - 统计筛选面板
+
+/// 多条件筛选面板：账户 / 分类 / 标签 / 描述（对齐 Web 统计页「更多」菜单）。
+struct StatisticsFilterSheet: View {
+    @ObservedObject var vm: StatisticsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var accountIds: Set<String> = []
+    @State private var categoryIds: Set<String> = []
+    @State private var tagIds: Set<String> = []
+    @State private var keyword = ""
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("账户")) {
+                    ForEach(vm.accounts, id: \.id) { acc in
+                        checkRow(acc.name, isOn: accountIds.contains(acc.id)) {
+                            toggle(&accountIds, acc.id)
+                        }
+                    }
+                }
+
+                Section(header: Text("分类")) {
+                    ForEach(flatCategories, id: \.id) { cat in
+                        checkRow(cat.name, isOn: categoryIds.contains(cat.id)) {
+                            toggle(&categoryIds, cat.id)
+                        }
+                    }
+                }
+
+                Section(header: Text("标签")) {
+                    ForEach(vm.tagList, id: \.id) { tag in
+                        checkRow(tag.name, isOn: tagIds.contains(tag.id)) {
+                            toggle(&tagIds, tag.id)
+                        }
+                    }
+                }
+
+                Section(header: Text("描述")) {
+                    TextField("交易描述关键字", text: $keyword)
+                }
+
+                Section {
+                    Button("重置") {
+                        accountIds = []
+                        categoryIds = []
+                        tagIds = []
+                        keyword = ""
+                    }
+                    .foregroundColor(Theme.expense)
+                }
+            }
+            .navigationTitle("筛选")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("应用") {
+                        vm.filterAccountIds = accountIds
+                        vm.filterCategoryIds = categoryIds
+                        vm.filterTagIds = tagIds
+                        vm.filterKeyword = keyword
+                        vm.applyFilter()
+                        dismiss()
+                    }
+                    .font(.body.weight(.semibold))
+                }
+            }
+            .onAppear {
+                accountIds = vm.filterAccountIds
+                categoryIds = vm.filterCategoryIds
+                tagIds = vm.filterTagIds
+                keyword = vm.filterKeyword
+            }
+            .task { await vm.loadTagListIfNeeded() }
+        }
+    }
+
+    /// 拍平一级 + 子分类（直接复用 VM 的拍平结果）
+    private var flatCategories: [TransactionCategory] {
+        vm.categoriesForFilter
+    }
+
+    private func checkRow(_ title: String, isOn: Bool, tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            HStack {
+                Text(title).foregroundColor(.primary)
+                Spacer()
+                if isOn {
+                    Image(systemName: "checkmark").foregroundColor(Theme.brand)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggle(_ arr: inout Set<String>, _ id: String) {
+        if arr.contains(id) { arr.remove(id) } else { arr.insert(id) }
     }
 }
 

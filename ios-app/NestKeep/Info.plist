@@ -80,5 +80,8 @@
     <!-- 应用锁：使用 Face ID 解锁时需要声明用途，否则系统会直接拒绝评估 -->
     <key>NSFaceIDUsageDescription</key>
     <string>用于快速解锁「巢记」，解锁后即可查看你的账目数据。</string>
+    <!-- 交易地理位置：记账时可选记录当前位置，需声明用途 -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>用于在记账时记录交易发生的位置。</string>
 </dict>
 </plist>

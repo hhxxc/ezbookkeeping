@@ -20,7 +20,7 @@ enum APIError: LocalizedError {
         case .invalidResponse:
             return "服务器响应异常"
         case .twoFactorRequired:
-            return "该账号开启了两步验证，当前版本暂不支持，请在网页端操作"
+            return "该账号开启了两步验证，请继续完成验证"
         case .invalidURL:
             return "请求地址无效"
         }

@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import UIKit
 import PhotosUI
+import CoreLocation
 
 /// 编辑模式
 enum TransactionEditMode {
@@ -26,6 +27,10 @@ final class TransactionEditViewModel: ObservableObject {
     @Published var categoryId = ""
     @Published var date = Date()
     @Published var comment = ""
+    /// 交易时区（影响后端 utcOffset；默认当前设备时区）
+    @Published var timeZoneIdentifier = TimeZone.current.identifier
+    /// 地理位置（经度/纬度）
+    @Published var geoLocation: TransactionGeoLocation?
     @Published var accounts: [Account] = []
     @Published var categories: [TransactionCategory] = []
     @Published var isLoading = false
@@ -88,6 +93,13 @@ final class TransactionEditViewModel: ObservableObject {
                 date = tx.date
                 comment = tx.comment ?? ""
                 selectedTagIds = Set(tx.tagIds ?? [])
+                geoLocation = tx.geoLocation
+                // 由 utcOffset 反推时区（找不到精确匹配就回退设备时区）
+                if let offset = tx.utcOffset {
+                    timeZoneIdentifier = TimeZone.knownTimeZoneIdentifiers.first {
+                        TimeZone(identifier: $0)?.secondsFromGMT(for: tx.date) == offset * 60
+                    } ?? TimeZone.current.identifier
+                }
                 if tx.transactionType == .transfer {
                     destinationAccountId = tx.destinationAccountId ?? ""
                     if let d = tx.destinationAmount { amountText = AmountFormat.centsToText(d) }
@@ -153,7 +165,7 @@ final class TransactionEditViewModel: ObservableObject {
         }
 
         let cents = Self.toCents(amount)
-        let utcOffset = TimeZone.current.secondsFromGMT() / 60
+        let utcOffset = (TimeZone(identifier: timeZoneIdentifier) ?? .current).secondsFromGMT(for: date) / 60
         isLoading = true
         error = nil
 
@@ -175,7 +187,7 @@ final class TransactionEditViewModel: ObservableObject {
                     tagIds: tagIdList,
                     pictureIds: pictureIdList,
                     comment: comment,
-                    geoLocation: nil
+                    geoLocation: geoLocation
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
                     "/api/v1/transactions/modify.json", method: .POST, body: req
@@ -194,7 +206,7 @@ final class TransactionEditViewModel: ObservableObject {
                     comment: comment.isEmpty ? nil : comment,
                     tagIds: tagIdList,
                     pictureIds: pictureIdList,
-                    geoLocation: nil,
+                    geoLocation: geoLocation,
                     clientSessionId: clientSessionId
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
@@ -279,6 +291,19 @@ struct TransactionEditView: View {
                         .labelsHidden()
                 }
 
+                Section(header: Text("时区")) {
+                    Picker("时区", selection: $vm.timeZoneIdentifier) {
+                        ForEach(Self.commonTimeZones, id: \.self) { tz in
+                            Text(Self.timeZoneDisplay(tz)).tag(tz)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+
+                Section(header: Text("地理位置")) {
+                    GeoLocationRow(geoLocation: $vm.geoLocation)
+                }
+
                 if !vm.tags.isEmpty {
                     Section(header: Text("标签")) {
                         TagSelector(tags: vm.tags, groups: vm.tagGroups, selected: $vm.selectedTagIds)
@@ -329,6 +354,149 @@ struct TransactionEditView: View {
             if vm.type == .expense { return cat.type == TransactionCategoryType.expense.rawValue }
             return true
         }
+    }
+
+    /// 常用时区列表（东八区排最前，其余按 offset 升序）
+    private static let commonTimeZones: [String] = {
+        var ids = TimeZone.knownTimeZoneIdentifiers.sorted {
+            let a = TimeZone(identifier: $0)?.secondsFromGMT() ?? 0
+            let b = TimeZone(identifier: $1)?.secondsFromGMT() ?? 0
+            return a < b
+        }
+        // 把「上海」提到最前（国内用户默认）
+        let asiaShanghai = "Asia/Shanghai"
+        if let idx = ids.firstIndex(of: asiaShanghai) {
+            ids.remove(at: idx)
+            ids.insert(asiaShanghai, at: 0)
+        }
+        return ids
+    }()
+
+    /// 时区显示名（中文名 + UTC 偏移）
+    private static func timeZoneDisplay(_ id: String) -> String {
+        guard let tz = TimeZone(identifier: id) else { return id }
+        let offset = tz.secondsFromGMT() / 60
+        let sign = offset >= 0 ? "+" : ""
+        let hours = offset / 60
+        let mins = abs(offset) % 60
+        let offsetStr = mins == 0 ? "\(sign)\(hours)" : "\(sign)\(hours):\(String(format: "%02d", mins))"
+        let name = tz.localizedName(for: .standard, locale: Locale(identifier: "zh_CN")) ?? id
+        return "\(name) (UTC\(offsetStr))"
+    }
+}
+
+// MARK: - 地理位置（CoreLocation 获取）
+
+/// 地理位置行：展示当前经纬度 + 获取/清除按钮。
+struct GeoLocationRow: View {
+    @Binding var geoLocation: TransactionGeoLocation?
+    @State private var isLocating = false
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let geo = geoLocation {
+                Text("\(geo.latitude, specifier: "%.6f"), \(geo.longitude, specifier: "%.6f")")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            } else if let error = error {
+                Text(error).font(.footnote).foregroundColor(.red)
+            }
+
+            HStack(spacing: 12) {
+                Button {
+                    requestLocation()
+                } label: {
+                    HStack(spacing: 5) {
+                        if isLocating {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "location")
+                        }
+                        Text(isLocating ? "定位中…" : "获取当前位置")
+                    }
+                    .font(.subheadline)
+                }
+                .disabled(isLocating)
+
+                if geoLocation != nil {
+                    Button {
+                        geoLocation = nil
+                    } label: {
+                        Text("清除").font(.subheadline).foregroundColor(Theme.expense)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func requestLocation() {
+        isLocating = true
+        error = nil
+        LocationHelper.requestCurrentLocation { result in
+            DispatchQueue.main.async {
+                isLocating = false
+                switch result {
+                case .success(let coord):
+                    geoLocation = TransactionGeoLocation(latitude: coord.latitude, longitude: coord.longitude)
+                case .failure(let message):
+                    error = message
+                }
+            }
+        }
+    }
+}
+
+/// CoreLocation 单次定位封装（iOS 15 无 async CLLocationManager，用 delegate 回调）
+final class LocationHelper: NSObject, CLLocationManagerDelegate {
+    static let shared = LocationHelper()
+
+    private var manager: CLLocationManager?
+    private var completion: ((Result<CLLocationCoordinate2D, String>) -> Void)?
+
+    func requestCurrentLocation(_ completion: @escaping (Result<CLLocationCoordinate2D, String>) -> Void) {
+        self.completion = completion
+        let manager = CLLocationManager()
+        self.manager = manager
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+
+        let status = manager.authorizationStatus
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.requestLocation()
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        default:
+            self.completion?(.failure("未授权定位，请在系统设置中开启"))
+            self.completion = nil
+            self.manager = nil
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        if status == .authorizedWhenInUse || status == .authorizedAlways {
+            manager.requestLocation()
+        } else if status == .denied || status == .restricted {
+            completion?(.failure("未授权定位，请在系统设置中开启"))
+            completion = nil
+            self.manager = nil
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        completion?(.success(loc.coordinate))
+        completion = nil
+        self.manager = nil
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        completion?(.failure("定位失败：\(error.localizedDescription)"))
+        completion = nil
+        self.manager = nil
     }
 }
 

@@ -60,6 +60,7 @@ SWIFT_FILES = [
     "Views/DataManagementView.swift",
     "Views/AboutView.swift",
     "Views/StatisticsView.swift",
+    "Views/StatisticsSettingsView.swift",
     "Views/SettingsView.swift",
     "Views/SettingsPagesView.swift",
     "Views/AIReceiptView.swift",

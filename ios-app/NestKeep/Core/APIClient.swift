@@ -31,7 +31,8 @@ struct APIClient {
         _ path: String,
         method: HTTPMethod = .GET,
         query: [URLQueryItem] = [],
-        body: Encodable? = nil
+        body: Encodable? = nil,
+        overrideToken: String? = nil
     ) async throws -> T {
         guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
             throw APIError.invalidURL
@@ -42,7 +43,8 @@ struct APIClient {
         var req = URLRequest(url: url)
         req.httpMethod = method.rawValue
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token = AuthManager.shared.token {
+        let token = overrideToken ?? AuthManager.shared.token
+        if let token = token {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
