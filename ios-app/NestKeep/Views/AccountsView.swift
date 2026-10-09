@@ -161,64 +161,68 @@ struct AccountsView: View {
             Group {
                 if vm.isLoading && vm.accounts.isEmpty {
                     ProgressView()
+                } else if isSorting {
+                    // 排序模式：独立 List + editMode 恒 active。
+                    // 勿与 .refreshable 同挂（iOS 15 下 List editMode+refreshable 组合点开即闪退），
+                    // 也不与普通列表共用（constant editMode 在 inactive 时也会引发异常）
+                    List {
+                        Section {
+                            ForEach(sortItems, id: \.id) { account in
+                                HStack(spacing: 12) {
+                                    Image(systemName: AccountIconCatalog.symbol(account.icon))
+                                        .foregroundColor(.white)
+                                        .font(.system(size: 15))
+                                        .frame(width: 30, height: 30)
+                                        .background(Circle().fill(Color(hex: account.color ?? "26A69A")))
+                                    Text(account.name)
+                                    Spacer()
+                                }
+                            }
+                            .onMove { from, to in sortItems.move(fromOffsets: from, toOffset: to) }
+                        } footer: {
+                            Text("拖动调整账户顺序，完成后点「完成」。")
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                    .environment(\.editMode, .constant(.active))
                 } else {
                     List {
-                        if isSorting {
-                            Section {
-                                ForEach(sortItems, id: \.id) { account in
-                                    HStack(spacing: 12) {
-                                        Image(systemName: AccountIconCatalog.symbol(account.icon))
-                                            .foregroundColor(.white)
-                                            .font(.system(size: 15))
-                                            .frame(width: 30, height: 30)
-                                            .background(Circle().fill(Color(hex: account.color ?? "26A69A")))
-                                        Text(account.name)
-                                        Spacer()
-                                    }
-                                }
-                                .onMove { from, to in sortItems.move(fromOffsets: from, toOffset: to) }
-                            } footer: {
-                                Text("拖动调整账户顺序，完成后点「完成」。")
-                            }
-                        } else {
-                            Section {
-                                netAssetsCard
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                    .listRowBackground(Color.clear)
-                            }
+                        Section {
+                            netAssetsCard
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .listRowBackground(Color.clear)
+                        }
 
-                            ForEach(vm.groupedAccounts, id: \.category) { group in
-                                Section(header: Text(group.name)) {
-                                    ForEach(group.accounts, id: \.id) { account in
-                                        ForEach(rows(for: account).indices, id: \.self) { idx in
-                                            let pair = rows(for: account)[idx]
-                                            accountRow(pair.0, isSub: pair.1)
-                                        }
+                        ForEach(vm.groupedAccounts, id: \.category) { group in
+                            Section(header: Text(group.name)) {
+                                ForEach(group.accounts, id: \.id) { account in
+                                    ForEach(rows(for: account).indices, id: \.self) { idx in
+                                        let pair = rows(for: account)[idx]
+                                        accountRow(pair.0, isSub: pair.1)
                                     }
                                 }
                             }
+                        }
 
-                            if vm.groupedAccounts.isEmpty && !vm.isLoading {
-                                Section {
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "creditcard").font(.system(size: 34)).foregroundColor(.secondary)
-                                        Text("还没有账户").font(.subheadline).foregroundColor(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 24)
-                                    .listRowBackground(Color.clear)
+                        if vm.groupedAccounts.isEmpty && !vm.isLoading {
+                            Section {
+                                VStack(spacing: 8) {
+                                    Image(systemName: "creditcard").font(.system(size: 34)).foregroundColor(.secondary)
+                                    Text("还没有账户").font(.subheadline).foregroundColor(.secondary)
                                 }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 24)
+                                .listRowBackground(Color.clear)
                             }
                         }
                     }
                     .listStyle(.insetGrouped)
-                    .environment(\.editMode, .constant(isSorting ? EditMode.active : EditMode.inactive))
+                    .refreshable { await vm.load() }
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
             }
             // 自绘顶栏：系统导航栏在 Tab 根页布局下会顶进状态栏（统计页同款修复）
             .safeAreaInset(edge: .top, spacing: 0) { topBar }
-            .refreshable { await vm.load() }
             .sheet(isPresented: $showAdd) {
                 AccountEditView(account: nil)
             }
@@ -326,70 +330,69 @@ struct AccountsView: View {
         Task { await vm.saveOrder(ordered) }
     }
 
-    // MARK: - 净资产卡（对齐 Web `accounts/ListPage.vue` 的 `.account-overview-card`）
-    /// Web 结构：`净资产` 小标签(.88em 半透明) → `net-assets` 2em/700 大金额 + 眼睛开关
-    /// → 细分隔线 → `总资产 | 总负债`(.85em，绿/红着色)。
-    /// 卡片为**白底 20px 圆角**（深色 #1c1c1e），**不使用主题色渐变**。
+    // MARK: - 净资产卡（样式对齐首页汇总卡：16 圆角 / 同边距 / 同字阶 / 同背景图蒙层）
     private var netAssetsCard: some View {
         let bgURL = HomeBackground.imageURL
         let hasBG = bgURL != nil
         let primaryText: Color = hasBG ? .white : HomePalette.ink
-        let labelColor: Color = hasBG ? Color.white.opacity(0.82) : HomePalette.secondary
-        let assetColor: Color = hasBG ? Color(hex: "#7FF0C0") : Color(hex: "#07C160")
-        let liabilityColor: Color = hasBG ? Color(hex: "#FFB4AB") : Color(hex: "#DC2626")
+        let labelColor: Color = hasBG ? Color.white.opacity(0.9) : HomePalette.secondary
+        let assetColor: Color = hasBG ? .white : HomePalette.income
+        let liabilityColor: Color = hasBG ? .white : HomePalette.expense
 
         return VStack(alignment: .leading, spacing: 0) {
             Text("净资产")
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundColor(labelColor)
                 .modifier(HomeShadow(active: hasBG))
 
             // 大金额 + 眼睛开关
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(masked(AmountFormat.format(vm.netAssetsCents)))
-                    .font(.system(size: 32, weight: .bold))
+                    .font(.system(size: 30, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(primaryText)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.55)
                     .lineLimit(1)
                     .modifier(HomeShadow(active: hasBG))
                 Button {
                     withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
                 } label: {
                     Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
-                        .font(.system(size: 17))
+                        .font(.system(size: 16))
                         .foregroundColor(labelColor)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.top, 4)
+            .padding(.top, 3)
+            .padding(.bottom, 12)
 
             Rectangle()
                 .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
                 .frame(height: 1)
-                .padding(.vertical, 10)
+                .padding(.bottom, 12)
 
-            HStack(spacing: 8) {
-                Text("总资产").font(.system(size: 14)).foregroundColor(labelColor)
+            HStack(spacing: 6) {
+                Text("总资产").font(.system(size: 13)).foregroundColor(labelColor)
                     .modifier(HomeShadow(active: hasBG))
                 Text(masked(AmountFormat.format(vm.totalAssetsCents)))
-                    .font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                    .font(.system(size: 15, weight: .semibold)).monospacedDigit()
                     .foregroundColor(assetColor).lineLimit(1).minimumScaleFactor(0.6)
                     .modifier(HomeShadow(active: hasBG))
-                Text("|").font(.system(size: 14))
-                    .foregroundColor(hasBG ? Color.white.opacity(0.4) : Color.black.opacity(0.15))
-                Text("总负债").font(.system(size: 14)).foregroundColor(labelColor)
+                Rectangle()
+                    .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
+                    .frame(width: 1, height: 12)
+                Text("总负债").font(.system(size: 13)).foregroundColor(labelColor)
                     .modifier(HomeShadow(active: hasBG))
                 Text(masked(AmountFormat.format(vm.totalLiabilitiesCents)))
-                    .font(.system(size: 14, weight: .semibold)).monospacedDigit()
+                    .font(.system(size: 15, weight: .semibold)).monospacedDigit()
                     .foregroundColor(liabilityColor).lineLimit(1).minimumScaleFactor(0.6)
                     .modifier(HomeShadow(active: hasBG))
                 Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 20)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
@@ -400,11 +403,11 @@ struct AccountsView: View {
                     } placeholder: {
                         Color.clear
                     }
-                    Color.black.opacity(0.32)
+                    Color.black.opacity(0.28)
                 }
             }
         )
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
     }
 
