@@ -382,7 +382,8 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         self.task = task
 
         _ = try await withTaskCancellationHandler(operation: {
-            try await withCheckedThrowingContinuation { cont in
+            // 显式标注续体类型：body 内不走 resume(returning:)，泛型 T 推不出来
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<URL, Error>) in
                 if Task.isCancelled {
                     cont.resume(throwing: CancellationError())
                     return
@@ -511,7 +512,15 @@ final class UpdateStore: ObservableObject {
 
         let candidates = UpdateChecker.downloadCandidates(ipaURL: ipaURL, version: latest)
         let destination = IPAFileDownloader.destinationURL(version: latest)
-        let downloader = IPAFileDownloader()
+        let downloader = IPAFileDownloader { received, total in
+            // 进度回调来自 URLSession 委托队列，跳回主线程刷新状态
+            Task { @MainActor [weak self] in
+                guard let self, !Task.isCancelled else { return }
+                if case .downloading = self.downloadState {
+                    self.downloadState = .downloading(received: received, total: total)
+                }
+            }
+        }
         self.downloader = downloader
 
         downloadTaskRef = Task { [weak self] in
@@ -519,15 +528,7 @@ final class UpdateStore: ObservableObject {
             for candidate in candidates {
                 if Task.isCancelled { return }
                 do {
-                    let fileURL = try await downloader.download(from: candidate, to: destination) { received, total in
-                        // 进度回调来自 URLSession 委托队列，跳回主线程刷新状态
-                        Task { @MainActor [weak self] in
-                            guard let self, !Task.isCancelled else { return }
-                            if case .downloading = self.downloadState {
-                                self.downloadState = .downloading(received: received, total: total)
-                            }
-                        }
-                    }
+                    let fileURL = try await downloader.download(from: candidate, to: destination)
                     guard !Task.isCancelled else { return }
                     self?.downloadState = .downloaded(fileURL: fileURL)
                     return
