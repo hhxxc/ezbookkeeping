@@ -487,11 +487,11 @@ extension ReceiptRecognizer.Recognized {
             hideAmount: nil,
             tagIds: tagIds,
             comment: comment,
-            editable: nil,
-            geoLocation: nil,
             installmentPlanId: nil,
             installmentIndex: nil,
-            installmentCount: nil
+            installmentCount: nil,
+            editable: nil,
+            geoLocation: nil
         )
     }
 }
