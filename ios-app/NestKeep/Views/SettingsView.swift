@@ -215,10 +215,19 @@ struct UpdateResultSheet: View {
     @ObservedObject var updateStore: UpdateStore
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
-    /// 是否已展开分步引导（点「一键安装」后自动展开）
+    /// 是否已展开分步引导（点「直接唤起」后自动展开）
     @State private var showGuide = false
+    /// 交给系统面板的文档控制器（必须强引用，否则面板秒关）
+    @State private var docController: UIDocumentInteractionController?
+    @State private var docHost = DocControllerHost()
+    @State private var showNoTrollStoreAlert = false
 
-    /// 跳转 TrollStore 安装。
+    /// 换源后的最优安装直链（复制/唤起都用它，避免把 github.com 原链交给用户）。
+    private func bestInstallURL(_ ipaURL: URL, version: String) -> URL {
+        UpdateChecker.downloadCandidates(ipaURL: ipaURL, version: version).first ?? ipaURL
+    }
+
+    /// 跳转 TrollStore 安装（**备用路径**，主路径是「App 内下载 → 系统面板」）。
     ///
     /// 关于 `apple-magnifier` 的两个硬事实（决定了这里的设计）：
     /// 1. TrollStore 1.3+ **刻意用系统「放大器」的 scheme 替代自己的 scheme**
@@ -232,21 +241,58 @@ struct UpdateResultSheet: View {
     ///
     /// 因此这里不再依赖 `opened` 做判断：无论跳转结果如何，都**同步给出兜底引导**
     /// （复制直链 + 分步说明），让用户无论如何都能完成安装。
-    private func installToTrollStore(ipaURL: URL) {
-        // 先复制直链：即使跳转失败用户也能直接去 TrollStore 粘贴。
-        UIPasteboard.general.string = ipaURL.absoluteString
+    private func installToTrollStore(ipaURL: URL, version: String) {
+        // 先复制直链（换源后的最优地址）：即使跳转失败用户也能直接去 TrollStore 粘贴。
+        let best = bestInstallURL(ipaURL, version: version)
+        UIPasteboard.general.string = best.absoluteString
         copied = true
         showGuide = true
 
         var comp = URLComponents()
         comp.scheme = "apple-magnifier"
         comp.host = "install"
-        comp.queryItems = [URLQueryItem(name: "url", value: ipaURL.absoluteString)]
+        comp.queryItems = [URLQueryItem(name: "url", value: best.absoluteString)]
         guard let trollURL = comp.url else { return }
 
         // 仍尝试一次跳转（成功的话 TrollStore 会直接弹安装确认，最省事）。
         // 不依赖回调结果做任何判断——系统层面无法区分放大器与 TrollStore。
         UIApplication.shared.open(trollURL, options: [:], completionHandler: nil)
+    }
+
+    /// 把已下载的 IPA 交给系统「打开方式」面板，由用户选择 TrollStore 完成安装。
+    ///
+    /// TrollStore 注册了 .ipa/.tipa 文件类型（文件 App 里「分享 → TrollStore」走的
+    /// 就是这条路），**不依赖 apple-magnifier scheme 的接管状态**，在哪台装了
+    /// TrollStore 的设备上都能用。
+    private func openInstallPanel(_ fileURL: URL) {
+        let dic = UIDocumentInteractionController(url: fileURL)
+        dic.delegate = docHost
+        docController = dic
+
+        guard let topVC = topPresentedViewController(), let view = topVC.view else {
+            showNoTrollStoreAlert = true
+            return
+        }
+        // 先试「打开方式」面板（只列声明了 .ipa 类型的 App，即 TrollStore）；
+        // 无可用 App 时再试完整分享面板，仍不行才报错。
+        if dic.presentOpenInMenu(from: view.bounds, in: view, animated: true) { return }
+        if dic.presentOptionsMenu(from: view.bounds, in: view, animated: true) { return }
+        docController = nil
+        showNoTrollStoreAlert = true
+    }
+
+    /// 当前最上层 VC（更新弹层本身也是被 present 的，必须锚到它上面）。
+    private func topPresentedViewController() -> UIViewController? {
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?
+            .rootViewController
+        var top = root
+        while let presented = top?.presentedViewController {
+            top = presented
+        }
+        return top
     }
 
     /// 安装引导的一行：序号圆点 + 说明
@@ -261,6 +307,138 @@ struct UpdateResultSheet: View {
                 .font(.footnote)
                 .foregroundColor(.primary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - 安装控件（App 内下载 → 系统面板交给 TrollStore）
+
+    /// 主按钮：品牌色大按钮
+    private func primaryButton(icon: String, title: String,
+                               action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                Text(title).bold()
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Theme.brand)
+            .foregroundColor(.white)
+            .cornerRadius(12)
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private func byteText(_ n: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: n, countStyle: .file)
+    }
+
+    /// 按 IPA 下载状态渲染主路径控件（下载中 / 完成 / 失败各一态）。
+    @ViewBuilder
+    private func ipaInstallControls(latest: String, ipaURL: URL) -> some View {
+        switch updateStore.downloadState {
+        case .idle:
+            primaryButton(icon: "arrow.down.app.fill", title: "下载并安装") {
+                updateStore.startDownload(latest: latest, ipaURL: ipaURL)
+            }
+            Text("App 内下载（自动优先走你的 NAS，不连 GitHub），完成后弹出系统面板交给 TrollStore 安装。")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            directJumpControls(latest: latest, ipaURL: ipaURL)
+
+        case .downloading(let received, let total):
+            if let total, total > 0 {
+                ProgressView(value: Double(received), total: Double(total))
+                    .padding(.horizontal, 48)
+            } else {
+                ProgressView()
+            }
+            Text("正在下载… \(byteText(received))\(total.map { " / \(byteText($0))" } ?? "")")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+            Button("取消下载") { updateStore.cancelDownload() }
+                .font(.footnote)
+                .foregroundColor(.secondary)
+
+        case .downloaded(let fileURL):
+            primaryButton(icon: "arrow.up.forward.app.fill", title: "打开安装面板") {
+                openInstallPanel(fileURL)
+            }
+            Text("在弹出的面板里选择 TrollStore，确认安装即可（同变体会覆盖旧版并保留数据）。")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button {
+                updateStore.cancelDownload()
+                updateStore.startDownload(latest: latest, ipaURL: ipaURL)
+            } label: {
+                Text("重新下载").font(.footnote).foregroundColor(Theme.brand)
+            }
+
+        case .failed(let message):
+            primaryButton(icon: "arrow.clockwise", title: "重试下载") {
+                updateStore.startDownload(latest: latest, ipaURL: ipaURL)
+            }
+            Text("下载失败：\(message)")
+                .font(.caption2)
+                .foregroundColor(.orange)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 32)
+            directJumpControls(latest: latest, ipaURL: ipaURL)
+        }
+    }
+
+    /// 备用路径：不走 App 内下载，直接用 apple-magnifier scheme 唤起 TrollStore。
+    /// 在「放大器接管」正常的设备上这是一步直达；接管失败只会打开放大器，
+    /// 所以同时自动复制换源后的直链并给出分步引导。
+    @ViewBuilder
+    private func directJumpControls(latest: String, ipaURL: URL) -> some View {
+        HStack(spacing: 24) {
+            Button {
+                installToTrollStore(ipaURL: ipaURL, version: latest)
+            } label: {
+                Text("直接唤起 TrollStore")
+                    .font(.footnote)
+                    .foregroundColor(Theme.brand)
+                    .underline()
+            }
+            Button {
+                UIPasteboard.general.string = bestInstallURL(ipaURL, version: latest).absoluteString
+                copied = true
+                showGuide = true
+            } label: {
+                Text(copied ? "已复制直链" : "复制直链")
+                    .font(.footnote)
+                    .foregroundColor(Theme.brand)
+            }
+        }
+
+        if showGuide || copied {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("安装链接已复制（已自动换成最快的源）。请按下面步骤完成安装：")
+                    .font(.footnote)
+                    .foregroundColor(Theme.brand)
+
+                guideStep(1, "打开 TrollStore")
+                guideStep(2, "点右上角「+」")
+                guideStep(3, "选「从 URL 安装」，粘贴链接")
+                guideStep(4, "确认安装（同变体才会覆盖旧版）")
+
+                Text("提示：点「直接唤起」后如果跳到了「放大器」，说明这台设备上 TrollStore 没接管放大器 scheme，用上面的方式粘贴安装即可。")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Theme.brand.opacity(0.08))
+            .cornerRadius(10)
+            .padding(.horizontal, 32)
         }
     }
 
@@ -288,70 +466,10 @@ struct UpdateResultSheet: View {
                         Text("发现新版本 \(latest)").font(.title3.bold())
                         Text("当前版本 \(current)").foregroundColor(.secondary)
 
-                        // 主按钮：尝试唤起 TrollStore 安装（走 apple-magnifier scheme）
+                        // 主路径：App 内下载（自动换源）→ 系统面板交给 TrollStore，
+                        // 不再依赖 apple-magnifier scheme 的接管状态。
                         if let ipaURL = ipaURL {
-                            Button {
-                                installToTrollStore(ipaURL: ipaURL)
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.down.app.fill")
-                                    Text("一键安装到 TrollStore").bold()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Theme.brand)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 32)
-
-                            // 安装引导：无论跳转是否成功都给出来（方案已复制好）
-                            if showGuide || copied {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("安装链接已复制。请按下面步骤完成安装：")
-                                        .font(.footnote)
-                                        .foregroundColor(Theme.brand)
-
-                                    guideStep(1, "打开 TrollStore")
-                                    guideStep(2, "点右上角「+」")
-                                    guideStep(3, "选「从 URL 安装」，粘贴链接")
-                                    guideStep(4, "确认安装（同变体才会覆盖旧版）")
-
-                                    Text("提示：点按钮后如果跳到了「放大器」或什么都没发生，属正常现象——TrollStore 没有可被直接唤起的入口，用上面的方式粘贴安装即可。")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(Theme.brand.opacity(0.08))
-                                .cornerRadius(10)
-                                .padding(.horizontal, 32)
-                            } else {
-                                Text("会尝试跳转 TrollStore 并弹出安装确认，同时自动复制安装链接。\n下载走你自己的服务器中转，不需要能访问 GitHub。")
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 32)
-                            }
-
-                            // 次按钮：复制直链（一键安装不可用时的手动兜底）
-                            Button {
-                                UIPasteboard.general.string = ipaURL.absoluteString
-                                copied = true
-                                showGuide = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
-                                    Text(copied ? "已复制，去 TrollStore 粘贴安装" : "复制 IPA 直链").bold()
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Theme.brand.opacity(0.12))
-                                .foregroundColor(Theme.brand)
-                                .cornerRadius(12)
-                            }
-                            .padding(.horizontal, 32)
+                            ipaInstallControls(latest: latest, ipaURL: ipaURL)
                         }
 
                         // 次按钮：打开发布页
@@ -397,6 +515,21 @@ struct UpdateResultSheet: View {
                     showGuide = false
                 }
             }
+            .onChange(of: updateStore.downloadState) { state in
+                // 下载完成自动弹出「打开方式」面板，少一次手动点按
+                if case .downloaded(let fileURL) = state {
+                    openInstallPanel(fileURL)
+                }
+            }
+            .alert("未找到 TrollStore", isPresented: $showNoTrollStoreAlert) {
+                Button("好", role: .cancel) {}
+            } message: {
+                Text("面板里没有出现 TrollStore。请确认设备已安装 TrollStore；或用「复制直链」到 TrollStore 里从 URL 安装。")
+            }
         }
     }
 }
+
+/// UIDocumentInteractionController 的代理宿主（SwiftUI View 是 struct 当不了 NSObject）。
+/// 面板的生命周期靠 @State 强引用控制器本身维持，这里无需实现任何回调。
+private final class DocControllerHost: NSObject, UIDocumentInteractionControllerDelegate {}

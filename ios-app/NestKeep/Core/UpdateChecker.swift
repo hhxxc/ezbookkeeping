@@ -95,11 +95,19 @@ enum UpdateChecker {
     }
 
     /// 后端清单来源：返回清单报告的最新版本（不可用/无本变体版本则返回 nil）。
+    ///
+    /// 优先读本变体清单 `latest-<flavor>.json`（新版后端支持，见 NestKeepVariantLatestHandler）；
+    /// 旧后端没有该路由（请求会被 :name 兜底路由按非 .ipa 400 拒掉）或文件缺失时，
+    /// 回退通用 latest.json（用 variant 字段区分变体，见 NestKeepLatestHandler）。
     private static func queryBackend() async -> LatestInfo? {
-        // 后端目前只有一个清单 latest.json（用 variant 字段区分变体，见 NestKeepLatestHandler）。
-        // 直接读它即可；不存在的变体专属清单（latest-dev.json 等）后端没有对应路由，
-        // 请求只会命中 :name 通配返回 404，属于无意义的往返。
-        let path = "api/nestkeep/latest.json"
+        for path in ["api/nestkeep/latest-\(channel).json", "api/nestkeep/latest.json"] {
+            if let info = await fetchBackendManifest(path: path) { return info }
+        }
+        return nil
+    }
+
+    /// 读取单个后端清单文件（非 200 / 解析失败 / 变体不符都按不可用处理）。
+    private static func fetchBackendManifest(path: String) async -> LatestInfo? {
         guard var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent(path),
                                        resolvingAgainstBaseURL: false) else {
             return nil
@@ -198,6 +206,46 @@ enum UpdateChecker {
         return nil
     }
 
+    // MARK: - IPA 下载候选（App 内下载，不依赖 TrollStore 直连 GitHub）
+
+    /// 构造按优先级排序的 IPA 下载候选地址：
+    ///
+    /// 1. 自有域名（NAS 直链 / 后端中转）永远最优：国内可达、不经 GitHub；
+    /// 2. 给定的是 GitHub 直链时（清单滞后、GitHub 来源胜出的场景），在**前面**插入
+    ///    后端反代 `{serverURL}/api/proxy/github/download?url=<原始链接>`，
+    ///    由 NAS 服务端代下载，手机仍然不直连 github.com；
+    /// 3. 给定的是自有域名且文件是 .ipa 时（发布脚本按 GitHub 资产原名上传），
+    ///    在**后面**补反代 + GitHub 原链，作为 NAS 文件缺失时的兜底。
+    static func downloadCandidates(ipaURL: URL, version: String) -> [URL] {
+        var candidates: [URL] = []
+        func push(_ url: URL?) {
+            guard let url, !candidates.contains(url) else { return }
+            candidates.append(url)
+        }
+
+        push(ipaURL)
+        let host = ipaURL.host?.lowercased() ?? ""
+        let ownHost = AppSettings.shared.serverURL.host?.lowercased() ?? ""
+
+        if host == "github.com" || host == "objects.githubusercontent.com" {
+            push(gitHubProxyURL(ipaURL))
+        } else if !ownHost.isEmpty && host == ownHost,
+                  ipaURL.lastPathComponent.lowercased().hasSuffix(".ipa"),
+                  let gh = URL(string: "https://github.com/\(repo)/releases/download/v\(version)/\(ipaURL.lastPathComponent)") {
+            push(gitHubProxyURL(gh))
+            push(gh)
+        }
+        return candidates
+    }
+
+    /// 把 GitHub 直链包一层后端反代（{serverURL}/api/proxy/github/download?url=…）。
+    private static func gitHubProxyURL(_ githubURL: URL) -> URL? {
+        let base = AppSettings.shared.serverURL.appendingPathComponent("api/proxy/github/download")
+        var comp = URLComponents(url: base, resolvingAgainstBaseURL: false)
+        comp?.queryItems = [URLQueryItem(name: "url", value: githubURL.absoluteString)]
+        return comp?.url
+    }
+
     // MARK: - 后端版本
 
     /// 查询后端版本（需要已登录，走统一信封）
@@ -271,6 +319,140 @@ enum UpdateChecker {
     }
 }
 
+/// IPA 下载状态（App 内下载，完成后交给系统面板 → TrollStore 安装）
+enum IPADownloadState: Equatable {
+    case idle
+    case downloading(received: Int64, total: Int64?)
+    case downloaded(fileURL: URL)
+    case failed(message: String)
+}
+
+/// IPA 文件下载器：委托式 URLSession downloadTask，支持进度回调与任务取消。
+///
+/// 之所以不用 `URLSession.bytes` 逐字节读（MB 级文件逐字节迭代太慢），
+/// 也不用 `download(for:)`（拿不到进度）：委托是唯一既高效又有进度的写法。
+final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
+    private let onProgress: @Sendable (Int64, Int64?) -> Void
+    private var continuation: CheckedContinuation<URL, Error>?
+    private var session: URLSession?
+    private var task: URLSessionDownloadTask?
+    private var destination: URL?
+
+    init(onProgress: @escaping @Sendable (Int64, Int64?) -> Void) {
+        self.onProgress = onProgress
+        super.init()
+    }
+
+    struct DownloadError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    /// 下载目标路径：tmp/NestKeepUpdate/NestKeep-<version>.ipa
+    static func destinationURL(version: String) -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NestKeepUpdate", isDirectory: true)
+        return dir.appendingPathComponent("NestKeep-\(version).ipa")
+    }
+
+    /// 取消当前下载（无进行中的任务时无副作用）。
+    func cancel() {
+        task?.cancel()
+    }
+
+    /// 从 url 下载并写入 destination（覆盖已有文件），返回 destination。
+    ///
+    /// HTTP 非 2xx、内容不是 zip（IPA 实为 zip 包，防反代返回 200 的 HTML 错误页）
+    /// 都按失败抛出，由调用方换下一个候选源。
+    func download(from url: URL, to destination: URL) async throws -> URL {
+        self.destination = destination
+
+        let cfg = URLSessionConfiguration.ephemeral
+        cfg.timeoutIntervalForRequest = 60     // 无数据进展的最大间隔
+        cfg.timeoutIntervalForResource = 300   // 单个源的整体上限
+        let session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
+        self.session = session
+        defer {
+            session.finishTasksAndInvalidate()
+            self.session = nil
+            self.task = nil
+        }
+
+        let task = session.downloadTask(with: url)
+        self.task = task
+
+        _ = try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { cont in
+                if Task.isCancelled {
+                    cont.resume(throwing: CancellationError())
+                    return
+                }
+                self.continuation = cont
+                task.resume()
+            }
+        }, onCancel: { task.cancel() })
+
+        if let http = task.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            try? FileManager.default.removeItem(at: destination)
+            throw DownloadError(message: "HTTP \(http.statusCode)")
+        }
+
+        // 内容校验：IPA 是 zip 包，头部应为 "PK"；拦截伪装成 200 的错误页
+        if let fh = try? FileHandle(forReadingFrom: destination) {
+            defer { try? fh.close() }
+            let head = (try? fh.read(upToCount: 2)) ?? Data()
+            if head != Data([0x50, 0x4B]) {
+                try? FileManager.default.removeItem(at: destination)
+                throw DownloadError(message: "下载内容不是有效的 IPA")
+            }
+        }
+        return destination
+    }
+
+    // MARK: URLSessionDownloadDelegate
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        let total: Int64? = totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : nil
+        onProgress(totalBytesWritten, total)
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        // 临时文件在本方法返回后会被系统删除，必须**同步**搬到稳定位置再恢复续体
+        guard let destination else {
+            resumeContinuation(with: .failure(DownloadError(message: "内部错误")))
+            return
+        }
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: destination.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+            if fm.fileExists(atPath: destination.path) {
+                try fm.removeItem(at: destination)
+            }
+            try fm.moveItem(at: location, to: destination)
+            resumeContinuation(with: .success(destination))
+        } catch {
+            resumeContinuation(with: .failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // 成功路径已由 didFinish 处理；error == nil 的收尾无需再动续体
+        guard let error else { return }
+        resumeContinuation(with: .failure(error))
+    }
+
+    private func resumeContinuation(with result: Result<URL, Error>) {
+        if let cont = continuation {
+            continuation = nil
+            cont.resume(with: result)
+        }
+    }
+}
+
 /// 更新检查的可观察状态（供 SwiftUI 绑定）
 @MainActor
 final class UpdateStore: ObservableObject {
@@ -283,8 +465,15 @@ final class UpdateStore: ObservableObject {
     /// 上次自动检查时间（仅用于记录展示，不再做长节流）
     private let lastAutoCheckKey = "nestkeep.lastAutoUpdateCheck"
 
+    /// IPA 下载状态（供更新弹层渲染进度 / 打开安装面板）
+    @Published var downloadState: IPADownloadState = .idle
+    private var downloader: IPAFileDownloader?
+    private var downloadTaskRef: Task<Void, Never>?
+
     /// 手动检查（用户点按）：同时刷新后端版本
     func checkNow() async {
+        cancelDownload()
+        downloadState = .idle
         isChecking = true
         async let app = UpdateChecker.checkAppUpdate()
         async let server = UpdateChecker.fetchServerVersion()
@@ -308,5 +497,61 @@ final class UpdateStore: ObservableObject {
         let r = await UpdateChecker.checkAppUpdate()
         // 每次启动都拿结果：有新版提示，无新版/失败不打扰
         if case .updateAvailable = r { self.result = r }
+    }
+
+    // MARK: - IPA 下载（App 内下载 → 系统面板交给 TrollStore）
+
+    /// App 内下载 IPA：按候选顺序尝试（自有域名 → 后端反代 → GitHub），自动换源。
+    ///
+    /// 下载与 TrollStore 解耦：TrollStore 下载器无法换源、失败无提示，
+    /// 由 App 自己下载可以把进度、重试、换源都做进 UI 里。
+    func startDownload(latest: String, ipaURL: URL) {
+        cancelDownload()
+        downloadState = .downloading(received: 0, total: nil)
+
+        let candidates = UpdateChecker.downloadCandidates(ipaURL: ipaURL, version: latest)
+        let destination = IPAFileDownloader.destinationURL(version: latest)
+        let downloader = IPAFileDownloader()
+        self.downloader = downloader
+
+        downloadTaskRef = Task { [weak self] in
+            var lastError: Error = IPAFileDownloader.DownloadError(message: "未知错误")
+            for candidate in candidates {
+                if Task.isCancelled { return }
+                do {
+                    let fileURL = try await downloader.download(from: candidate, to: destination) { received, total in
+                        // 进度回调来自 URLSession 委托队列，跳回主线程刷新状态
+                        Task { @MainActor [weak self] in
+                            guard let self, !Task.isCancelled else { return }
+                            if case .downloading = self.downloadState {
+                                self.downloadState = .downloading(received: received, total: total)
+                            }
+                        }
+                    }
+                    guard !Task.isCancelled else { return }
+                    self?.downloadState = .downloaded(fileURL: fileURL)
+                    return
+                } catch {
+                    // 任务被取消时 URLSession 报的是 NSURLErrorCancelled（非 CancellationError），
+                    // 统一靠 Task.isCancelled 识别，避免取消后被当成普通失败换源续传。
+                    if Task.isCancelled { return }
+                    lastError = error
+                }
+            }
+            guard !Task.isCancelled else { return }
+            self?.downloadState = .failed(
+                message: "\(lastError.localizedDescription)（已尝试全部 \(candidates.count) 个下载源）")
+        }
+    }
+
+    /// 取消下载（下载完成后调用即回到待下载状态）。
+    func cancelDownload() {
+        downloadTaskRef?.cancel()
+        downloadTaskRef = nil
+        downloader?.cancel()
+        downloader = nil
+        if case .downloading = downloadState {
+            downloadState = .idle
+        }
     }
 }
