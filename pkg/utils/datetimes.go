@@ -430,3 +430,22 @@ func GetStartOfDay(t time.Time) time.Time {
 func parseFromUnixTime(unixTime int64) time.Time {
 	return time.Unix(unixTime, 0)
 }
+
+// AddMonthsToUnixTime adds months to a unix time in the timezone of given utc offset (in minutes),
+// clipping the day to the last day of the target month (e.g. 1/31 -> 2/28)
+func AddMonthsToUnixTime(unixTime int64, months int, utcOffset int16) int64 {
+	loc := time.FixedZone("", int(utcOffset)*60)
+	t := time.Unix(unixTime, 0).In(loc)
+	y, m, d := t.Date()
+
+	totalMonths := int(m) - 1 + months
+	ny := y + totalMonths/12
+	nm := time.Month(totalMonths%12 + 1)
+
+	lastDay := time.Date(ny, nm+1, 0, 0, 0, 0, 0, loc).Day()
+	if d > lastDay {
+		d = lastDay
+	}
+
+	return time.Date(ny, nm, d, t.Hour(), t.Minute(), t.Second(), 0, loc).Unix()
+}

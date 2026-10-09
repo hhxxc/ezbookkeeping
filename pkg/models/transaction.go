@@ -135,6 +135,9 @@ type Transaction struct {
 	RelatedAccountAmount int64             `xorm:"NOT NULL"`
 	HideAmount           bool              `xorm:"NOT NULL"`
 	Comment              string            `xorm:"VARCHAR(255) NOT NULL"`
+	InstallmentPlanId    int64             `xorm:"INDEX(IDX_transaction_uid_installment_plan) DEFAULT 0"`
+	InstallmentIndex     int32             `xorm:"DEFAULT 0"` // zero-based index of the period in the installment plan
+	InstallmentCount     int32             `xorm:"DEFAULT 0"` // total periods of the installment plan
 	GeoLongitude         float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	GeoLatitude          float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	CreatedIp            string            `xorm:"VARCHAR(39)"`
@@ -380,6 +383,9 @@ type TransactionInfoResponse struct {
 	Tags                 []*TransactionTagInfoResponse            `json:"tags,omitempty"`
 	Pictures             TransactionPictureInfoBasicResponseSlice `json:"pictures,omitempty"`
 	Comment              string                                   `json:"comment"`
+	InstallmentPlanId    int64                                    `json:"installmentPlanId,string,omitempty"`
+	InstallmentIndex     int32                                    `json:"installmentIndex,omitempty"`
+	InstallmentCount     int32                                    `json:"installmentCount,omitempty"`
 	GeoLocation          *TransactionGeoLocationResponse          `json:"geoLocation,omitempty"`
 	Editable             bool                                     `json:"editable"`
 }
@@ -598,6 +604,9 @@ func (t *Transaction) ToTransactionInfoResponse(tagIds []int64, editable bool) *
 		HideAmount:           t.HideAmount,
 		TagIds:               utils.Int64ArrayToStringArray(tagIds),
 		Comment:              t.Comment,
+		InstallmentPlanId:    t.InstallmentPlanId,
+		InstallmentIndex:     t.InstallmentIndex,
+		InstallmentCount:     t.InstallmentCount,
 		GeoLocation:          geoLocation,
 		Editable:             editable,
 	}

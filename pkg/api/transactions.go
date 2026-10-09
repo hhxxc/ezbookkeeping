@@ -1295,6 +1295,11 @@ func (a *TransactionsApi) TransactionModifyHandler(c *core.WebContext) (any, *er
 		Comment:           transactionModifyReq.Comment,
 	}
 
+	// Installment info is immutable via modify; keep the original values
+	newTransaction.InstallmentPlanId = transaction.InstallmentPlanId
+	newTransaction.InstallmentIndex = transaction.InstallmentIndex
+	newTransaction.InstallmentCount = transaction.InstallmentCount
+
 	if transaction.Type == models.TRANSACTION_DB_TYPE_TRANSFER_OUT {
 		newTransaction.RelatedAccountId = transactionModifyReq.DestinationAccountId
 		newTransaction.RelatedAccountAmount = transactionModifyReq.DestinationAmount

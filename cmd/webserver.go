@@ -458,6 +458,10 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/transactions/batch_update/category.json", bindApi(api.Transactions.TransactionBatchUpdateCategoriesHandler))
 			apiV1Route.POST("/transactions/move/all.json", bindApi(api.Transactions.TransactionMoveAllBetweenAccountsHandler))
 			apiV1Route.POST("/transactions/delete.json", bindApi(api.Transactions.TransactionDeleteHandler))
+			apiV1Route.GET("/transactions/installments/list.json", bindApi(api.Transactions.InstallmentListHandler))
+			apiV1Route.GET("/transactions/installments/get.json", bindApi(api.Transactions.InstallmentGetHandler))
+			apiV1Route.POST("/transactions/installments/add.json", bindApi(api.Transactions.InstallmentCreateHandler))
+			apiV1Route.POST("/transactions/installments/delete.json", bindApi(api.Transactions.InstallmentDeleteHandler))
 
 			if config.EnableDataImport {
 				apiV1Route.POST("/transactions/parse_custom_file.json", bindApi(api.Transactions.TransactionParseImportCustomFileDataHandler))
