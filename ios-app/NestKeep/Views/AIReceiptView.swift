@@ -224,7 +224,6 @@ final class AIReceiptViewModel: ObservableObject {
 struct AIReceiptView: View {
     @StateObject private var vm = AIReceiptViewModel()
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.mainTabBarInset) private var tabBarInset
     @State private var showPicker = false
     /// 点 ✎ → 打开预填的新增交易页修正
     @State private var editing: ReceiptRecognizer.Recognized?
@@ -319,13 +318,15 @@ struct AIReceiptView: View {
                     }
                 }
                 .padding(.vertical, 16)
+                // 底部确认栏是 overlay 悬浮的，给列表尾部留出它的占用空间，
+                // 保证最后一条结果能滚到栏上方完整可见
+                .padding(.bottom, 96)
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                VStack(spacing: 0) {
-                    if !vm.results.isEmpty {
-                        confirmBar
-                    }
-                    Color.clear.frame(height: tabBarInset)
+            // 底部确认栏用 overlay 悬浮 + 内容手动留白，不依赖 safeAreaInset
+            // （iOS 15 上 sheet + NavigationView 里 safeAreaInset 定位不可靠，内容会钻到栏底下）
+            .overlay(alignment: .bottom) {
+                if !vm.results.isEmpty {
+                    confirmBar
                 }
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
@@ -336,6 +337,8 @@ struct AIReceiptView: View {
                     Button("返回") { dismiss() }
                 }
             }
+            // iOS 15 系统导航栏安全区坑（详见项目记忆）：NavigationView 必须显式 .stack
+            .navigationViewStyle(.stack)
             .sheet(isPresented: $showPicker) {
                 ReceiptPhotoPicker { datas in
                     Task { await vm.recognizeAll(datas) }
@@ -399,7 +402,10 @@ struct AIReceiptView: View {
             .disabled(vm.selectedCount == 0 || vm.isAdding)
             .padding(.horizontal, 16)
             .padding(.top, 10)
+            // 底部再留 8pt 呼吸空间；材质延伸进 Home 指示条区域
+            .padding(.bottom, 8)
             .background(.ultraThinMaterial)
+            .background(Color(.systemGroupedBackground).opacity(0.6).ignoresSafeArea(edges: .bottom))
         }
     }
 
