@@ -29,6 +29,10 @@ final class AIReceiptViewModel: ObservableObject {
     /// 最近一次识别用的图片，供「重试识别」复用
     private(set) var lastImages: [Data] = []
 
+    /// 是否有上次识别的图片可重试（视图判断用，勿跨文件直接访问 lastImages——
+    /// Xcode 26.6 下 private(set) 属性的跨文件 getter 访问会报 private 不可达）
+    var hasLastImages: Bool { !lastImages.isEmpty }
+
     /// 手动重试：用上次的图片重新识别
     func retry() async {
         await recognizeAll(lastImages)
@@ -309,7 +313,7 @@ struct AIReceiptView: View {
                             .padding(.horizontal, 24)
 
                         // 识别失败：用上次的图片一键重试（不需要重新选图）
-                        if !vm.isLoading && !vm.lastImages.isEmpty {
+                        if !vm.isLoading && vm.hasLastImages {
                             Button {
                                 Task { await vm.retry() }
                             } label: {
