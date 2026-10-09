@@ -40,6 +40,7 @@ final class StatisticsViewModel: ObservableObject {
     struct CategoryStat: Identifiable {
         let id: String
         let name: String
+        let icon: String?
         let color: Color
         let amount: Int64
         var ratio: Double = 0
@@ -211,32 +212,58 @@ final class StatisticsViewModel: ObservableObject {
         Color(hex: "#6366F1"), Color(hex: "#22C55E"), Color(hex: "#A855F7")
     ]
 
+    /// 颜色亮度（0~1）；解析失败返回 nil。近黑色在饼图/图标上不可辨，强制换兜底色
+    private static func luminance(ofHex hex: String) -> Double? {
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("#") { s.removeFirst() }
+        guard s.count >= 6 else { return nil }
+        let r = Double(Int(s.prefix(2), radix: 16) ?? 0)
+        let g = Double(Int(s.dropFirst(2).prefix(2), radix: 16) ?? 0)
+        let b = Double(Int(s.dropFirst(4).prefix(2), radix: 16) ?? 0)
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+    }
+
     private func makeStats(from map: [String: Int64], total: Int64) -> [CategoryStat] {
-        let sorted = map.compactMap { key, amount -> (key: String, colorHex: String?, amount: Int64)? in
+        let sorted = map.compactMap { key, amount -> (key: String, colorHex: String?, icon: String?, amount: Int64)? in
             guard amount > 0 else { return nil }
-            return (key, findCategory(key)?.color, amount)
+            let cat = findCategory(key)
+            return (key, cat?.color, cat?.icon, amount)
         }
         .sorted { $0.amount > $1.amount }
 
-        // 撞色消解：分类自身颜色若与排位更靠前的分类重复，从兜底盘依次取未用色
-        //（否则饼图/图例出现多个同色块，无法区分）
+        // 配色规则：
+        // ① 分类自身色够亮（非近黑）才用；近黑/缺失一律走兜底盘（用户要求饼图不要黑色）
+        // ② 撞色消解：与已用色重复时从兜底盘取未用色
+        // ③ 兜底盘扫描**有上界**——全被占用时直接轮转取色。此前无界 while 在分类数
+        //    多、撞色多时存在主线程死循环风险（年视图分类多，疑似“点年卡死”的元凶之一）
         var usedColors: [Color] = []
         var fallbackIdx = 0
+        func nextPaletteColor() -> Color {
+            let palette = Self.chartFallbackPalette
+            var pick = fallbackIdx
+            while pick - fallbackIdx < palette.count,
+                  usedColors.contains(palette[pick % palette.count]) {
+                pick += 1
+            }
+            fallbackIdx = pick + 1
+            return palette[pick % palette.count]
+        }
         return sorted.map { item in
-            let cat = findCategory(item.key)
-            var color = item.colorHex.flatMap { Color(hex: $0) } ?? Theme.brand
+            var color: Color
+            if let hex = item.colorHex,
+               let lum = Self.luminance(ofHex: hex), lum >= 0.16 {
+                color = Color(hex: hex)
+            } else {
+                color = nextPaletteColor()
+            }
             if usedColors.contains(color) {
-                let palette = Self.chartFallbackPalette
-                while usedColors.contains(palette[fallbackIdx % palette.count]) {
-                    fallbackIdx += 1
-                }
-                color = palette[fallbackIdx % palette.count]
-                fallbackIdx += 1
+                color = nextPaletteColor()
             }
             usedColors.append(color)
             return CategoryStat(
                 id: item.key,
-                name: cat?.name ?? "未分类",
+                name: findCategory(item.key)?.name ?? "未分类",
+                icon: item.icon,
                 color: color,
                 amount: item.amount,
                 ratio: total > 0 ? Double(item.amount) / Double(total) : 0
@@ -507,7 +534,9 @@ struct StatisticsView: View {
             .foregroundColor(HomePalette.ink)
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
-            .background(.ultraThinMaterial)
+            // 纯色底替代 ultraThinMaterial：材质在本页反复重绘时会强制离屏渲染，
+            // iOS 15 上有明显卡顿风险（纯色 5% 透明度观感几乎一致）
+            .background(Color.primary.opacity(0.05))
             .clipShape(Capsule())
             .overlay(
                 Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
@@ -608,7 +637,12 @@ struct StatisticsView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     ForEach(stats.prefix(6)) { s in
                         HStack(spacing: 7) {
-                            Circle().fill(s.color).frame(width: 9, height: 9)
+                            // 分类图标徽章（色底白图标，与分类管理页一致）
+                            Image(systemName: CategoryIconCatalog.symbol(s.icon))
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 18, height: 18)
+                                .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(s.color))
                             Text(s.name).font(.caption).lineLimit(1)
                             Spacer()
                             Text("\(Int((s.ratio * 100).rounded()))%")
@@ -637,7 +671,12 @@ struct StatisticsView: View {
                         .font(.caption.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(width: 18, alignment: .leading)
-                    Circle().fill(s.color).frame(width: 10, height: 10)
+                    // 分类图标徽章（色底白图标）
+                    Image(systemName: CategoryIconCatalog.symbol(s.icon))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 24, height: 24)
+                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(s.color))
                     Text(s.name).font(.subheadline).lineLimit(1)
                     Spacer()
                     Text(AmountFormat.format(s.amount))
@@ -646,7 +685,7 @@ struct StatisticsView: View {
                 }
                 .padding(.vertical, 7)
                 if idx < min(stats.count, 10) - 1 {
-                    Divider().padding(.leading, 40)
+                    Divider().padding(.leading, 66)
                 }
             }
         }

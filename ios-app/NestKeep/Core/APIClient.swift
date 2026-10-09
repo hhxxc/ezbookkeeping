@@ -23,7 +23,13 @@ struct AnyEncodable: Encodable {
 /// 统一网络层：自动注入 JWT、时区头，解析统一信封
 struct APIClient {
     static let shared = APIClient()
-    private let session = URLSession.shared
+    /// 专用会话（不用 .shared 默认配置）：请求 20s 超时，防止中转隧道抖动时页面永远转圈
+    private let session: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.timeoutIntervalForRequest = 20
+        cfg.timeoutIntervalForResource = 60
+        return URLSession(configuration: cfg)
+    }()
 
     private var baseURL: URL { AppSettings.shared.serverURL }
 
