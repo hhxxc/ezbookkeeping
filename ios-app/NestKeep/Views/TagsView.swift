@@ -81,6 +81,20 @@ final class TagsViewModel: ObservableObject {
         }
     }
 
+    /// 移动标签到指定标签组（groupId 传 "0" 即移回「未分组」），其余字段保持原值
+    func moveTag(_ tag: TransactionTag, to groupId: String) async {
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transaction/tags/modify.json", method: .POST,
+                body: TagModifyRequest(id: tag.id, groupId: groupId, name: tag.name,
+                                       icon: tag.icon ?? "0", color: tag.color ?? "")
+            )
+            await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
     func toggleHideTag(_ tag: TransactionTag) async {
         do {
             let _: EmptyResult = try await APIClient.shared.request(
@@ -178,6 +192,7 @@ struct TagsView: View {
     @State private var sortGroups: [TransactionTagGroup] = []
     @State private var sortTags: [TransactionTag] = []
     @State private var groupToDelete: TransactionTagGroup?
+    @State private var tagToMove: TransactionTag?
 
     /// 输入弹层上下文（iOS 15 的 alert 不支持 TextField，改用 sheet）
     struct TagInput: Identifiable {
@@ -252,6 +267,12 @@ struct TagsView: View {
                                           systemImage: tag.hidden ?? false ? "eye" : "eye.slash")
                                 }
                                 .tint(.gray)
+                                if !vm.groups.isEmpty {
+                                    Button { tagToMove = tag } label: {
+                                        Label("移动", systemImage: "folder")
+                                    }
+                                    .tint(Theme.brand)
+                                }
                             }
                         }
                         Button {
@@ -327,6 +348,13 @@ struct TagsView: View {
                 case .renameTag(let tag): await vm.renameTag(tag, to: name, icon: icon, color: color)
                 case .renameGroup(let group): await vm.renameGroup(group, to: name)
                 }
+            }
+        }
+        .sheet(item: $tagToMove) { tag in
+            MoveTagSheet(tagName: tag.name,
+                         currentGroupId: tag.groupId ?? "0",
+                         groups: vm.groups.sorted { ($0.displayOrder ?? 0) < ($1.displayOrder ?? 0) }) { target in
+                await vm.moveTag(tag, to: target)
             }
         }
         .confirmationDialog("删除标签组？", isPresented: Binding(
@@ -420,6 +448,72 @@ struct TagInputSheet: View {
                 }
             }
         }
+    }
+}
+
+/// 移动标签到分组的选择弹层（对齐 Web 的「移动到...」；含「未分组」可移回）
+struct MoveTagSheet: View {
+    let tagName: String
+    let currentGroupId: String
+    let groups: [TransactionTagGroup]
+    let onMove: (String) async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var target = ""
+    @State private var isMoving = false
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section(footer: Text("把「\(tagName)」移到选中的标签组")) {
+                    ForEach(groups, id: \.id) { group in
+                        row(group.id, name: group.name)
+                    }
+                    row("0", name: "未分组")
+                }
+            }
+            .navigationTitle("移动到...")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        Task {
+                            isMoving = true
+                            await onMove(target)
+                            isMoving = false
+                            dismiss()
+                        }
+                    } label: {
+                        if isMoving { ProgressView() } else { Text("移动").font(.body.weight(.semibold)) }
+                    }
+                    .disabled(isMoving || target.isEmpty || target == currentGroupId)
+                }
+            }
+            .onAppear { target = currentGroupId }
+        }
+    }
+
+    private func row(_ id: String, name: String) -> some View {
+        Button {
+            target = id
+        } label: {
+            HStack {
+                Image(systemName: id == "0" ? "tray" : "folder.fill")
+                    .foregroundColor(Theme.brand)
+                    .font(.system(size: 13))
+                Text(name).foregroundColor(.primary)
+                Spacer()
+                if target == id {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(Theme.brand)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
