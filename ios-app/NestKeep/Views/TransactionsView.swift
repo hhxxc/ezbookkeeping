@@ -557,36 +557,30 @@ struct TransactionsView: View {
         NavigationView {
             VStack(spacing: 0) {
                 topBar
-                List {
-                    // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
-                    // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
-                    Section {
+                // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
+                // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
+                // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
+                // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
+                ScrollView {
+                    VStack(spacing: 0) {
                         summaryCard
-                            // leading/trailing 0：只留 insetGrouped 自带的系统分组边距（约 17pt），
-                            // 此前再叠 16pt 导致两侧黑边过大
-                            .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                            // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
+                            // 水平 17pt 沿用原 insetGrouped 的系统分组边距
                             .contentShape(Rectangle())
                             // 点汇总卡 → 原生 push 账单列表页（内部的小按钮如隐藏金额/换背景不受影响）
                             .onTapGesture { openListPage() }
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
 
                         periodCard
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
 
                         if serverSettings.enableImageRecognition {
                             aiEntryCard
-                                .listRowInsets(EdgeInsets(top: 12, leading: 0, bottom: 0, trailing: 0))
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                                .padding(.top, 12)
                         }
                     }
+                    .padding(.horizontal, 17)
                 }
-                .listStyle(.insetGrouped)
-                // 让列表内容从安全区上方开始（Web 的 `calc(safe-area-top + 24px)`）
-                .environment(\.defaultMinListRowHeight, 0)
                 .refreshable { await vm.load() }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
@@ -744,7 +738,7 @@ struct TransactionsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.bottom, 4)
         // 固定顶栏背景：与页面同底色并延伸进状态栏区域，底部一条细分隔线
         .background(
             VStack(spacing: 0) {
