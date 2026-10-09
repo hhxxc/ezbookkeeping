@@ -780,23 +780,22 @@ struct TransactionsView: View {
                     .frame(width: 40, height: 40)
                     .background(Theme.brand.opacity(0.13))
                     .cornerRadius(12)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("AI 识图")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(HomePalette.ink)
                     Text("拍张小票，AI 自动记账")
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundColor(HomePalette.secondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(HomePalette.secondary)
-                    .opacity(0.6)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(.tertiaryLabel))
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 13)
+            .padding(.vertical, 12)
             .background(HomePalette.card)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
@@ -822,7 +821,7 @@ struct TransactionsView: View {
             // ① 月份 + 支出徽标 + 隐藏金额开关
             HStack(spacing: 8) {
                 Text(vm.summaryMonthTitle)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(primaryText)
                 Text("支出")
                     .font(.system(size: 12, weight: .semibold))
@@ -848,12 +847,13 @@ struct TransactionsView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.monthExpenseCents))
                     .font(.system(size: 30, weight: .semibold))
+                    .monospacedDigit()
                     .foregroundColor(primaryText)
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
                     .modifier(HomeShadow(active: hasBG))
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, 10)
 
             // ③ 当月收入 · 月结余
             HStack(alignment: .top, spacing: 0) {
@@ -915,7 +915,7 @@ struct TransactionsView: View {
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
     }
 
-    /// 汇总卡底部指标单元（13pt 标签 / 15pt 数值）
+    /// 汇总卡底部指标单元（13pt 标签 / 15pt semibold 数值，与区间行金额同规格）
     private func metricCell(label: String, value: String,
                             valueColor: Color, labelColor: Color, shadow: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -923,7 +923,7 @@ struct TransactionsView: View {
                 .font(.system(size: 13))
                 .foregroundColor(labelColor)
                 .modifier(HomeShadow(active: shadow))
-            Text(value)
+            Text(verbatim: value)
                 .font(.system(size: 15, weight: .semibold))
                 .monospacedDigit()
                 .foregroundColor(valueColor)
@@ -949,7 +949,8 @@ struct TransactionsView: View {
                 }
                 .buttonStyle(.plain)
                 if idx < OverviewPeriod.allCases.count - 1 {
-                    Divider().padding(.leading, 60)
+                    // 58 = 行左 padding 14 + 图标 32 + 间距 12，分隔线与标题文字左缘对齐
+                    Divider().padding(.leading, 58)
                 }
             }
         }
@@ -967,11 +968,11 @@ struct TransactionsView: View {
                 .background(period.color.opacity(0.14))
                 .cornerRadius(10)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(period.title)
-                    .font(.system(size: 17))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(HomePalette.ink)
-                Text(vm.rangeSubtitle(period))
+                Text(verbatim: vm.rangeSubtitle(period))
                     .font(.system(size: 13))
                     .foregroundColor(HomePalette.secondary)
                     .lineLimit(1)
@@ -979,14 +980,15 @@ struct TransactionsView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.income(for: period)))
-                    .font(.system(size: 14))
+            // 右侧收支双金额：与汇总卡指标同规格（15 semibold 等宽数字）
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(verbatim: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.income(for: period)))
+                    .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(HomePalette.income)
                     .lineLimit(1)
-                Text(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expense(for: period)))
-                    .font(.system(size: 14))
+                Text(verbatim: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expense(for: period)))
+                    .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(HomePalette.expense)
                     .lineLimit(1)
@@ -994,11 +996,11 @@ struct TransactionsView: View {
             .minimumScaleFactor(0.7)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Color(.tertiaryLabel))
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
         .contentShape(Rectangle())
     }
 
