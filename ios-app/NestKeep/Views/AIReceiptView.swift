@@ -27,7 +27,7 @@ final class AIReceiptViewModel: ObservableObject {
     }
 
     /// 最近一次识别用的图片，供「重试识别」复用
-    private var lastImages: [Data] = []
+    private(set) var lastImages: [Data] = []
 
     /// 手动重试：用上次的图片重新识别
     func retry() async {
