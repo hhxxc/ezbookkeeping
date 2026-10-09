@@ -144,5 +144,8 @@ func getPostgresConnectionString(dbConfig *settings.DatabaseConfig) (string, err
 }
 
 func getSqlite3ConnectionString(dbConfig *settings.DatabaseConfig) (string, error) {
-	return fmt.Sprintf("file:%s?cache=shared&mode=rwc", dbConfig.DatabasePath), nil
+	// WAL：并发读写不互斥；busy_timeout：写锁冲突时等待而非立即报 SQLITE_BUSY；
+	// synchronous=NORMAL：WAL 下的推荐级别（性能与安全平衡）；
+	// txlock=immediate：事务开始即取写锁，避免延迟事务升级锁导致的立即失败
+	return fmt.Sprintf("file:%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL&_txlock=immediate", dbConfig.DatabasePath), nil
 }

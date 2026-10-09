@@ -167,6 +167,9 @@ $DOCKER run -d \
     -v "${DATA_DIR}/storage:/ezbookkeeping/storage" \
     -v "${KEY_FILE}:${KEY_FILE}:ro" \
     --restart="$RESTART_POLICY" \
+    --log-driver=json-file \
+    --log-opt max-size=10m \
+    --log-opt max-file=3 \
     "$IMAGE_NAME" >/dev/null
 
 if [ $? -ne 0 ]; then
