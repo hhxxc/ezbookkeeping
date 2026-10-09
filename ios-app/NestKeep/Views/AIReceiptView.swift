@@ -104,13 +104,18 @@ final class AIReceiptViewModel: ObservableObject {
                 let date = Date(timeIntervalSince1970: TimeInterval(time))
                 let tz = TimeZone.current
                 let isTransfer = item.transactionType == .transfer
+                // 分类/账户兜底：AI 没认出或已失效时回退默认分类/第一个账户，避免后端报
+                // 「transaction category not found」导致整条落库失败
+                let sourceAccountId = displayAccountId(item.sourceAccountId) ?? ""
                 let req = TransactionCreateRequest(
                     type: item.type,
-                    categoryId: item.categoryId ?? "0",
+                    categoryId: displayCategoryId(item) ?? "0",
                     time: time,
                     utcOffset: tz.secondsFromGMT(for: date) / 60,
-                    sourceAccountId: item.sourceAccountId ?? "",
-                    destinationAccountId: isTransfer ? item.destinationAccountId : nil,
+                    sourceAccountId: sourceAccountId,
+                    destinationAccountId: isTransfer
+                        ? displayDestinationAccountId(source: sourceAccountId, destination: item.destinationAccountId) ?? ""
+                        : nil,
                     sourceAmount: item.sourceAmount ?? item.destinationAmount ?? 0,
                     destinationAmount: isTransfer ? (item.destinationAmount ?? item.sourceAmount) : nil,
                     comment: item.comment,
@@ -156,6 +161,63 @@ final class AIReceiptViewModel: ObservableObject {
             if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }) { return hit.name }
         }
         return "未匹配分类"
+    }
+
+    // MARK: - 落库前兜底解析
+    // 后端要求：除余额调整外，交易必须挂一个可见的「子分类」且类型匹配（大类直接挂会被拒）。
+    // AI 没认出分类（结果里 categoryId 为空，界面显示「未识别」）或认出的分类已被删除时，
+    // 直接提交会报「transaction category not found」。这里回退到用户分类里第一个可见叶子分类，
+    // 口径与「新增交易」页的 defaultCategoryId() 一致；账户同理回退到第一个账户。
+
+    /// 类型对应的分类类型
+    private func categoryType(for type: TransactionType) -> TransactionCategoryType? {
+        switch type {
+        case .income: return .income
+        case .expense: return .expense
+        case .transfer: return .transfer
+        case .modifyBalance: return nil
+        }
+    }
+
+    /// 该 id 是否是当前用户分类里可直接挂在交易上的子分类（可见 + 类型匹配）
+    func usableCategory(_ id: String?, type: TransactionType) -> Bool {
+        guard let id = id, !id.isEmpty, let wantType = categoryType(for: type) else { return false }
+        for c in categories {
+            guard c.hidden != true, let subs = c.subCategories else { continue }
+            if let hit = subs.first(where: { $0.id == id && $0.hidden != true }) {
+                return hit.type == wantType.rawValue
+            }
+        }
+        return false
+    }
+
+    /// 该类型下第一个可见叶子分类（大类有子分类时取其第一个子分类）
+    func defaultCategoryId(for type: TransactionType) -> String? {
+        guard let wantType = categoryType(for: type) else { return "0" }
+        guard let first = categories.first(where: { $0.type == wantType.rawValue && $0.hidden != true }) else { return nil }
+        let subs = (first.subCategories ?? []).filter { $0.hidden != true }
+        return subs.first?.id ?? first.id
+    }
+
+    /// 展示与落库共用的分类解析：识别结果可用就用原值，否则回退默认分类
+    func displayCategoryId(_ item: ReceiptRecognizer.Recognized) -> String? {
+        if item.transactionType == .modifyBalance { return "0" }
+        if usableCategory(item.categoryId, type: item.transactionType) { return item.categoryId }
+        return defaultCategoryId(for: item.transactionType)
+    }
+
+    /// 账户解析：识别结果里的账户已不存在/没识别出来时，回退第一个账户
+    func displayAccountId(_ id: String?) -> String? {
+        if let id = id, !id.isEmpty, accounts.contains(where: { $0.id == id }) { return id }
+        return accounts.first?.id
+    }
+
+    /// 转账目标账户解析：无效或与源账户相同时，回退到另一个账户
+    func displayDestinationAccountId(source: String?, destination: String?) -> String? {
+        let resolvedSource = displayAccountId(source)
+        if let d = destination, !d.isEmpty, d != resolvedSource,
+           accounts.contains(where: { $0.id == d }) { return d }
+        return accounts.first(where: { $0.id != resolvedSource })?.id
     }
 }
 
@@ -286,9 +348,17 @@ struct AIReceiptView: View {
                     editRemoveTarget = nil
                 }
             }) { item in
-                TransactionEditView(transaction: item.asPrefillTransaction(), mode: .add, onSaved: {
-                    editRemoveTarget = item
-                })
+                // ✎ 修正页同样预填兜底后的分类/账户，与实际落库口径一致
+                TransactionEditView(
+                    transaction: item.asPrefillTransaction(
+                        categoryId: vm.displayCategoryId(item),
+                        sourceAccountId: vm.displayAccountId(item.sourceAccountId)
+                    ),
+                    mode: .add,
+                    onSaved: {
+                        editRemoveTarget = item
+                    }
+                )
             }
             .task {
                 await vm.loadRefData()
@@ -357,9 +427,9 @@ struct AIReceiptView: View {
                     Label(timeText(time), systemImage: "clock")
                         .font(.footnote).foregroundColor(.secondary)
                 }
-                Label(vm.categoryName(item.categoryId), systemImage: "square.grid.2x2")
+                Label(vm.categoryName(vm.displayCategoryId(item)), systemImage: "square.grid.2x2")
                     .font(.footnote).foregroundColor(.secondary)
-                Label(vm.accountName(item.sourceAccountId), systemImage: "creditcard")
+                Label(vm.accountName(vm.displayAccountId(item.sourceAccountId)), systemImage: "creditcard")
                     .font(.footnote).foregroundColor(.secondary)
                 if let comment = item.comment, !comment.isEmpty {
                     Label(comment, systemImage: "text.alignleft")
@@ -469,16 +539,17 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
 extension ReceiptRecognizer.Recognized {
     /// 把识别结果包装成一条「待新增」的交易，交给 TransactionEditView 预填。
     /// id 用 UUID（新增模式不会用到真实 id）。
-    func asPrefillTransaction() -> Transaction {
+    /// 可选传入兜底解析后的分类/账户（与批量落库口径一致），不传则用识别原值。
+    func asPrefillTransaction(categoryId: String? = nil, sourceAccountId: String? = nil) -> Transaction {
         let amount = sourceAmount ?? 0
         return Transaction(
             id: UUID().uuidString,
             type: type,
-            categoryId: categoryId,
+            categoryId: categoryId ?? self.categoryId,
             category: nil,
             time: time ?? Int64(Date().timeIntervalSince1970),
             utcOffset: nil,
-            sourceAccountId: sourceAccountId,
+            sourceAccountId: sourceAccountId ?? self.sourceAccountId,
             sourceAccount: nil,
             destinationAccountId: destinationAccountId,
             destinationAccount: nil,
