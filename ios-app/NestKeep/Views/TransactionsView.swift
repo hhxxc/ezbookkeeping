@@ -640,6 +640,8 @@ struct TransactionsView: View {
         }
         .task {
             await ServerSettings.shared.loadIfNeeded()
+            // 与云端同步背景图（Web 端设置的背景图原生共用）
+            await HomeBackground.syncFromCloud()
             await vm.load()
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
@@ -802,8 +804,9 @@ struct TransactionsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - 汇总卡（对齐 Web `.home-summary-card`，并补净资产/总资产概览）
-    /// 三段式：① 净资产概览（大金额 + 总资产/总负债） ② 分隔线 ③ 本月支出 + 收入/结余。
+    // MARK: - 汇总卡（对齐 Web `.home-summary-card`）
+    /// 两段：① 月份+支出徽标+隐藏金额开关 ② 大金额 + 当月收入/月结余。
+    /// 净资产/总资产/总负债概览已按需求移除（账户页仍有完整净资产卡）。
     /// 设置背景图后转为白字 + 投影（对应 Web 的 `.has-bg`）。
     private var summaryCard: some View {
         // 依赖 backgroundToken：用户更换/移除背景图后触发重建
@@ -816,52 +819,7 @@ struct TransactionsView: View {
         let balance = vm.monthNetCents
 
         return VStack(alignment: .leading, spacing: 0) {
-            // ① 净资产概览
-            HStack(alignment: .top, spacing: 0) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("净资产")
-                        .font(.system(size: 13))
-                        .foregroundColor(secondaryText)
-                        .modifier(HomeShadow(active: hasBG))
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.netAssetsCents))
-                            .font(.system(size: 30, weight: .semibold))
-                            .foregroundColor(primaryText)
-                            .minimumScaleFactor(0.55)
-                            .lineLimit(1)
-                            .modifier(HomeShadow(active: hasBG))
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
-                        } label: {
-                            Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
-                                .font(.system(size: 17))
-                                .foregroundColor(secondaryText)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("总资产  \(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.totalAssetsCents))")
-                        .font(.system(size: 12))
-                        .foregroundColor(secondaryText)
-                        .modifier(HomeShadow(active: hasBG))
-                    Text("总负债  \(vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.totalLiabilitiesCents))")
-                        .font(.system(size: 12))
-                        .foregroundColor(secondaryText)
-                        .modifier(HomeShadow(active: hasBG))
-                }
-            }
-            .padding(.bottom, 14)
-
-            // 分隔线
-            Rectangle()
-                .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
-                .frame(height: 1)
-                .padding(.bottom, 14)
-
-            // ② 月份 + 支出徽标
+            // ① 月份 + 支出徽标 + 隐藏金额开关
             HStack(spacing: 8) {
                 Text(vm.summaryMonthTitle)
                     .font(.system(size: 17, weight: .semibold))
@@ -874,6 +832,15 @@ struct TransactionsView: View {
                     .background(hasBG ? Color.white.opacity(0.22) : HomePalette.expenseBg)
                     .cornerRadius(8)
                 Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
+                } label: {
+                    Image(systemName: vm.hideAmounts ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(secondaryText)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.bottom, 6)
 
