@@ -143,7 +143,10 @@ final class TransactionEditViewModel: ObservableObject {
         let wantType = type == .income
             ? TransactionCategoryType.income.rawValue
             : TransactionCategoryType.expense.rawValue
-        return categories.first(where: { $0.type == wantType })?.id ?? ""
+        // 对齐 Web 端口径：默认选中第一个可见的**叶子**分类（大类有子分类时选其第一个子分类）
+        guard let first = categories.first(where: { $0.type == wantType && $0.hidden != true }) else { return "" }
+        let subs = (first.subCategories ?? []).filter { $0.hidden != true }
+        return subs.first?.id ?? first.id
     }
 
     /// 切换类型时同步修正默认分类：分类类型与新交易类型不匹配则重置
@@ -343,6 +346,8 @@ struct TransactionEditView: View {
     @State private var showDateSheet = false
     @State private var showPictureSheet = false
     @State private var showMoreSheet = false
+    /// 当前展开「小类芯片行」的大类 id（nil=未展开）
+    @State private var expandedPrimaryId: String?
     /// 「再记」成功后的轻提示
     @State private var flashText: String?
     /// 保存成功后的回调（识图页预填编辑场景：成功后从识别结果列表移除该条）
@@ -553,36 +558,150 @@ struct TransactionEditView: View {
         )
     }
 
-    // MARK: - 分类网格
+    // MARK: - 分类网格（先大类、点击展开小类，对齐移动端 Web 快捷布局交互）
 
-    private var categoryGrid: some View {
-        LazyVGrid(columns: categoryColumns, spacing: 14) {
-            ForEach(flatCategories(vm.categories), id: \.id) { cat in
-                let selected = cat.id == vm.categoryId
-                let catColor = (cat.color?.isEmpty == false ? Color(hex: cat.color!) : Theme.brand)
-                Button {
-                    vm.categoryId = cat.id
-                } label: {
-                    VStack(spacing: 5) {
-                        Image(systemName: CategoryIconCatalog.symbol(cat.icon))
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(selected ? .white : HomePalette.ink)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle().fill(selected ? catColor : Color.primary.opacity(0.06))
-                            )
-                        Text(cat.name)
-                            .font(.system(size: 11))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                            .foregroundColor(selected ? catColor : HomePalette.secondary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+    /// 当前交易类型的一级分类（过滤隐藏）
+    private var primaryCategories: [TransactionCategory] {
+        vm.categories.filter { cat in
+            if cat.hidden == true { return false }
+            if vm.type == .income { return cat.type == TransactionCategoryType.income.rawValue }
+            if vm.type == .expense { return cat.type == TransactionCategoryType.expense.rawValue }
+            return true
+        }
+    }
+
+    /// 某大类下可见的子分类
+    private func visibleSubCategories(of cat: TransactionCategory) -> [TransactionCategory] {
+        (cat.subCategories ?? []).filter { $0.hidden != true }
+    }
+
+    /// 按 id 定位分类：返回其所属大类与自身（若自身即大类则 sub 为 nil）
+    private func locateCategory(_ id: String) -> (parent: TransactionCategory, sub: TransactionCategory?)? {
+        guard !id.isEmpty else { return nil }
+        for cat in vm.categories {
+            if cat.id == id { return (cat, nil) }
+            if let subs = cat.subCategories, let sub = subs.first(where: { $0.id == id }) {
+                return (cat, sub)
             }
         }
+        return nil
+    }
+
+    /// 当前选中分类所属的大类 id（用于宫格高亮）
+    private var currentPrimaryId: String? {
+        locateCategory(vm.categoryId)?.parent.id
+    }
+
+    private var categoryGrid: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            LazyVGrid(columns: categoryColumns, spacing: 14) {
+                ForEach(primaryCategories, id: \.id) { cat in
+                    let selected = currentPrimaryId == cat.id
+                    let catColor = (cat.color?.isEmpty == false ? Color(hex: cat.color!) : Theme.brand)
+                    let subs = visibleSubCategories(of: cat)
+                    Button {
+                        if subs.isEmpty {
+                            expandedPrimaryId = nil
+                            vm.categoryId = cat.id
+                        } else {
+                            expandedPrimaryId = cat.id
+                            vm.categoryId = subs[0].id
+                        }
+                    } label: {
+                        VStack(spacing: 5) {
+                            Image(systemName: CategoryIconCatalog.symbol(cat.icon))
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(selected ? .white : HomePalette.ink)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle().fill(selected ? catColor : Color.primary.opacity(0.06))
+                                )
+                                .overlay(alignment: .topTrailing) {
+                                    // 有小类的大类：右上角小圆点提示可展开
+                                    if !subs.isEmpty {
+                                        Circle()
+                                            .fill(selected ? Color.white.opacity(0.9) : catColor.opacity(0.55))
+                                            .frame(width: 6, height: 6)
+                                            .offset(x: 3, y: -1)
+                                    }
+                                }
+                            Text(cat.name)
+                                .font(.system(size: 11))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .foregroundColor(selected ? catColor : HomePalette.secondary)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if let expandedId = expandedPrimaryId,
+               let parent = primaryCategories.first(where: { $0.id == expandedId }),
+               !visibleSubCategories(of: parent).isEmpty {
+                subCategoryChipBar(parent)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: expandedPrimaryId)
         .padding(.vertical, 4)
+        .onChange(of: vm.categoryId) { newId in
+            // 编辑已有交易/切换类型回填分类后，自动展开其所属大类的芯片行
+            if let (parent, sub) = locateCategory(newId), sub != nil {
+                expandedPrimaryId = parent.id
+            }
+        }
+    }
+
+    /// 小类芯片行：按估算宽度贪心换行（iOS 15 无 FlowLayout，中文宽度可准确估算）
+    private func subCategoryChipBar(_ parent: TransactionCategory) -> some View {
+        let subs = visibleSubCategories(of: parent)
+        let rows = wrapChipRows(subs, availableWidth: UIScreen.main.bounds.width - 32)
+        let parentColor = (parent.color?.isEmpty == false ? Color(hex: parent.color!) : Theme.brand)
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(rows.indices, id: \.self) { rowIdx in
+                HStack(spacing: 8) {
+                    ForEach(rows[rowIdx], id: \.id) { sub in
+                        let selected = sub.id == vm.categoryId
+                        Text(sub.name)
+                            .font(.system(size: 13))
+                            .foregroundColor(selected ? .white : HomePalette.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(selected ? parentColor : Color.primary.opacity(0.06))
+                            )
+                            .onTapGesture { vm.categoryId = sub.id }
+                    }
+                }
+            }
+        }
+        .padding(.top, 12)
+    }
+
+    /// 把芯片按估算宽度贪心分行：中文/全角字符≈字号宽，其余≈0.55 倍字号
+    private func wrapChipRows(_ subs: [TransactionCategory], availableWidth: CGFloat) -> [[TransactionCategory]] {
+        var rows: [[TransactionCategory]] = []
+        var current: [TransactionCategory] = []
+        var currentWidth: CGFloat = 0
+        for sub in subs {
+            var textWidth: CGFloat = 0
+            for ch in sub.name {
+                let isWide = ch.unicodeScalars.first.map { $0.properties.isIdeographic || $0.value > 0x2E7F } ?? false
+                textWidth += isWide ? 13 : 7.5
+            }
+            let chipWidth = textWidth + 24 + 8   // 水平 padding + 间距
+            if currentWidth + chipWidth > availableWidth && !current.isEmpty {
+                rows.append(current)
+                current = []
+                currentWidth = 0
+            }
+            current.append(sub)
+            currentWidth += chipWidth
+        }
+        if !current.isEmpty { rows.append(current) }
+        return rows
     }
 
     // MARK: - 转账 / 余额调整账户卡
@@ -930,20 +1049,6 @@ struct TransactionEditView: View {
             vm.amountText.removeLast()
         }
         vm.amountText += o
-    }
-
-    private func flatCategories(_ cats: [TransactionCategory]) -> [TransactionCategory] {
-        cats.flatMap { c in
-            var arr = [c]
-            if let subs = c.subCategories { arr.append(contentsOf: subs) }
-            return arr
-        }
-        .filter { cat in
-            // 只展示与当前类型匹配的分类
-            if vm.type == .income { return cat.type == TransactionCategoryType.income.rawValue }
-            if vm.type == .expense { return cat.type == TransactionCategoryType.expense.rawValue }
-            return true
-        }
     }
 
     // MARK: - 展示辅助
