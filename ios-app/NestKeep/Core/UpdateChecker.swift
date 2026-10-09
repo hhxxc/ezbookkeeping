@@ -348,11 +348,40 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         var errorDescription: String? { message }
     }
 
-    /// 下载目标路径：tmp/NestKeepUpdate/NestKeep-<version>.ipa
+    /// 下载目标路径：Caches/NestKeepUpdate/NestKeep-<version>.ipa。
+    ///
+    /// 用 Caches 而不是 tmp：闲时自动下载的安装包需要**跨启动保留**（下次打开 App
+    /// 直接「点此安装」），tmp 随时可能被系统清空；Caches 同样不占用户可见空间、
+    /// 存储紧张时系统也可回收，语义正合适。
     static func destinationURL(version: String) -> URL {
-        let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("NestKeepUpdate", isDirectory: true)
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let dir = caches.appendingPathComponent("NestKeepUpdate", isDirectory: true)
         return dir.appendingPathComponent("NestKeep-\(version).ipa")
+    }
+
+    /// 取已下载完成的安装包（文件存在、大小合理、且为合法 zip 头），没有则返回 nil。
+    ///
+    /// 供闲时自动下载复用：检测到新版本时先看本地是否已有上次下好的包，
+    /// 有就直接进入「点此安装」状态，不重新下载。
+    static func existingDownload(version: String) -> URL? {
+        let url = destinationURL(version: version)
+        let fm = FileManager.default
+        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? Int64, size > 1024,
+              let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fh.close() }
+        let head = (try? fh.read(upToCount: 2)) ?? Data()
+        return head == Data([0x50, 0x4B]) ? url : nil
+    }
+
+    /// 清理除保留版本以外的旧安装包（换新版本下载时防 Caches 堆积）。
+    static func cleanStaleDownloads(keeping keepVersion: String) {
+        let dir = destinationURL(version: keepVersion).deletingLastPathComponent()
+        let keepName = "NestKeep-\(keepVersion).ipa"
+        guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for item in items where item.lastPathComponent != keepName && item.pathExtension.lowercased() == "ipa" {
+            try? FileManager.default.removeItem(at: item)
+        }
     }
 
     /// 取消当前下载（无进行中的任务时无副作用）。
@@ -471,9 +500,18 @@ final class UpdateStore: ObservableObject {
     private var downloader: IPAFileDownloader?
     private var downloadTaskRef: Task<Void, Never>?
 
+    /// 闲时自动下载任务（延迟触发后与手动下载共用同一状态机）
+    private var autoDownloadTask: Task<Void, Never>?
+    /// 当前下载对应的目标版本（取消记忆用）
+    private var currentDownloadVersion: String?
+
+    /// 用户手动取消下载过的版本（避免闲时自动下载与用户意图打架）
+    private static let cancelledAutoDownloadKey = "nestkeep.autoDownloadCancelledVersion"
+
     /// 手动检查（用户点按）：同时刷新后端版本
     func checkNow() async {
-        cancelDownload()
+        // 内部重置（非用户取消）：不记取消记忆，否则下面的闲时安排会被挡掉
+        cancelDownload(rememberCancel: false)
         downloadState = .idle
         isChecking = true
         async let app = UpdateChecker.checkAppUpdate()
@@ -484,10 +522,19 @@ final class UpdateStore: ObservableObject {
         self.serverVersion = serverResult
         isChecking = false
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastAutoCheckKey)
+
+        // 手动检查发现新版也安排闲时下载：用户不开弹层、不点下载，包也会提前下好
+        if case .updateAvailable(_, let latest, _, let ipaURL) = appResult, let url = ipaURL {
+            scheduleIdleDownload(latest: latest, ipaURL: url)
+        }
     }
 
     /// 启动时检查：每次启动都查（有新版才提示，失败静默）。
     /// 加一层 1 小时的最小间隔兜底，避免用户疯狂切前后台时反复打 GitHub API。
+    ///
+    /// 发现新版本后自动安排「闲时下载」：延迟一段时间避开首屏抢网，
+    /// 后台静默把 IPA 下到 Caches（自动换源，NAS 优先）；本地已有完整包则
+    /// 直接标记为已下载。用户下次打开更新弹层，看到的直接是「点此安装」。
     func autoCheckIfNeeded(force: Bool = false) async {
         let last = UserDefaults.standard.double(forKey: lastAutoCheckKey)
         let now = Date().timeIntervalSince1970
@@ -497,7 +544,47 @@ final class UpdateStore: ObservableObject {
         self.serverVersion = await UpdateChecker.fetchServerVersion()
         let r = await UpdateChecker.checkAppUpdate()
         // 每次启动都拿结果：有新版提示，无新版/失败不打扰
-        if case .updateAvailable = r { self.result = r }
+        if case .updateAvailable(let current, let latest, let releaseURL, let ipaURL) = r {
+            self.result = r
+            if let url = ipaURL {
+                scheduleIdleDownload(latest: latest, ipaURL: url)
+            }
+        }
+    }
+
+    // MARK: - 闲时自动下载
+
+    /// 发现新版本后安排闲时自动下载：
+    ///
+    /// 1. 本地已有完整安装包（上次会话闲时下好的）→ 直接进入「点此安装」，零等待；
+    /// 2. 用户明确取消过该版本的下载 → 不再自动下载（尊重用户意图）；
+    /// 3. 否则延迟数秒（等首屏/启动网络请求跑完）后后台静默下载。
+    ///    期间用户手动点「下载并安装」的话，延迟任务会因状态非 idle 自动让位。
+    func scheduleIdleDownload(latest: String, ipaURL: URL) {
+        // 1. 本地已有完整包：直接复用，免重新下载
+        if let existing = IPAFileDownloader.existingDownload(version: latest) {
+            currentDownloadVersion = latest
+            IPAFileDownloader.cleanStaleDownloads(keeping: latest)
+            downloadState = .downloaded(fileURL: existing)
+            return
+        }
+        // 2. 该版本被用户取消过自动下载
+        let cancelled = UserDefaults.standard.string(forKey: Self.cancelledAutoDownloadKey)
+        if cancelled == latest { return }
+        // 内存态已在下载/已下载就不重复安排
+        if case .downloading = downloadState { return }
+        if case .downloaded = downloadState { return }
+
+        autoDownloadTask?.cancel()
+        autoDownloadTask = Task { [weak self] in
+            // 闲时延迟：等启动首屏的网络请求跑完再开始，不跟登录/首页加载抢带宽
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            guard !Task.isCancelled, let self = self else { return }
+            // 期间用户手动开过下载（非 idle）则让位
+            if case .idle = self.downloadState {
+                self.startDownload(latest: latest, ipaURL: ipaURL)
+            }
+        }
     }
 
     // MARK: - IPA 下载（App 内下载 → 系统面板交给 TrollStore）
@@ -507,7 +594,11 @@ final class UpdateStore: ObservableObject {
     /// 下载与 TrollStore 解耦：TrollStore 下载器无法换源、失败无提示，
     /// 由 App 自己下载可以把进度、重试、换源都做进 UI 里。
     func startDownload(latest: String, ipaURL: URL) {
-        cancelDownload()
+        cancelDownload(rememberCancel: false)
+        // 用户主动发起（或闲时任务启动）即清除该版本的取消记忆
+        UserDefaults.standard.removeObject(forKey: Self.cancelledAutoDownloadKey)
+        currentDownloadVersion = latest
+        IPAFileDownloader.cleanStaleDownloads(keeping: latest)
         downloadState = .downloading(received: 0, total: nil)
 
         let candidates = UpdateChecker.downloadCandidates(ipaURL: ipaURL, version: latest)
@@ -546,12 +637,21 @@ final class UpdateStore: ObservableObject {
     }
 
     /// 取消下载（下载完成后调用即回到待下载状态）。
-    func cancelDownload() {
+    ///
+    /// 若取消的是进行中的下载且 rememberCancel 为真，会记住版本号：
+    /// 闲时自动下载不再对该版本重启，直到用户下次手动点「下载并安装」才清除。
+    /// 内部重置（检查更新 / 重新下载前的清理）传 false，避免误记用户意图。
+    func cancelDownload(rememberCancel: Bool = true) {
+        autoDownloadTask?.cancel()
+        autoDownloadTask = nil
         downloadTaskRef?.cancel()
         downloadTaskRef = nil
         downloader?.cancel()
         downloader = nil
         if case .downloading = downloadState {
+            if rememberCancel, let version = currentDownloadVersion {
+                UserDefaults.standard.set(version, forKey: Self.cancelledAutoDownloadKey)
+            }
             downloadState = .idle
         }
     }

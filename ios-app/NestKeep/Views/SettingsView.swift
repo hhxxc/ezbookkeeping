@@ -371,7 +371,7 @@ struct UpdateResultSheet: View {
             primaryButton(icon: "arrow.down.app.fill", title: "下载并安装") {
                 updateStore.startDownload(latest: latest, ipaURL: ipaURL)
             }
-            Text("App 内下载（自动优先走你的 NAS，不连 GitHub），完成后弹出系统面板交给 TrollStore 安装。")
+            Text("发现新版本后 App 会在闲时自动下载安装包（优先走你的 NAS，不连 GitHub），下次打开直接可装；也可以现在手动下载。")
                 .font(.footnote)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -394,10 +394,10 @@ struct UpdateResultSheet: View {
                 .foregroundColor(.secondary)
 
         case .downloaded(let fileURL):
-            primaryButton(icon: "arrow.up.forward.app.fill", title: "打开安装面板") {
+            primaryButton(icon: "arrow.up.forward.app.fill", title: "点此安装") {
                 openInstallPanel(fileURL)
             }
-            Text("在弹出的面板里选择 TrollStore，确认安装即可（同变体会覆盖旧版并保留数据）。")
+            Text("安装包已提前在闲时下载完成，弹出系统面板后选择 TrollStore 确认安装即可（同变体会覆盖旧版并保留数据）。")
                 .font(.footnote)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
