@@ -2,12 +2,15 @@ import Foundation
 
 /// 交易标签（对应 Go TransactionTagInfoResponse）。
 /// 后端 `id` / `groupId` 均为 `,string` 序列化 → Swift 用 String。
+/// `icon` 为图标字体编号（"0"/nil = 未设置），`color` 为 RRGGBB（""/nil = 默认色）。
 struct TransactionTag: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let groupId: String?
     let displayOrder: Int?
     let hidden: Bool?
+    let icon: String?
+    let color: String?
 }
 
 /// 标签组（对应 Go TransactionTagGroupInfoResponse）
@@ -29,12 +32,23 @@ struct TagSection: Identifiable {
 struct TagCreateRequest: Codable {
     let groupId: String
     let name: String
+    let icon: String
+    let color: String
+
+    init(groupId: String, name: String, icon: String = "0", color: String = "") {
+        self.groupId = groupId
+        self.name = name
+        self.icon = icon
+        self.color = color
+    }
 }
 
 struct TagModifyRequest: Codable {
     let id: String
     let groupId: String
     let name: String
+    let icon: String
+    let color: String
 }
 
 struct TagHideRequest: Codable { let id: String; let hidden: Bool }

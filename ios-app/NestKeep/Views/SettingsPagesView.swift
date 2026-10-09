@@ -332,10 +332,7 @@ struct TagFilterSettingsView: View {
                 } else {
                     ForEach(tags, id: \.id) { tag in
                         HStack(spacing: 10) {
-                            Image(systemName: "tag.fill")
-                                .font(.system(size: 11)).foregroundColor(.white)
-                                .frame(width: 26, height: 26)
-                                .background(Circle().fill(Theme.brand))
+                            TagIconView(icon: tag.icon, color: tag.color)
                             Text(tag.name)
                             Spacer()
                             Picker("", selection: Binding(

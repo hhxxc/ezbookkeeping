@@ -1,6 +1,34 @@
 import SwiftUI
 import Combine
 
+/// 标签图标：有自定义图标（icon 为目录内编号）时用白色 SF Symbol + 彩色圆底，否则青绿 tag.fill（对齐分类行样式）
+struct TagIconView: View {
+    let icon: String?
+    let color: String?
+    var size: CGFloat = 26
+
+    private var customSymbol: String? {
+        guard let icon, !icon.isEmpty, icon != "0", let n = Int(icon) else { return nil }
+        return CategoryIconCatalog.options.first { $0.0 == n }?.1
+    }
+
+    private var fillColor: Color {
+        guard customSymbol != nil else { return Theme.brand }
+        guard let color, !color.isEmpty else { return Theme.brand }
+        return Color(hex: color)
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(fillColor)
+                .frame(width: size, height: size)
+            Image(systemName: customSymbol ?? "tag.fill")
+                .font(.system(size: size * 0.44))
+                .foregroundColor(.white)
+        }
+    }
+}
+
 /// 标签管理：标签组 + 标签的增删改、显隐（对齐 Web 的标签管理页）
 @MainActor
 final class TagsViewModel: ObservableObject {
@@ -26,11 +54,12 @@ final class TagsViewModel: ObservableObject {
 
     var sections: [TagSection] { TagGrouping.sections(tags: tags, groups: groups) }
 
-    func addTag(name: String, groupId: String) async {
+    func addTag(name: String, groupId: String, icon: String?, color: String?) async {
         do {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/transaction/tags/add.json", method: .POST,
-                body: TagCreateRequest(groupId: groupId, name: name)
+                body: TagCreateRequest(groupId: groupId, name: name,
+                                       icon: icon ?? "0", color: color ?? "")
             )
             await load()
         } catch {
@@ -38,11 +67,13 @@ final class TagsViewModel: ObservableObject {
         }
     }
 
-    func renameTag(_ tag: TransactionTag, to name: String) async {
+    func renameTag(_ tag: TransactionTag, to name: String, icon: String?, color: String?) async {
         do {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/transaction/tags/modify.json", method: .POST,
-                body: TagModifyRequest(id: tag.id, groupId: tag.groupId ?? "0", name: name)
+                body: TagModifyRequest(id: tag.id, groupId: tag.groupId ?? "0", name: name,
+                                       icon: icon ?? tag.icon ?? "0",
+                                       color: color ?? tag.color ?? "")
             )
             await load()
         } catch {
@@ -191,10 +222,7 @@ struct TagsView: View {
                 Section(header: Text("标签排序")) {
                     ForEach(sortTags, id: \.id) { tag in
                         HStack {
-                            Image(systemName: "tag.fill").font(.system(size: 11))
-                                .foregroundColor(.white)
-                                .frame(width: 26, height: 26)
-                                .background(Circle().fill(Theme.brand))
+                            TagIconView(icon: tag.icon, color: tag.color)
                             Text(tag.name)
                             Spacer()
                         }
@@ -206,11 +234,7 @@ struct TagsView: View {
                     Section(header: Text(section.name)) {
                         ForEach(section.tags, id: \.id) { tag in
                             HStack {
-                                Image(systemName: "tag.fill")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white)
-                                    .frame(width: 26, height: 26)
-                                    .background(Circle().fill(Theme.brand))
+                                TagIconView(icon: tag.icon, color: tag.color)
                                 Text(tag.name)
                                 if tag.hidden ?? false {
                                     Text("已隐藏").font(.caption2).foregroundColor(.secondary)
@@ -296,11 +320,11 @@ struct TagsView: View {
         }
         .refreshable { await vm.load() }
         .sheet(item: $input) { ctx in
-            TagInputSheet(context: ctx) { name in
+            TagInputSheet(context: ctx) { name, icon, color in
                 switch ctx.kind {
-                case .addTag(let groupId): await vm.addTag(name: name, groupId: groupId)
+                case .addTag(let groupId): await vm.addTag(name: name, groupId: groupId, icon: icon, color: color)
                 case .addGroup: await vm.addGroup(name: name)
-                case .renameTag(let tag): await vm.renameTag(tag, to: name)
+                case .renameTag(let tag): await vm.renameTag(tag, to: name, icon: icon, color: color)
                 case .renameGroup(let group): await vm.renameGroup(group, to: name)
                 }
             }
@@ -331,19 +355,39 @@ struct TagsView: View {
     }
 }
 
-/// 标签名输入弹层（替代 iOS 16+ 的 alert TextField）
+/// 标签名输入弹层（替代 iOS 16+ 的 alert TextField）；标签类弹层附带图标/颜色选择
 struct TagInputSheet: View {
     let context: TagsView.TagInput
-    let onSubmit: (String) async -> Void
+    /// name + 可选 icon/color（标签组等无图标上下文传 nil）
+    let onSubmit: (String, String?, String?) async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
+    @State private var icon = "0"
+    @State private var color = ""
     @State private var isSaving = false
+
+    private var isTagContext: Bool {
+        switch context.kind {
+        case .addTag, .renameTag: return true
+        default: return false
+        }
+    }
 
     var body: some View {
         NavigationView {
             Form {
-                TextField("名称", text: $text)
+                Section {
+                    TextField("名称", text: $text)
+                }
+                if isTagContext {
+                    Section(header: Text("图标")) {
+                        TagIconGrid(selected: $icon)
+                    }
+                    Section(header: Text("颜色")) {
+                        TagColorGrid(selected: $color)
+                    }
+                }
             }
             .navigationTitle(context.title)
             .navigationBarTitleDisplayMode(.inline)
@@ -354,9 +398,11 @@ struct TagInputSheet: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         let name = text
+                        let iconOut = isTagContext ? icon : nil
+                        let colorOut = isTagContext ? color : nil
                         Task {
                             isSaving = true
-                            await onSubmit(name)
+                            await onSubmit(name, iconOut, colorOut)
                             isSaving = false
                             dismiss()
                         }
@@ -366,7 +412,99 @@ struct TagInputSheet: View {
                     .disabled(isSaving)
                 }
             }
-            .onAppear { text = context.initial }
+            .onAppear {
+                text = context.initial
+                if case .renameTag(let t) = context.kind {
+                    icon = t.icon ?? "0"
+                    color = t.color ?? ""
+                }
+            }
         }
+    }
+}
+
+/// 标签图标选择网格：首项「默认」(tag.fill 青绿) + 分类图标目录（对齐分类编辑的近似映射）
+struct TagIconGrid: View {
+    @Binding var selected: String
+
+    private let columns = [GridItem(.adaptive(minimum: 52), spacing: 10)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 10) {
+            Button {
+                selected = "0"
+            } label: {
+                ZStack {
+                    Circle().fill(selected == "0" ? Theme.brand : Color(.tertiarySystemFill))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 17))
+                        .foregroundColor(selected == "0" ? .white : .primary)
+                }
+            }
+            .buttonStyle(.plain)
+
+            ForEach(CategoryIconCatalog.options, id: \.0) { item in
+                Button {
+                    selected = String(item.0)
+                } label: {
+                    ZStack {
+                        Circle().fill(selected == String(item.0) ? Theme.brand : Color(.tertiarySystemFill))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: item.1)
+                            .font(.system(size: 18))
+                            .foregroundColor(selected == String(item.0) ? .white : .primary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// 标签颜色选择网格：首项「默认」(主题青绿) + 常用色板
+struct TagColorGrid: View {
+    @Binding var selected: String
+
+    private let columns = [GridItem(.adaptive(minimum: 44), spacing: 10)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 10) {
+            Button {
+                selected = ""
+            } label: {
+                ZStack {
+                    Circle().fill(Theme.brand)
+                        .frame(width: 32, height: 32)
+                    if selected == "" {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+
+            ForEach(AccountColorCatalog.all, id: \.self) { hex in
+                Button {
+                    selected = hex
+                } label: {
+                    ZStack {
+                        Circle().fill(Color(hex: hex))
+                            .frame(width: 32, height: 32)
+                        if selected == hex {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
