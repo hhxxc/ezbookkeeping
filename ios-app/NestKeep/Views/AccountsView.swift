@@ -190,39 +190,54 @@ struct AccountsView: View {
                     .listStyle(.insetGrouped)
                     .environment(\.editMode, .constant(.active))
                 } else {
-                    List {
-                        Section {
+                    // 账户列表改 ScrollView+VStack 自控间距（对齐主页 4ccf11d9）：
+                    // insetGrouped List 首组顶部 ~30pt 系统留白 iOS 15 收不掉，顶栏与净资产卡间隙过大。
+                    // 行左滑（swipeActions）是 List 专属，同一组操作改由长按 contextMenu 承载（用户已确认）
+                    ScrollView {
+                        VStack(spacing: 0) {
                             netAssetsCard
-                                // 边距对齐账单页汇总卡（leading/trailing 0 只留 insetGrouped 自带分组边距），
-                                // 两页卡片宽度/观感一致
-                                .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
-                                .listRowBackground(Color.clear)
-                        }
+                                // 顶栏底 4 + 卡顶 8 = 12pt，与主页汇总卡一致
+                                .padding(.top, 8)
+                                .padding(.bottom, 12)
 
-                        ForEach(vm.groupedAccounts, id: \.category) { group in
-                            Section(header: Text(group.name)) {
-                                ForEach(group.accounts, id: \.id) { account in
-                                    ForEach(rows(for: account).indices, id: \.self) { idx in
-                                        let pair = rows(for: account)[idx]
-                                        accountRow(pair.0, isSub: pair.1)
+                            ForEach(vm.groupedAccounts, id: \.category) { group in
+                                Text(group.name)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    // 25 = 卡片左缘 17 + 8，贴近原 insetGrouped header 缩进
+                                    .padding(.leading, 25)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 8)
+
+                                // 分组卡片：白底圆角 + 阴影，与主页卡片同风格
+                                VStack(spacing: 0) {
+                                    let groupRows = group.accounts.flatMap { rows(for: $0) }
+                                    ForEach(groupRows.indices, id: \.self) { idx in
+                                        if idx > 0 {
+                                            // 64 = 行内边距 16 + 图标 36 + 间距 12，与行文字左缘对齐
+                                            Divider().padding(.leading, 64)
+                                        }
+                                        accountRow(groupRows[idx].0, isSub: groupRows[idx].1)
                                     }
                                 }
+                                .background(HomePalette.card)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 10, x: 0, y: 4)
                             }
-                        }
 
-                        if vm.groupedAccounts.isEmpty && !vm.isLoading {
-                            Section {
+                            if vm.groupedAccounts.isEmpty && !vm.isLoading {
                                 VStack(spacing: 8) {
                                     Image(systemName: "creditcard").font(.system(size: 34)).foregroundColor(.secondary)
                                     Text("还没有账户").font(.subheadline).foregroundColor(.secondary)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 24)
-                                .listRowBackground(Color.clear)
                             }
                         }
+                        .padding(.horizontal, 17)
+                        .padding(.bottom, 16)
                     }
-                    .listStyle(.insetGrouped)
                     .refreshable { await vm.load() }
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
@@ -318,7 +333,7 @@ struct AccountsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
-        .padding(.bottom, 8)
+        .padding(.bottom, 4)
         .background(
             VStack(spacing: 0) {
                 Color(.systemGroupedBackground)
@@ -459,28 +474,28 @@ struct AccountsView: View {
             Text(masked(AmountFormat.format(account.balance, currency: account.currency)))
                 .font(.system(.body, design: .rounded))
         }
+        // 原 insetGrouped 行自带内边距，改自绘后补上
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .contentShape(Rectangle())
         .onTapGesture { editingAccount = account }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+        // 原 List 行左滑（swipeActions）的同一组操作，改由长按菜单承载
+        .contextMenu {
             Button { statementAccount = account } label: {
                 Label("对账单", systemImage: "list.bullet.rectangle")
-            }
-            .tint(Theme.brand)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { deleting = account } label: {
-                Label("删除", systemImage: "trash")
             }
             Button { Task { await vm.toggleHide(account) } } label: {
                 Label("隐藏", systemImage: "eye.slash")
             }
-            .tint(.gray)
             // 单账户（非父账户）才能移动全部账单
             if account.type != AccountType.multiSubAccounts.rawValue {
                 Button { moveFromAccount = account } label: {
                     Label("移动账单", systemImage: "arrow.right.arrow.left")
                 }
-                .tint(.orange)
+            }
+            Divider()
+            Button(role: .destructive) { deleting = account } label: {
+                Label("删除", systemImage: "trash")
             }
         }
     }
