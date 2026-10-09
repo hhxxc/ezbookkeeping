@@ -32,7 +32,8 @@ final class AuthManager: ObservableObject {
 
     @Published private(set) var isLoggedIn = false
     private(set) var token: String?
-    private(set) var currentUser: UserBasicInfo?
+    /// @Published：设置页/个人资料页据此实时刷新头像与昵称（头像上传后即时生效）
+    @Published private(set) var currentUser: UserBasicInfo?
 
     private let tokenKey = "nestkeep.token"
     private let userKey = "nestkeep.user"

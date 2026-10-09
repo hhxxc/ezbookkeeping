@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import UIKit
 
 /// 用户资料：读取 / 更新（对齐 Web 的个人资料页）
 @MainActor
@@ -93,10 +94,60 @@ final class ProfileViewModel: ObservableObject {
 
 struct ProfileEditView: View {
     @StateObject private var vm = ProfileViewModel()
+    @EnvironmentObject private var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showAvatarDialog = false
+    @State private var showAvatarPicker = false
+    @State private var isUploadingAvatar = false
+    @State private var avatarError: String?
+
+    /// 头像展示地址（vm 与全局用户信息哪个有头像用哪个）
+    private var avatarURL: URL? {
+        AvatarUploader.displayURL(for: vm.profile?.avatar ?? auth.currentUser?.avatar)
+    }
 
     var body: some View {
         Form {
+            Section {
+                VStack(spacing: 8) {
+                    Button {
+                        showAvatarDialog = true
+                    } label: {
+                        ZStack(alignment: .bottomTrailing) {
+                            avatarView
+                                .frame(width: 72, height: 72)
+                                .clipShape(Circle())
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(5)
+                                .background(Circle().fill(Theme.brand))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isUploadingAvatar)
+
+                    if isUploadingAvatar {
+                        ProgressView()
+                    } else {
+                        Text("点击更换头像")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+
+                    if let avatarError = avatarError {
+                        Text(avatarError)
+                            .font(.caption2)
+                            .foregroundColor(Theme.expense)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .listRowBackground(Color.clear)
+            }
+
             Section(header: Text("账号")) {
                 HStack {
                     Text("用户名")
@@ -156,6 +207,68 @@ struct ProfileEditView: View {
         }
         .task { await vm.load() }
         .onChange(of: vm.didSave) { saved in if saved { dismiss() } }
+        .confirmationDialog("头像", isPresented: $showAvatarDialog, titleVisibility: .visible) {
+            Button("更换头像") { showAvatarPicker = true }
+            if avatarURL != nil {
+                Button("移除头像", role: .destructive) {
+                    Task { await removeAvatar() }
+                }
+            }
+            Button("取消", role: .cancel) {}
+        }
+        .sheet(isPresented: $showAvatarPicker) {
+            PhotoPicker { data in
+                Task { await uploadAvatar(data) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var avatarView: some View {
+        if let url = avatarURL {
+            CachedAsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                ZStack {
+                    Circle().fill(Theme.brand.opacity(0.12))
+                    ProgressView()
+                }
+            }
+        } else {
+            Image(systemName: "person.crop.circle.fill")
+                .resizable()
+                .foregroundColor(Theme.brand)
+        }
+    }
+
+    private func uploadAvatar(_ data: Data) async {
+        isUploadingAvatar = true
+        avatarError = nil
+        do {
+            // 先解码再压到 ≤512px（服务端上限 1MB，原图直传必超）
+            guard let image = UIImage(data: data), let payload = AvatarUploader.prepareData(image) else {
+                throw APIError.invalidResponse
+            }
+            let user = try await AvatarUploader.upload(imageData: payload)
+            vm.profile = user
+            await AuthManager.shared.updateCurrentUser(user, newToken: nil)
+        } catch {
+            avatarError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+        isUploadingAvatar = false
+    }
+
+    private func removeAvatar() async {
+        isUploadingAvatar = true
+        avatarError = nil
+        do {
+            let user = try await AvatarUploader.remove()
+            vm.profile = user
+            await AuthManager.shared.updateCurrentUser(user, newToken: nil)
+        } catch {
+            avatarError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+        isUploadingAvatar = false
     }
 
     private var flattenedAccounts: [Account] {

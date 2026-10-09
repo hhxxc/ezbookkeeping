@@ -16,9 +16,18 @@ struct SettingsView: View {
                 Section {
                     if let user = auth.currentUser {
                         HStack(spacing: 12) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(Theme.brand)
+                            // 真实头像（登录用户上传过头像时展示），否则回退占位图标
+                            if let avatarURL = AvatarUploader.displayURL(for: user.avatar) {
+                                CachedAsyncImage(url: avatarURL) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    placeholderAvatar
+                                }
+                                .frame(width: 44, height: 44)
+                                .clipShape(Circle())
+                            } else {
+                                placeholderAvatar
+                            }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(user.nickname?.isEmpty == false ? user.nickname! : (user.username ?? "已登录"))
                                     .font(.headline)
@@ -216,6 +225,18 @@ struct SettingsView: View {
         // 一直带 .stack，其二级页（账单明细/日历/区间详情）从未出现过重叠，
         // 因此设置 Tab 的全部二级页统一跟随 .stack 方案修复。
         .navigationViewStyle(.stack)
+    }
+
+    /// 无头像时的占位图标
+    private var placeholderAvatar: some View {
+        ZStack {
+            Circle().fill(Theme.brand.opacity(0.12))
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 34))
+                .foregroundColor(Theme.brand)
+        }
+        .frame(width: 44, height: 44)
+        .clipShape(Circle())
     }
 }
 
