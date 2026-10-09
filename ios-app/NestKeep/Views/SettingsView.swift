@@ -120,7 +120,7 @@ struct SettingsView: View {
                     NavigationLink {
                         SessionsView()
                     } label: {
-                        Label("设备与会话", systemImage: "iphone.gen3")
+                        Label("设备与会话", systemImage: "iphone")
                     }
                 }
 

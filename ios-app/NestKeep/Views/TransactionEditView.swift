@@ -1126,7 +1126,7 @@ struct PicturePickerSection: View {
                     if vm.isUploadingPicture {
                         ProgressView()
                     } else {
-                        Image(systemName: "photo.badge.plus")
+                        Image(systemName: "photo")
                     }
                     Text(vm.isUploadingPicture ? "上传中…" : "添加图片")
                 }

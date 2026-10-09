@@ -13,7 +13,7 @@ struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 10) {
-                    Image(systemName: "house.lodge.fill")
+                    Image(systemName: "house.fill")
                         .font(.system(size: 46))
                         .foregroundColor(.white)
                         .frame(width: 84, height: 84)

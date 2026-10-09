@@ -135,7 +135,7 @@ enum AccountIconCatalog {
         // 其他
         500: "gauge", 510: "ticket", 520: "envelope", 530: "shippingbox", 540: "hand.thumbsup",
         560: "shield", 600: "calendar.badge.minus", 601: "calendar.badge.plus",
-        700: "doc.text.fill", 701: "receipt", 800: "chart.bar.fill", 801: "chart.line.uptrend.xyaxis",
+        700: "doc.text.fill", 701: "list.bullet.rectangle", 800: "chart.bar.fill", 801: "chart.line.uptrend.xyaxis",
         900: "person.2", 901: "person.3", 910: "house", 911: "building.2", 912: "building.2.fill", 990: "globe",
         // 货币
         1000: "dollarsign.circle", 1001: "eurosign.circle", 1002: "sterlingsign.circle",
@@ -166,7 +166,7 @@ enum AccountIconCatalog {
         (560, "shield", "保障"),
         (600, "calendar.badge.minus", "负债"),
         (601, "calendar.badge.plus", "应收"),
-        (701, "receipt", "收据"),
+        (701, "list.bullet.rectangle", "收据"),
         (801, "chart.line.uptrend.xyaxis", "投资"),
         (900, "person.2", "人情"),
         (910, "house", "房产"),
