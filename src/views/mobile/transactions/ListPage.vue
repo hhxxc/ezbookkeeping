@@ -1934,6 +1934,7 @@ html[dir="rtl"] .list.transaction-info-list li.transaction-info .transaction-foo
     --dp-border-radius: var(--f7-list-inset-border-radius);
     --dp-menu-padding: 4px 6px;
     --dp-menu-border-color: transparent;
+    --dp-font-size: var(--ebk-transaction-calendar-day-font-size, var(--dp-font-size));
 }
 
 .transaction-calendar-container .dp__main .dp__menu.dp__theme_dark {
