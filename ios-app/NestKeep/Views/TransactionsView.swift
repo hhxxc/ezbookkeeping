@@ -494,6 +494,19 @@ final class TransactionsViewModel: ObservableObject {
         return Theme.brand
     }
 
+    /// 分类 SF Symbol 名（经 CategoryIconCatalog 编号映射）。
+    /// 返回 nil 表示找不到分类（转账/余额调整等），行 UI 回退交易类型图标
+    func categoryIcon(_ id: String?) -> String? {
+        guard let id = id else { return nil }
+        for c in categories {
+            if c.id == id { return CategoryIconCatalog.symbol(c.icon) }
+            if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }) {
+                return CategoryIconCatalog.symbol(hit.icon)
+            }
+        }
+        return nil
+    }
+
     /// 左滑删除：走 POST /transactions/delete.json
     func delete(_ tx: Transaction) async {
         do {
@@ -1066,8 +1079,13 @@ private struct BillListPageView: View {
                     }
                 } else if !vm.isLoading && vm.transactions.isEmpty {
                     Section {
-                        VStack(spacing: 8) {
-                            Image(systemName: "tray").font(.system(size: 34)).foregroundColor(.secondary)
+                        VStack(spacing: 12) {
+                            Image(systemName: "tray")
+                                .font(.system(size: 26, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .frame(width: 64, height: 64)
+                                .background(Color(.secondarySystemFill))
+                                .cornerRadius(22)
                             Text(vm.isFiltering ? "没有符合条件的账单" : "本月还没有账单")
                                 .font(.subheadline).foregroundColor(.secondary)
                             if vm.isFiltering {
@@ -1140,16 +1158,18 @@ private struct BillListPageView: View {
     private func dayHeader(_ date: Date, items: [Transaction]) -> some View {
         let exp = vm.dayExpense(items)
         let inc = vm.dayIncome(items)
-        return HStack {
+        return HStack(spacing: 0) {
             Text(TransactionsView.dayLabel(date))
             Spacer()
-            if exp > 0 {
-                Text("支 \(AmountFormat.format(exp))")
-                    .foregroundColor(Theme.expense)
-            }
-            if inc > 0 {
-                Text("收 \(AmountFormat.format(inc))")
-                    .foregroundColor(Theme.income)
+            HStack(spacing: 10) {
+                if exp > 0 {
+                    Text("支 \(AmountFormat.format(exp))")
+                        .foregroundColor(Theme.expense)
+                }
+                if inc > 0 {
+                    Text("收 \(AmountFormat.format(inc))")
+                        .foregroundColor(Theme.income)
+                }
             }
         }
         .font(.footnote)
@@ -1250,25 +1270,41 @@ struct RangeDetailView: View {
                 Spacer()
             } else if let error = vm.error {
                 Spacer()
-                VStack(spacing: 10) {
+                VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 32))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 26, weight: .medium))
+                        .foregroundColor(.orange)
+                        .frame(width: 64, height: 64)
+                        .background(Color.orange.opacity(0.12))
+                        .cornerRadius(22)
                     Text(error)
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                    Button("重试") { Task { await vm.load() } }
-                        .font(.subheadline)
+                    Button {
+                        Task { await vm.load() }
+                    } label: {
+                        Text("重试")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 8)
+                            .background(Theme.brand)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 32)
                 Spacer()
             } else if vm.transactions.isEmpty {
                 Spacer()
-                VStack(spacing: 8) {
+                VStack(spacing: 12) {
                     Image(systemName: "tray")
-                        .font(.system(size: 34))
+                        .font(.system(size: 26, weight: .medium))
                         .foregroundColor(.secondary)
+                        .frame(width: 64, height: 64)
+                        .background(Color(.secondarySystemFill))
+                        .cornerRadius(22)
                     Text("该区间还没有账单")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -1297,17 +1333,30 @@ struct RangeDetailView: View {
         }
     }
 
-    /// 系统导航栏下方的摘要行：日期范围副标题 + 收支合计
+    /// 系统导航栏下方的摘要卡（首页六区间行同款风格：区间彩色徽章 + 日期 + 收支合计）
     private var summaryRow: some View {
-        HStack(spacing: 8) {
-            Text(mainVM.rangeSubtitle(vm.context.period))
-                .font(.system(size: 13))
-                .foregroundColor(HomePalette.secondary)
-                .lineLimit(1)
+        let period = vm.context.period
+        return HStack(spacing: 12) {
+            Image(systemName: period.icon)
+                .font(.system(size: 17))
+                .foregroundColor(period.color)
+                .frame(width: 34, height: 34)
+                .background(period.color.opacity(0.14))
+                .cornerRadius(10)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(period.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                Text(mainVM.rangeSubtitle(period))
+                    .font(.system(size: 12))
+                    .foregroundColor(HomePalette.secondary)
+                    .lineLimit(1)
+            }
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 3) {
                 Text("收 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.incomeCents))")
                     .foregroundColor(HomePalette.income)
                 Text("支 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expenseCents))")
@@ -1318,9 +1367,14 @@ struct RangeDetailView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.7)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 8, x: 0, y: 3)
         .padding(.horizontal, 16)
-        .padding(.vertical, 7)
-        .background(Color(.systemGroupedBackground))
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var transactionList: some View {
@@ -1357,16 +1411,18 @@ struct RangeDetailView: View {
     private func dayHeader(_ date: Date, items: [Transaction]) -> some View {
         let exp = vm.dayExpense(items)
         let inc = vm.dayIncome(items)
-        return HStack {
+        return HStack(spacing: 0) {
             Text(TransactionsView.dayLabel(date))
             Spacer()
-            if exp > 0 {
-                Text("支 \(AmountFormat.format(exp))")
-                    .foregroundColor(Theme.expense)
-            }
-            if inc > 0 {
-                Text("收 \(AmountFormat.format(inc))")
-                    .foregroundColor(Theme.income)
+            HStack(spacing: 10) {
+                if exp > 0 {
+                    Text("支 \(AmountFormat.format(exp))")
+                        .foregroundColor(Theme.expense)
+                }
+                if inc > 0 {
+                    Text("收 \(AmountFormat.format(inc))")
+                        .foregroundColor(Theme.income)
+                }
             }
         }
         .font(.footnote)
@@ -1416,17 +1472,35 @@ struct TransactionRow: View {
         }
     }
 
+    /// 支出/收入且能映射到分类时，行首显示**分类图标**（分类色浅底），与 Web 端账单列表一致；
+    /// 转账/余额调整/分类缺失时回退交易类型箭头
+    private var showsCategoryIcon: Bool {
+        tx.transactionType == .expense || tx.transactionType == .income
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(iconColor)
-                .frame(width: 32, height: 32)
-                .background(iconColor.opacity(0.12))
-                .cornerRadius(9)
+            if showsCategoryIcon, let symbol = vm.categoryIcon(tx.categoryId) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(iconColor)
+                    .frame(width: 32, height: 32)
+                    .background(iconColor.opacity(0.13))
+                    .cornerRadius(10)
+            } else {
+                Image(systemName: iconName)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(iconColor)
+                    .frame(width: 32, height: 32)
+                    .background(iconColor.opacity(0.12))
+                    .cornerRadius(9)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(vm.categoryName(tx.categoryId))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(HomePalette.ink)
+                    .lineLimit(1)
                 HStack(spacing: 6) {
                     Text(vm.accountName(tx.sourceAccountId))
                     if let comment = tx.comment, !comment.isEmpty {
@@ -1444,7 +1518,8 @@ struct TransactionRow: View {
             }
             Spacer()
             Text(amountText)
-                .font(.system(.body, design: .rounded))
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .monospacedDigit()
                 .foregroundColor(amountColor)
         }
         .padding(.vertical, 2)
