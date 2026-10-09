@@ -31,6 +31,12 @@ final class TransactionEditViewModel: ObservableObject {
     @Published var timeZoneIdentifier = TimeZone.current.identifier
     /// 地理位置（经度/纬度）
     @Published var geoLocation: TransactionGeoLocation?
+    /// 分期：是否按分期保存（仅支出新增模式可用）
+    @Published var installmentEnabled = false
+    /// 分期：总期数（2~60）
+    @Published var installmentPeriods = 12
+    /// 分期：名称（如「iPhone 15 分期」）
+    @Published var installmentName = ""
     @Published var accounts: [Account] = []
     @Published var categories: [TransactionCategory] = []
     @Published var isLoading = false
@@ -55,10 +61,11 @@ final class TransactionEditViewModel: ObservableObject {
     /// 编辑模式进入时的幂等会话 id（新增/复制每次保存唯一）
     private var clientSessionId = UUID().uuidString
 
-    init(transaction: Transaction?, mode: TransactionEditMode = .add) {
+    init(transaction: Transaction?, mode: TransactionEditMode = .add, defaultInstallment: Bool = false) {
         self.originalId = transaction?.id
         self.mode = mode
         self.pending = transaction
+        self.installmentEnabled = defaultInstallment
     }
 
     var navigationTitle: String {
@@ -168,6 +175,19 @@ final class TransactionEditViewModel: ObservableObject {
             error = "请选择分类"
             return
         }
+        // 分期保存的前置校验（金额为全部期次总额）
+        let isInstallmentSave = mode == .add && installmentEnabled && type == .expense
+        let trimmedInstallmentName = installmentName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isInstallmentSave {
+            if trimmedInstallmentName.isEmpty {
+                error = "请填写分期名称"
+                return
+            }
+            if installmentPeriods < 2 {
+                error = "分期至少 2 期"
+                return
+            }
+        }
 
         let cents = Self.toCents(amount)
         let utcOffset = (TimeZone(identifier: timeZoneIdentifier) ?? .current).secondsFromGMT(for: date) / 60
@@ -177,7 +197,25 @@ final class TransactionEditViewModel: ObservableObject {
         do {
             let tagIdList = Array(selectedTagIds)
             let pictureIdList = pictures.map { $0.id }
-            if mode == .edit, let id = originalId {
+            if isInstallmentSave {
+                // 分期：一次性生成全部期次，后端均摊金额（余数放最后一期），日期按月推进
+                let req = InstallmentCreateRequest(
+                    name: trimmedInstallmentName,
+                    type: TransactionType.expense.rawValue,
+                    categoryId: categoryId,
+                    time: Int64(date.timeIntervalSince1970),
+                    utcOffset: utcOffset,
+                    sourceAccountId: sourceAccountId,
+                    sourceAmount: cents,
+                    totalPeriods: installmentPeriods,
+                    hideAmount: false,
+                    tagIds: tagIdList,
+                    comment: comment
+                )
+                let _: InstallmentPlan = try await APIClient.shared.request(
+                    "/api/v1/transactions/installments/add.json", method: .POST, body: req
+                )
+            } else if mode == .edit, let id = originalId {
                 // 编辑已有交易：走 modify.json
                 let req = TransactionModifyRequest(
                     id: id,
@@ -230,7 +268,7 @@ final class TransactionEditViewModel: ObservableObject {
         }
     }
 
-    /// 「再记」成功后重置内容：金额/备注/图片/标签/位置清空，类型/账户/分类/日期保留
+    /// 「再记」成功后重置内容：金额/备注/图片/标签/位置/分期清空，类型/账户/分类/日期保留
     func resetForNextEntry() {
         amountText = ""
         comment = ""
@@ -239,6 +277,8 @@ final class TransactionEditViewModel: ObservableObject {
         geoLocation = nil
         date = Date()
         error = nil
+        installmentEnabled = false
+        installmentName = ""
         clientSessionId = UUID().uuidString
     }
 
@@ -342,6 +382,9 @@ struct TransactionEditView: View {
                         categoryGrid
                     }
                     chipsRow
+                    if installmentAvailable && vm.installmentEnabled {
+                        installmentCard
+                    }
                     noteRow
                     if let error = vm.error {
                         Text(error)
@@ -604,7 +647,99 @@ struct TransactionEditView: View {
             chip(icon: "photo", label: vm.pictures.isEmpty ? "图片" : "图片 \(vm.pictures.count)") {
                 showPictureSheet = true
             }
+            if installmentAvailable {
+                chip(icon: "repeat", label: vm.installmentEnabled ? "分期 \(vm.installmentPeriods) 期" : "分期") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        vm.installmentEnabled.toggle()
+                    }
+                }
+            }
             Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - 分期
+
+    /// 分期入口仅在「新增支出」时可用
+    private var installmentAvailable: Bool {
+        vm.mode == .add && vm.type == .expense
+    }
+
+    /// 分期设置卡：名称 + 期数 + 摊还预览
+    private var installmentCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("分期名称（如：iPhone 分期）", text: $vm.installmentName)
+                .font(.system(size: 14))
+
+            HStack(spacing: 12) {
+                Text("期数")
+                    .font(.system(size: 14))
+                    .foregroundColor(HomePalette.secondary)
+                Spacer(minLength: 8)
+                periodAdjustButton(icon: "minus", disabled: vm.installmentPeriods <= 2) {
+                    vm.installmentPeriods = max(2, vm.installmentPeriods - 1)
+                }
+                Text("\(vm.installmentPeriods) 期")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .frame(minWidth: 44)
+                periodAdjustButton(icon: "plus", disabled: vm.installmentPeriods >= 60) {
+                    vm.installmentPeriods = min(60, vm.installmentPeriods + 1)
+                }
+            }
+
+            installmentPreview
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func periodAdjustButton(icon: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(disabled ? Color(.tertiaryLabel) : HomePalette.ink)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color.primary.opacity(0.06)))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+
+    /// 摊还预览：每期金额 + 首期日期说明
+    @ViewBuilder
+    private var installmentPreview: some View {
+        let trimmed = vm.amountText.trimmingCharacters(in: .whitespaces)
+
+        if let total = TransactionEditViewModel.evaluateExpression(trimmed), total > 0 {
+            let cents = TransactionEditViewModel.toCents(total)
+            let periods = max(2, vm.installmentPeriods)
+            let per = cents / Int64(periods)
+            let last = cents - per * Int64(periods - 1)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text("共 \(periods) 期")
+                        .foregroundColor(HomePalette.ink)
+                    Text("· 每期 \(AmountFormat.format(per))")
+                        .foregroundColor(HomePalette.secondary)
+                    if last != per {
+                        Text("· 末期 \(AmountFormat.format(last))")
+                            .foregroundColor(HomePalette.secondary)
+                    }
+                }
+                .font(.system(size: 13, design: .rounded))
+
+                Text("首期 \(chipDateFormatter.string(from: vm.date)) 起，每月一期按月预记")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        } else {
+            Text("输入总金额后自动按期均摊")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 
@@ -725,7 +860,8 @@ struct TransactionEditView: View {
         case .again:
             Text("再记").font(.system(size: 15, weight: .medium)).foregroundColor(Theme.brand)
         case .save:
-            Text(vm.isLoading ? "保存中…" : "保存").font(.system(size: 16, weight: .semibold))
+            Text(vm.isLoading ? "保存中…" : (installmentAvailable && vm.installmentEnabled ? "保存分期" : "保存"))
+                .font(.system(size: 16, weight: .semibold))
         }
     }
 

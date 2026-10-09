@@ -1432,6 +1432,12 @@ struct TransactionRow: View {
                     if let comment = tx.comment, !comment.isEmpty {
                         Text("· \(comment)").lineLimit(1)
                     }
+                    if let installment = tx.installmentLabel {
+                        Text("分期 \(installment)")
+                            .font(.caption2)
+                            .foregroundColor(Theme.brand)
+                            .lineLimit(1)
+                    }
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)

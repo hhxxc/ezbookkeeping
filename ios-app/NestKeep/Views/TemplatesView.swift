@@ -1,12 +1,14 @@
 import SwiftUI
 import Combine
 
-/// 模板与计划账单（对齐 Web 的模板 / 计划账单列表）
+/// 模板与计划账单（对齐 Web 的模板 / 计划账单列表），并内嵌「分期账单」段
 @MainActor
 final class TemplatesViewModel: ObservableObject {
-    /// 1=普通模板 2=计划账单
+    /// 1=普通模板 2=计划账单 3=分期账单
     @Published var templateType = 1
     @Published var templates: [TransactionTemplate] = []
+    /// 分期计划列表（templateType == 3 时使用）
+    @Published var plans: [InstallmentPlan] = []
     @Published var categories: [TransactionCategory] = []
     @Published var accounts: [Account] = []
     @Published var isLoading = false
@@ -16,15 +18,24 @@ final class TemplatesViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            async let t: [TransactionTemplate] = APIClient.shared.request(
-                "/api/v1/transaction/templates/list.json",
-                query: [URLQueryItem(name: "templateType", value: "\(templateType)")]
-            )
             async let c = APIClient.shared.requestCategoryList()
             async let a: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            templates = (try? await t) ?? []
-            categories = (try? await c) ?? []
-            accounts = (try? await a) ?? []
+            if templateType == 3 {
+                async let p: [InstallmentPlan] = APIClient.shared.request("/api/v1/transactions/installments/list.json")
+                accounts = (try? await a) ?? []
+                categories = (try? await c) ?? []
+                plans = (try? await p) ?? []
+                templates = []
+            } else {
+                async let t: [TransactionTemplate] = APIClient.shared.request(
+                    "/api/v1/transaction/templates/list.json",
+                    query: [URLQueryItem(name: "templateType", value: "\(templateType)")]
+                )
+                accounts = (try? await a) ?? []
+                categories = (try? await c) ?? []
+                templates = (try? await t) ?? []
+                plans = []
+            }
             isLoading = false
         } catch {
             isLoading = false
@@ -64,6 +75,19 @@ final class TemplatesViewModel: ObservableObject {
                 body: TemplateHideRequest(id: template.id, hidden: !(template.hidden ?? false))
             )
             await load()
+        } catch {
+            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// 删除分期计划（deleteTransactions = 是否连同全部期次交易一起删除）
+    func deletePlan(_ plan: InstallmentPlan, deleteTransactions: Bool) async {
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transactions/installments/delete.json", method: .POST,
+                body: InstallmentDeleteRequest(id: plan.id, deleteTransactions: deleteTransactions)
+            )
+            plans.removeAll { $0.id == plan.id }
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -127,6 +151,9 @@ struct TemplatesView: View {
     /// 新增 / 编辑模板
     @State private var editingTemplate: TransactionTemplate?
     @State private var showAddTemplate = false
+    /// 分期详情 / 新建分期
+    @State private var detailPlan: InstallmentPlan?
+    @State private var showAddInstallment = false
 
     var body: some View {
         List {
@@ -152,62 +179,16 @@ struct TemplatesView: View {
                 Picker("类型", selection: $vm.templateType) {
                     Text("模板").tag(1)
                     Text("计划账单").tag(2)
+                    Text("分期账单").tag(3)
                 }
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .onChange(of: vm.templateType) { _ in Task { await vm.load() } }
 
-                if vm.templates.isEmpty && !vm.isLoading {
-                    Section {
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.on.doc").font(.system(size: 34)).foregroundColor(.secondary)
-                            Text(vm.templateType == 1 ? "还没有模板" : "还没有计划账单")
-                                .font(.subheadline).foregroundColor(.secondary)
-                            Text("点右上角 + 新建，或在新增交易时保存为模板")
-                                .font(.caption2).foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .listRowBackground(Color.clear)
-                    }
-                }
-
-                ForEach(vm.templates, id: \.id) { template in
-                    HStack(spacing: 12) {
-                        Image(systemName: iconName(template))
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 32, height: 32)
-                            .background(iconColor(template))
-                            .cornerRadius(9)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(template.name)
-                            HStack(spacing: 6) {
-                                Text(vm.categoryName(template.categoryId))
-                                Text("· \(vm.accountName(template.sourceAccountId))")
-                            }
-                            .font(.caption).foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Text(AmountFormat.format(template.sourceAmount))
-                            .font(.system(.body, design: .rounded))
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture { editingTemplate = template }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) { Task { await vm.delete(template) } } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                        Button { Task { await vm.toggleHide(template) } } label: {
-                            Label(template.hidden ?? false ? "显示" : "隐藏",
-                                  systemImage: template.hidden ?? false ? "eye" : "eye.slash")
-                        }
-                        .tint(.gray)
-                    }
-                }
-
-                if let error = vm.error {
-                    Section { Text(error).foregroundColor(.red).font(.footnote) }
+                if vm.templateType == 3 {
+                    installmentList
+                } else {
+                    templateList
                 }
             }
         }
@@ -224,11 +205,19 @@ struct TemplatesView: View {
                     }
                 } else {
                     HStack(spacing: 16) {
-                        Button("排序") {
-                            sortItems = vm.templates
-                            isSorting = true
+                        if vm.templateType != 3 {
+                            Button("排序") {
+                                sortItems = vm.templates
+                                isSorting = true
+                            }
                         }
-                        Button { showAddTemplate = true } label: { Image(systemName: "plus") }
+                        Button {
+                            if vm.templateType == 3 {
+                                showAddInstallment = true
+                            } else {
+                                showAddTemplate = true
+                            }
+                        } label: { Image(systemName: "plus") }
                     }
                 }
             }
@@ -240,7 +229,129 @@ struct TemplatesView: View {
         .sheet(item: $editingTemplate) { template in
             TemplateEditView(template: template, templateType: template.templateType ?? 1)
         }
+        .sheet(isPresented: $showAddInstallment, onDismiss: { Task { await vm.load() } }) {
+            TransactionEditView(transaction: nil, mode: .add, defaultInstallment: true)
+        }
+        .sheet(item: $detailPlan) { plan in
+            InstallmentDetailView(planId: plan.id) {
+                Task { await vm.load() }
+            }
+        }
         .task { await vm.load() }
+    }
+
+    /// 模板 / 计划账单列表（原逻辑）
+    @ViewBuilder
+    private var templateList: some View {
+        if vm.templates.isEmpty && !vm.isLoading {
+            Section {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.on.doc").font(.system(size: 34)).foregroundColor(.secondary)
+                    Text(vm.templateType == 1 ? "还没有模板" : "还没有计划账单")
+                        .font(.subheadline).foregroundColor(.secondary)
+                    Text("点右上角 + 新建，或在新增交易时保存为模板")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+            }
+        }
+
+        ForEach(vm.templates, id: \.id) { template in
+            HStack(spacing: 12) {
+                Image(systemName: iconName(template))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 32, height: 32)
+                    .background(iconColor(template))
+                    .cornerRadius(9)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.name)
+                    HStack(spacing: 6) {
+                        Text(vm.categoryName(template.categoryId))
+                        Text("· \(vm.accountName(template.sourceAccountId))")
+                    }
+                    .font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+                Text(AmountFormat.format(template.sourceAmount))
+                    .font(.system(.body, design: .rounded))
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { editingTemplate = template }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) { Task { await vm.delete(template) } } label: {
+                    Label("删除", systemImage: "trash")
+                }
+                Button { Task { await vm.toggleHide(template) } } label: {
+                    Label(template.hidden ?? false ? "显示" : "隐藏",
+                          systemImage: template.hidden ?? false ? "eye" : "eye.slash")
+                }
+                .tint(.gray)
+            }
+        }
+
+        if let error = vm.error {
+            Section { Text(error).foregroundColor(.red).font(.footnote) }
+        }
+    }
+
+    /// 分期账单列表
+    @ViewBuilder
+    private var installmentList: some View {
+        if vm.plans.isEmpty && !vm.isLoading {
+            Section {
+                VStack(spacing: 8) {
+                    Image(systemName: "repeat").font(.system(size: 34)).foregroundColor(.secondary)
+                    Text("还没有分期账单")
+                        .font(.subheadline).foregroundColor(.secondary)
+                    Text("点右上角 + 新建，或在「记一笔」时打开「分期」")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowBackground(Color.clear)
+            }
+        }
+
+        ForEach(vm.plans, id: \.id) { plan in
+            Button {
+                detailPlan = plan
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "repeat")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 32, height: 32)
+                        .background(plan.transactionType == .income ? Theme.income : Theme.expense)
+                        .cornerRadius(9)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(plan.name)
+                            .foregroundColor(.primary)
+                        HStack(spacing: 6) {
+                            Text(vm.categoryName(plan.categoryId))
+                            Text("· \(vm.accountName(plan.sourceAccountId))")
+                        }
+                        .font(.caption).foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(AmountFormat.format(plan.periodAmount))
+                            .font(.system(.body, design: .rounded))
+                            .foregroundColor(.primary)
+                        Text(plan.isFinished ? "已完成" : "已入账 \(plan.paidPeriods)/\(plan.totalPeriods) 期")
+                            .font(.caption2)
+                            .foregroundColor(plan.isFinished ? Theme.income : .secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+        }
+
+        if let error = vm.error {
+            Section { Text(error).foregroundColor(.red).font(.footnote) }
+        }
     }
 
     private func iconName(_ t: TransactionTemplate) -> String {

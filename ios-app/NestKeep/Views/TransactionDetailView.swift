@@ -66,6 +66,9 @@ struct TransactionDetailView: View {
                         }
                     }
                     detailRow("时间", Self.fullDateTime(transaction.date))
+                    if transaction.installmentPlanId != nil {
+                        detailRow("分期", transaction.installmentLabel ?? "—")
+                    }
                 }
 
                 if let comment = transaction.comment, !comment.isEmpty {

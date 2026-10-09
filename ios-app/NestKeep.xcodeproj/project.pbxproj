@@ -25,6 +25,7 @@
 		574dbc9fffe5518c98920162 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78fe97771f275491a820e1d6 /* Account.swift */; };
 		0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423ad0e33f075c4abee4e5df /* AccountRequests.swift */; };
 		03945cb2951b57fd91708e18 /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ec2d974cab95c87ab80bf53 /* Transaction.swift */; };
+		2c173904f0645197810a48d4 /* Installment.swift in Sources */ = {isa = PBXBuildFile; fileRef = df07260cfff153ba8db7a405 /* Installment.swift */; };
 		d0650ce8d0b35bd49844424b /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 899f0061ea965f3cae6cd32a /* Category.swift */; };
 		0d789f2e090655cea2e5216c /* CategoryRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2bb57310ab315de0b381ad73 /* CategoryRequests.swift */; };
 		233155c9c47451218a261c85 /* PresetCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60153d00425c50209fbec277 /* PresetCategory.swift */; };
@@ -42,6 +43,7 @@
 		0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0495932aeb51539792929ea7 /* TransactionsView.swift */; };
 		078bf71d6fd252419bc5b26c /* TransactionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a3063a19593f5880b4d7b2fe /* TransactionDetailView.swift */; };
 		2789cf9acdf65c179737f6b8 /* TransactionEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */; };
+		97ddf3e9a8a1500889d8736b /* InstallmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */; };
 		9ae6cefeff4d5ac2b41b6ebb /* TransactionCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71f0abd0acdd5e7d9725f267 /* TransactionCalendarView.swift */; };
 		f5e12d55c800509fbb11a442 /* CategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */; };
 		de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e81840588cd05eec8525384e /* PresetCategoriesView.swift */; };
@@ -84,6 +86,7 @@
 		78fe97771f275491a820e1d6 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Account.swift; sourceTree = "<group>"; };
 		423ad0e33f075c4abee4e5df /* AccountRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AccountRequests.swift; sourceTree = "<group>"; };
 		3ec2d974cab95c87ab80bf53 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Transaction.swift; sourceTree = "<group>"; };
+		df07260cfff153ba8db7a405 /* Installment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Installment.swift; sourceTree = "<group>"; };
 		899f0061ea965f3cae6cd32a /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Category.swift; sourceTree = "<group>"; };
 		2bb57310ab315de0b381ad73 /* CategoryRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/CategoryRequests.swift; sourceTree = "<group>"; };
 		60153d00425c50209fbec277 /* PresetCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/PresetCategory.swift; sourceTree = "<group>"; };
@@ -101,6 +104,7 @@
 		0495932aeb51539792929ea7 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionsView.swift; sourceTree = "<group>"; };
 		a3063a19593f5880b4d7b2fe /* TransactionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionDetailView.swift; sourceTree = "<group>"; };
 		2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionEditView.swift; sourceTree = "<group>"; };
+		8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InstallmentDetailView.swift; sourceTree = "<group>"; };
 		71f0abd0acdd5e7d9725f267 /* TransactionCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionCalendarView.swift; sourceTree = "<group>"; };
 		cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CategoriesView.swift; sourceTree = "<group>"; };
 		e81840588cd05eec8525384e /* PresetCategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PresetCategoriesView.swift; sourceTree = "<group>"; };
@@ -157,6 +161,7 @@
 				78fe97771f275491a820e1d6 /* Account.swift */,
 				423ad0e33f075c4abee4e5df /* AccountRequests.swift */,
 				3ec2d974cab95c87ab80bf53 /* Transaction.swift */,
+				df07260cfff153ba8db7a405 /* Installment.swift */,
 				899f0061ea965f3cae6cd32a /* Category.swift */,
 				2bb57310ab315de0b381ad73 /* CategoryRequests.swift */,
 				60153d00425c50209fbec277 /* PresetCategory.swift */,
@@ -174,6 +179,7 @@
 				0495932aeb51539792929ea7 /* TransactionsView.swift */,
 				a3063a19593f5880b4d7b2fe /* TransactionDetailView.swift */,
 				2ffb1e5625c65f21b11d6dc0 /* TransactionEditView.swift */,
+				8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */,
 				71f0abd0acdd5e7d9725f267 /* TransactionCalendarView.swift */,
 				cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */,
 				e81840588cd05eec8525384e /* PresetCategoriesView.swift */,
@@ -294,6 +300,7 @@
 				574dbc9fffe5518c98920162 /* Account.swift in Sources */,
 				0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */,
 				03945cb2951b57fd91708e18 /* Transaction.swift in Sources */,
+				2c173904f0645197810a48d4 /* Installment.swift in Sources */,
 				d0650ce8d0b35bd49844424b /* Category.swift in Sources */,
 				0d789f2e090655cea2e5216c /* CategoryRequests.swift in Sources */,
 				233155c9c47451218a261c85 /* PresetCategory.swift in Sources */,
@@ -311,6 +318,7 @@
 				0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */,
 				078bf71d6fd252419bc5b26c /* TransactionDetailView.swift in Sources */,
 				2789cf9acdf65c179737f6b8 /* TransactionEditView.swift in Sources */,
+				97ddf3e9a8a1500889d8736b /* InstallmentDetailView.swift in Sources */,
 				9ae6cefeff4d5ac2b41b6ebb /* TransactionCalendarView.swift in Sources */,
 				f5e12d55c800509fbb11a442 /* CategoriesView.swift in Sources */,
 				de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */,

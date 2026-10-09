@@ -38,6 +38,12 @@ struct Transaction: Codable, Identifiable {
     let hideAmount: Bool?
     let tagIds: [String]?
     let comment: String?
+    /// 所属分期计划 id（非分期交易为空）
+    let installmentPlanId: String?
+    /// 分期期次（0-based）
+    let installmentIndex: Int?
+    /// 分期总期数
+    let installmentCount: Int?
     let editable: Bool?
     /// 地理位置（对应 Go TransactionGeoLocationResponse）
     let geoLocation: TransactionGeoLocation?
@@ -46,6 +52,12 @@ struct Transaction: Codable, Identifiable {
     var date: Date { Date(timeIntervalSince1970: TimeInterval(time)) }
     /// 分类名（无分类时回退）
     var categoryName: String? { category?.name }
+    /// 分期展示文案（如「第3期/共12期」）；非分期交易返回 nil
+    var installmentLabel: String? {
+        guard installmentPlanId != nil, let count = installmentCount, count > 0 else { return nil }
+        let index = installmentIndex ?? 0
+        return "第\(index + 1)期/共\(count)期"
+    }
     /// 币种（优先取源账户币种）
     var currency: String? { sourceAccount?.currency }
     /// 分 -> 元
