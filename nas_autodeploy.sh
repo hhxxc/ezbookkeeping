@@ -27,8 +27,19 @@ ts() { date +"%Y-%m-%d %H:%M:%S"; }
 log() { echo "[$(ts)] $1" >> "$LOG"; }
 
 if ! mkdir "$LOCK" 2>/dev/null; then
-    log "已有实例在运行，跳过"
-    exit 0
+    # 锁目录可能因断电/进程被杀（trap 未执行）残留：超过 30 分钟视为陈旧，
+    # 清掉重试一次；否则若不清理，自动部署会从此静默失效
+    if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        log "WARN: 清理陈旧锁（>30 分钟，疑似上次异常退出残留）"
+        rm -rf "$LOCK"
+        if ! mkdir "$LOCK" 2>/dev/null; then
+            log "ERROR: 陈旧锁清理后仍无法获取锁"
+            exit 1
+        fi
+    else
+        log "已有实例在运行，跳过"
+        exit 0
+    fi
 fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
