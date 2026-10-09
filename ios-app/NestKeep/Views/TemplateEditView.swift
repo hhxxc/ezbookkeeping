@@ -77,7 +77,7 @@ final class TemplateEditViewModel: ObservableObject {
             async let tg = AppDataStore.shared.getTags()
             accounts = try await accs
             categories = try await cats
-            let fetched = await tg
+            let fetched = (try? await tg) ?? (tags: [], groups: [])
             tags = fetched.tags
             tagGroups = fetched.groups
 
