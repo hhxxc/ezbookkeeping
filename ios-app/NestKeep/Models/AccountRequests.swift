@@ -122,30 +122,70 @@ enum AccountCategoryConst {
     }
 }
 
-/// 账户可选的图标编号（后端 icon 是图标字体编号 1~n，原生用 SF Symbols 近似映射）
+/// 账户图标映射（后端 icon 为图标字体编号，与 Web `src/consts/icon.ts` ALL_ACCOUNT_ICONS 同一编号体系：
+/// 1~99 现金、100~199 银行、500~999 其他、1000+ 货币、5000+ 卡品牌、8000+ 支付品牌。
+/// SF Symbols 取 iOS 15 可用的近似图形）。
 enum AccountIconCatalog {
-    /// 可选图标（编号 -> SF Symbol）
+    /// 全量编号 -> SF Symbol（未知编号回退 "wallet.pass"）
+    private static let map: [Int: String] = [
+        // 现金类
+        1: "wallet.pass", 10: "dollarsign.circle", 20: "banknote", 30: "banknote.fill",
+        // 银行类
+        100: "creditcard", 110: "doc.text",
+        // 其他
+        500: "gauge", 510: "ticket", 520: "envelope", 530: "shippingbox", 540: "hand.thumbsup",
+        560: "shield", 600: "calendar.badge.minus", 601: "calendar.badge.plus",
+        700: "doc.text.fill", 701: "receipt", 800: "chart.bar.fill", 801: "chart.line.uptrend.xyaxis",
+        900: "person.2", 901: "person.3", 910: "house", 911: "building.2", 912: "building.2.fill", 990: "globe",
+        // 货币
+        1000: "dollarsign.circle", 1001: "eurosign.circle", 1002: "sterlingsign.circle",
+        1003: "yensign.circle", 1004: "rublesign.circle", 1005: "rupeesign.circle",
+        1006: "wonsign.circle", 1007: "shekelsign.circle", 1008: "banknote", 1009: "banknote",
+        1500: "bitcoinsign.circle", 1501: "hexagon",
+        // 卡品牌
+        5000: "creditcard", 5001: "creditcard.fill", 5002: "creditcard", 5100: "creditcard.fill",
+        5200: "creditcard", 5300: "creditcard.fill",
+        // 支付品牌
+        8000: "globe", 8100: "applelogo", 8101: "wallet.pass.fill", 8200: "cart", 8201: "creditcard",
+        8300: "character.textbox", 8301: "message", 8302: "message.fill", 8303: "bubble.left",
+        // 旧原生版自造编号（1~15，Web 无此编号）按旧含义保留别名，避免已建账户图标突变
+        2: "wallet.pass", 3: "creditcard", 4: "cpu", 5: "exclamationmark.circle",
+        6: "person.2", 7: "chart.line.uptrend.xyaxis", 8: "banknote.fill",
+        9: "doc.text", 11: "cart", 12: "gift", 13: "house", 14: "car", 15: "airplane"
+    ]
+
+    /// 新建/编辑账户时的可选图标（真实编号，对齐 Web 语义）
     static let options: [(Int, String, String)] = [
-        (1, "banknote", "现金"),
-        (2, "wallet.pass", "钱包"),
-        (3, "creditcard", "银行卡"),
-        (4, "cpu", "虚拟"),
-        (5, "exclamationmark.circle", "债务"),
-        (6, "person.2", "应收"),
-        (7, "chart.line.uptrend.xyaxis", "投资"),
-        (8, "piggybank", "储蓄"),
-        (9, "doc.text", "存单"),
-        (10, "building.columns", "银行"),
-        (11, "cart", "消费"),
-        (12, "gift", "红包"),
-        (13, "house", "住房"),
-        (14, "car", "交通"),
-        (15, "airplane", "旅行")
+        (1, "wallet.pass", "钱包"),
+        (20, "banknote", "现金"),
+        (30, "banknote.fill", "储蓄"),
+        (100, "creditcard", "银行卡"),
+        (110, "doc.text", "支票"),
+        (510, "ticket", "票券"),
+        (530, "shippingbox", "储物"),
+        (560, "shield", "保障"),
+        (600, "calendar.badge.minus", "负债"),
+        (601, "calendar.badge.plus", "应收"),
+        (701, "receipt", "收据"),
+        (801, "chart.line.uptrend.xyaxis", "投资"),
+        (900, "person.2", "人情"),
+        (910, "house", "房产"),
+        (990, "globe", "全球"),
+        (1000, "dollarsign.circle", "美元"),
+        (1001, "eurosign.circle", "欧元"),
+        (1002, "sterlingsign.circle", "英镑"),
+        (1003, "yensign.circle", "日元"),
+        (1500, "bitcoinsign.circle", "比特币"),
+        (5000, "creditcard", "Visa"),
+        (5001, "creditcard.fill", "万事达"),
+        (8100, "applelogo", "Apple Pay"),
+        (8300, "character.textbox", "支付宝"),
+        (8302, "message.fill", "微信")
     ]
 
     static func symbol(_ icon: String?) -> String {
         guard let n = Int(icon ?? "") else { return "wallet.pass" }
-        return options.first { $0.0 == n }?.1 ?? "wallet.pass"
+        return map[n] ?? "wallet.pass"
     }
 }
 
