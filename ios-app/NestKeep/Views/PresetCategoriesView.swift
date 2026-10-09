@@ -35,7 +35,7 @@ struct PresetCategoriesView: View {
                             Text(item.1).foregroundColor(.primary)
                             Spacer()
                             Text("\(PresetCategoryCatalog.categories(type: item.0).count) 个")
-                                .font(.caption).foregroundColor(.secondary)
+                                .font(.footnote).foregroundColor(.secondary)
                             Image(systemName: selectedTypes.contains(item.0) ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(selectedTypes.contains(item.0) ? Theme.brand : .secondary)
                         }

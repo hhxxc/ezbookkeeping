@@ -468,7 +468,7 @@ struct CloudSyncSettingsView: View {
                         HStack {
                             Text(key).font(.footnote)
                             Spacer()
-                            Text(store.values[key] ?? "").font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                            Text(store.values[key] ?? "").font(.footnote).foregroundColor(.secondary).lineLimit(1)
                         }
                     }
                 }

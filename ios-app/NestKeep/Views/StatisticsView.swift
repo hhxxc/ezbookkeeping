@@ -643,15 +643,15 @@ struct StatisticsView: View {
                                 .foregroundColor(.white)
                                 .frame(width: 18, height: 18)
                                 .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(s.color))
-                            Text(s.name).font(.caption).lineLimit(1)
+                            Text(s.name).font(.footnote).lineLimit(1)
                             Spacer()
                             Text("\(Int((s.ratio * 100).rounded()))%")
-                                .font(.caption).foregroundColor(.secondary)
+                                .font(.footnote).foregroundColor(.secondary)
                         }
                     }
                     if stats.count > 6 {
                         Text("等 \(stats.count) 个分类")
-                            .font(.caption2).foregroundColor(.secondary)
+                            .font(.footnote).foregroundColor(.secondary)
                     }
                 }
             }
@@ -668,7 +668,7 @@ struct StatisticsView: View {
             ForEach(Array(stats.prefix(10).enumerated()), id: \.element.id) { idx, s in
                 HStack(spacing: 12) {
                     Text("\(idx + 1)")
-                        .font(.caption.monospacedDigit())
+                        .font(.footnote.monospacedDigit())
                         .foregroundColor(.secondary)
                         .frame(width: 18, alignment: .leading)
                     // 分类图标徽章（色底白图标）
@@ -725,9 +725,9 @@ struct StatisticsView: View {
 
             HStack {
                 Text(vm.isYearMode ? "1月" : "1日")
-                    .font(.caption2).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                 Spacer()
-                Text(vm.bucketEndLabel).font(.caption2).foregroundColor(.secondary)
+                Text(vm.bucketEndLabel).font(.footnote).foregroundColor(.secondary)
             }
         }
         .padding(16)

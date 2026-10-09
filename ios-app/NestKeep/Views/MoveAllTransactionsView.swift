@@ -71,7 +71,7 @@ struct MoveAllTransactionsView: View {
                                     Text(targetAccount?.name ?? "未指定")
                                         .foregroundColor(targetAccount == nil ? .secondary : .primary)
                                     Image(systemName: "chevron.up.chevron.down")
-                                        .font(.caption2).foregroundColor(.secondary)
+                                        .font(.footnote).foregroundColor(.secondary)
                                 }
                             }
                             .disabled(isMoving)
@@ -199,7 +199,7 @@ struct AccountPickerSheet: View {
                                     Text(acc.name).foregroundColor(.primary)
                                     Spacer()
                                     Text(AmountFormat.format(acc.balance, currency: acc.currency))
-                                        .font(.caption).foregroundColor(.secondary)
+                                        .font(.footnote).foregroundColor(.secondary)
                                     if selectedId == acc.id {
                                         Image(systemName: "checkmark").foregroundColor(Theme.brand)
                                     }

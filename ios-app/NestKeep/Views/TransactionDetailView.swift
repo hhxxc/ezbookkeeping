@@ -42,7 +42,7 @@ struct TransactionDetailView: View {
                 Section {
                     VStack(spacing: 8) {
                         Text(typeLabel)
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                         Text(amountText)
                             .font(.system(size: 34, weight: .bold, design: .rounded))

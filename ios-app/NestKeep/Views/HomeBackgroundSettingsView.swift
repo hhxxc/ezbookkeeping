@@ -81,7 +81,7 @@ struct HomeBackgroundSettingsView: View {
                 }
 
                 Text("背景图会作为账单页顶部汇总卡的底图，并自动叠加一层中性压暗蒙层，保证卡片文字清晰可读。")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
             }
@@ -111,7 +111,7 @@ struct HomeBackgroundSettingsView: View {
     private var placeholder: some View {
         VStack(spacing: 6) {
             Image(systemName: "photo").font(.system(size: 30))
-            Text("未设置背景图").font(.caption)
+            Text("未设置背景图").font(.footnote)
         }
         .foregroundColor(.white.opacity(0.9))
     }

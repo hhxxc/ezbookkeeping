@@ -183,7 +183,7 @@ struct AIReceiptView: View {
                             .padding(.horizontal, 16)
                         if vm.previewCount > 1 {
                             Text("已选 \(vm.previewCount) 张图片")
-                                .font(.caption)
+                                .font(.footnote)
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -343,7 +343,7 @@ struct AIReceiptView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(typeLabel(item.transactionType))
-                        .font(.caption.weight(.semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(color(for: item.transactionType))
@@ -355,15 +355,15 @@ struct AIReceiptView: View {
                 }
                 if let time = item.time {
                     Label(timeText(time), systemImage: "clock")
-                        .font(.caption).foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                 }
                 Label(vm.categoryName(item.categoryId), systemImage: "square.grid.2x2")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                 Label(vm.accountName(item.sourceAccountId), systemImage: "creditcard")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                 if let comment = item.comment, !comment.isEmpty {
                     Label(comment, systemImage: "text.alignleft")
-                        .font(.caption).foregroundColor(.secondary).lineLimit(2)
+                        .font(.footnote).foregroundColor(.secondary).lineLimit(2)
                 }
             }
 

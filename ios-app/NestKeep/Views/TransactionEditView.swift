@@ -626,7 +626,7 @@ struct TransactionEditView: View {
                                     }
                                 }
                             Text(cat.name)
-                                .font(.system(size: 11))
+                                .font(.system(size: 13))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                                 .foregroundColor(selected ? catColor : HomePalette.secondary)
@@ -852,12 +852,12 @@ struct TransactionEditView: View {
                 .font(.system(size: 13, design: .rounded))
 
                 Text("首期 \(Self.chipDateFormatter.string(from: vm.date)) 起，每月一期按月预记")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundColor(.secondary)
             }
         } else {
             Text("输入总金额后自动按期均摊")
-                .font(.caption)
+                .font(.footnote)
                 .foregroundColor(.secondary)
         }
     }
@@ -1284,7 +1284,7 @@ struct TagSelector: View {
             ForEach(TagGrouping.sections(tags: tags, groups: groups)) { section in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(section.name)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundColor(.secondary)
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
                         ForEach(section.tags) { tag in
@@ -1306,7 +1306,7 @@ struct TagSelector: View {
                 if on { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)) }
                 Text(tag.name).lineLimit(1)
             }
-            .font(.caption)
+            .font(.footnote)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity)

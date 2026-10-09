@@ -24,7 +24,7 @@ struct AboutView: View {
                         .cornerRadius(20)
                     Text("巢记 NestKeep").font(.headline)
                     Text("版本 \(UpdateChecker.currentAppVersion) (\(UpdateChecker.currentBuildNumber))")
-                        .font(.caption).foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
@@ -48,7 +48,7 @@ struct AboutView: View {
                     HStack {
                         Text("后端构建时间")
                         Spacer()
-                        Text(buildTime).foregroundColor(.secondary).font(.caption)
+                        Text(buildTime).foregroundColor(.secondary).font(.footnote)
                     }
                 }
             }
@@ -67,9 +67,9 @@ struct AboutView: View {
 
             Section(header: Text("数据来源")) {
                 Text("汇率数据：European Central Bank / 各银行公开数据")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                 Text("地图数据：OpenStreetMap contributors")
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
             }
         }
         .navigationTitle("关于")
@@ -98,7 +98,7 @@ struct LicenseView: View {
                 ForEach(licenses, id: \.0) { item in
                     Section(header: Text(item.0)) {
                         Text(item.1)
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                     }
                 }

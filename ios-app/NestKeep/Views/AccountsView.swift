@@ -468,7 +468,7 @@ struct AccountsView: View {
                         Text("多子账户")
                     }
                 }
-                .font(.caption).foregroundColor(.secondary)
+                .font(.footnote).foregroundColor(.secondary)
             }
             Spacer()
             Text(masked(AmountFormat.format(account.balance, currency: account.currency)))

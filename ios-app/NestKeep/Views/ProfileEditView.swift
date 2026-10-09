@@ -132,13 +132,13 @@ struct ProfileEditView: View {
                         ProgressView()
                     } else {
                         Text("点击更换头像")
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                     }
 
                     if let avatarError = avatarError {
                         Text(avatarError)
-                            .font(.caption2)
+                            .font(.footnote)
                             .foregroundColor(Theme.expense)
                             .multilineTextAlignment(.center)
                     }

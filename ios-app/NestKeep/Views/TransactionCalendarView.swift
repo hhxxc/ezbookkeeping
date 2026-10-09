@@ -166,7 +166,7 @@ struct TransactionCalendarView: View {
             // 星期表头
             LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(weekdays, id: \.self) { w in
-                    Text(w).font(.caption2).foregroundColor(.secondary)
+                    Text(w).font(.footnote).foregroundColor(.secondary)
                 }
             }
 
@@ -181,7 +181,7 @@ struct TransactionCalendarView: View {
             }
 
             if let error = vm.error {
-                Text(error).font(.caption2).foregroundColor(Theme.expense)
+                Text(error).font(.footnote).foregroundColor(Theme.expense)
             }
         }
         .padding(12)
@@ -202,7 +202,7 @@ struct TransactionCalendarView: View {
         } label: {
             VStack(spacing: 1) {
                 Text("\(day)")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundColor(isToday ? .white : .primary)
                     .frame(width: 20, height: 20)
                     .background(isToday ? Theme.brand : Color.clear)

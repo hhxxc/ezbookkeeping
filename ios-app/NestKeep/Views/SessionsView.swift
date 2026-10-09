@@ -65,7 +65,7 @@ struct SessionsView: View {
                                 Text(tokenTypeName(token)).font(.subheadline.weight(.medium))
                                 if token.isCurrent {
                                     Text("当前")
-                                        .font(.caption2)
+                                        .font(.footnote)
                                         .padding(.horizontal, 6).padding(.vertical, 2)
                                         .background(Theme.brand.opacity(0.15))
                                         .foregroundColor(Theme.brand)
@@ -73,17 +73,17 @@ struct SessionsView: View {
                                 }
                             }
                             if let ua = token.userAgent, !ua.isEmpty {
-                                Text(ua).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                Text(ua).font(.footnote).foregroundColor(.secondary).lineLimit(1)
                             }
                             Text("最近活跃 \(Self.relativeTime(token.lastSeen))")
-                                .font(.caption2).foregroundColor(.secondary)
+                                .font(.footnote).foregroundColor(.secondary)
                         }
                         Spacer()
                         if !token.isCurrent {
                             Button {
                                 Task { await vm.revoke(token) }
                             } label: {
-                                Text("撤销").font(.caption).foregroundColor(Theme.expense)
+                                Text("撤销").font(.footnote).foregroundColor(Theme.expense)
                             }
                             .buttonStyle(.plain)
                         }

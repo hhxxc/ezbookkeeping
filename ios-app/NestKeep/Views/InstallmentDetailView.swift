@@ -133,7 +133,7 @@ struct InstallmentDetailView: View {
                         .font(.headline)
                     Spacer()
                     Text(plan.transactionType == .income ? "收入" : "支出")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundColor(plan.transactionType == .income ? Theme.income : Theme.expense)
                 }
 
@@ -152,23 +152,23 @@ struct InstallmentDetailView: View {
 
                 HStack {
                     Text("已入账 \(plan.paidPeriods)/\(plan.totalPeriods) 期")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundColor(plan.isFinished ? Theme.income : .secondary)
                     Spacer()
                     if let next = plan.nextDate, !plan.isFinished {
                         Text("下期 \(Self.shortDate(next))")
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                     }
                 }
 
                 if plan.lastPeriodAmount > 0 {
                     Text("每期 \(AmountFormat.format(plan.periodAmount))，末期 \(AmountFormat.format(plan.lastPeriodAmount))")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundColor(.secondary)
                 } else {
                     Text("每期 \(AmountFormat.format(plan.periodAmount))")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundColor(.secondary)
                 }
             }
@@ -203,13 +203,13 @@ struct InstallmentDetailView: View {
                             .foregroundColor(.primary)
                         Spacer(minLength: 8)
                         Text(Self.shortDate(tx.date))
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundColor(.secondary)
                         Text(AmountFormat.format(tx.sourceAmount))
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundColor(.primary)
                         Text(paid ? "已入账" : "待入账")
-                            .font(.caption2)
+                            .font(.footnote)
                             .foregroundColor(paid ? Theme.income : .secondary)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)

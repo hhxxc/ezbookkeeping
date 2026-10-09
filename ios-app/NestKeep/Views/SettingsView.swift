@@ -32,7 +32,7 @@ struct SettingsView: View {
                                 Text(user.nickname?.isEmpty == false ? user.nickname! : (user.username ?? "已登录"))
                                     .font(.headline)
                                 if let email = user.email, !email.isEmpty {
-                                    Text(email).font(.caption).foregroundColor(.secondary)
+                                    Text(email).font(.footnote).foregroundColor(.secondary)
                                 }
                             }
                         }
@@ -414,7 +414,7 @@ struct UpdateResultSheet: View {
                 updateStore.startDownload(latest: latest, ipaURL: ipaURL)
             }
             Text("下载失败：\(message)")
-                .font(.caption2)
+                .font(.footnote)
                 .foregroundColor(.orange)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -460,7 +460,7 @@ struct UpdateResultSheet: View {
                 guideStep(4, "确认安装（同变体才会覆盖旧版）")
 
                 Text("提示：点「直接唤起」后如果跳到了「放大器」，说明这台设备上 TrollStore 没接管放大器 scheme，用上面的方式粘贴安装即可。")
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

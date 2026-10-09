@@ -250,7 +250,7 @@ struct TemplatesView: View {
                     Text(vm.templateType == 1 ? "还没有模板" : "还没有计划账单")
                         .font(.subheadline).foregroundColor(.secondary)
                     Text("点右上角 + 新建，或在新增交易时保存为模板")
-                        .font(.caption2).foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -272,7 +272,7 @@ struct TemplatesView: View {
                         Text(vm.categoryName(template.categoryId))
                         Text("· \(vm.accountName(template.sourceAccountId))")
                     }
-                    .font(.caption).foregroundColor(.secondary)
+                    .font(.footnote).foregroundColor(.secondary)
                 }
                 Spacer()
                 Text(AmountFormat.format(template.sourceAmount))
@@ -307,7 +307,7 @@ struct TemplatesView: View {
                     Text("还没有分期账单")
                         .font(.subheadline).foregroundColor(.secondary)
                     Text("点右上角 + 新建，或在「记一笔」时打开「分期」")
-                        .font(.caption2).foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 24)
@@ -333,7 +333,7 @@ struct TemplatesView: View {
                             Text(vm.categoryName(plan.categoryId))
                             Text("· \(vm.accountName(plan.sourceAccountId))")
                         }
-                        .font(.caption).foregroundColor(.secondary)
+                        .font(.footnote).foregroundColor(.secondary)
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
@@ -341,7 +341,7 @@ struct TemplatesView: View {
                             .font(.system(.body, design: .rounded))
                             .foregroundColor(.primary)
                         Text(plan.isFinished ? "已完成" : "已入账 \(plan.paidPeriods)/\(plan.totalPeriods) 期")
-                            .font(.caption2)
+                            .font(.footnote)
                             .foregroundColor(plan.isFinished ? Theme.income : .secondary)
                     }
                 }

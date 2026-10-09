@@ -153,7 +153,7 @@ struct CategoriesView: View {
                 .background(Circle().fill(Color(hex: cat.color ?? "26A69A")))
             Text(cat.name)
             if cat.hidden ?? false {
-                Text("已隐藏").font(.caption2).foregroundColor(.secondary)
+                Text("已隐藏").font(.footnote).foregroundColor(.secondary)
             }
             Spacer()
         }

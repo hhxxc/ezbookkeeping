@@ -95,7 +95,7 @@ struct ExchangeRatesView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(vm.currencyName(rate.currency))")
-                            Text(rate.currency).font(.caption).foregroundColor(.secondary)
+                            Text(rate.currency).font(.footnote).foregroundColor(.secondary)
                         }
                         Spacer()
                         Text(rate.rate).font(.system(.body, design: .rounded))

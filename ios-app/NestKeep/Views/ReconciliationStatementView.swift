@@ -130,7 +130,7 @@ struct ReconciliationStatementView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(tx.displayName).font(.subheadline)
                     if let comment = tx.comment, !comment.isEmpty {
-                        Text(comment).font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                        Text(comment).font(.footnote).foregroundColor(.secondary).lineLimit(1)
                     }
                 }
                 Spacer()
@@ -140,10 +140,10 @@ struct ReconciliationStatementView: View {
                     .foregroundColor(tx.isIncome ? HomePalette.income : (tx.isExpense ? HomePalette.expense : .primary))
             }
             HStack {
-                Text(tx.timeText).font(.caption2).foregroundColor(.secondary)
+                Text(tx.timeText).font(.footnote).foregroundColor(.secondary)
                 Spacer()
                 Text("余额 \(AmountFormat.format(balance, currency: account.currency))")
-                    .font(.caption2).foregroundColor(.secondary).monospacedDigit()
+                    .font(.footnote).foregroundColor(.secondary).monospacedDigit()
             }
         }
         .padding(.vertical, 2)
@@ -394,7 +394,7 @@ struct BalanceTrendChart: View {
 
             ZStack(alignment: .bottomLeading) {
                 if values.isEmpty {
-                    Text("暂无数据").font(.caption).foregroundColor(.secondary)
+                    Text("暂无数据").font(.footnote).foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     HStack(alignment: .bottom, spacing: 2) {

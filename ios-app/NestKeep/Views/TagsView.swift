@@ -252,7 +252,7 @@ struct TagsView: View {
                                 TagIconView(icon: tag.icon, color: tag.color)
                                 Text(tag.name)
                                 if tag.hidden ?? false {
-                                    Text("已隐藏").font(.caption2).foregroundColor(.secondary)
+                                    Text("已隐藏").font(.footnote).foregroundColor(.secondary)
                                 }
                                 Spacer()
                             }
