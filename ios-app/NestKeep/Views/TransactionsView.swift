@@ -199,12 +199,16 @@ final class TransactionsViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
+            // 四路请求完全并行（accounts/cats/transactions/amounts 互不依赖），
+            // 原先三段串行把首屏时间拖成 T1+T2+T3
             async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
             async let cats = APIClient.shared.requestCategoryList()
+            async let txs = fetchTransactions()
+            async let amounts: Void = loadAmounts()
             accounts = try await accs
             categories = try await cats
-            transactions = try await fetchTransactions()
-            await loadAmounts()
+            transactions = try await txs
+            await amounts
             isLoading = false
         } catch {
             isLoading = false
