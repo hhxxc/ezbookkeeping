@@ -1152,7 +1152,7 @@ private struct BillListPageView: View {
                     .foregroundColor(Theme.income)
             }
         }
-        .font(.caption)
+        .font(.footnote)
         .textCase(nil)
     }
 }
@@ -1301,7 +1301,7 @@ struct RangeDetailView: View {
     private var summaryRow: some View {
         HStack(spacing: 8) {
             Text(mainVM.rangeSubtitle(vm.context.period))
-                .font(.system(size: 11))
+                .font(.system(size: 13))
                 .foregroundColor(HomePalette.secondary)
                 .lineLimit(1)
 
@@ -1313,7 +1313,7 @@ struct RangeDetailView: View {
                 Text("支 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expenseCents))")
                     .foregroundColor(HomePalette.expense)
             }
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: 15, weight: .semibold))
             .monospacedDigit()
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -1369,7 +1369,7 @@ struct RangeDetailView: View {
                     .foregroundColor(Theme.income)
             }
         }
-        .font(.caption)
+        .font(.footnote)
         .textCase(nil)
     }
 }
@@ -1434,12 +1434,12 @@ struct TransactionRow: View {
                     }
                     if let installment = tx.installmentLabel {
                         Text("分期 \(installment)")
-                            .font(.caption2)
+                            .font(.footnote)
                             .foregroundColor(Theme.brand)
                             .lineLimit(1)
                     }
                 }
-                .font(.caption)
+                .font(.footnote)
                 .foregroundColor(.secondary)
             }
             Spacer()
