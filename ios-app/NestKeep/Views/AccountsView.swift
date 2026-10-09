@@ -158,7 +158,11 @@ struct AccountsView: View {
     }
 
     var body: some View {
-            Group {
+            VStack(spacing: 0) {
+                // 顶栏放列表上方（不悬浮）：iOS 15 下 safeAreaInset+List 的内容避让不可靠，
+                // 净资产卡顶部会被固定栏压住；改为上下结构后列表恒从栏下方开始
+                topBar
+                Group {
                 if vm.isLoading && vm.accounts.isEmpty {
                     ProgressView()
                 } else if isSorting {
@@ -189,7 +193,9 @@ struct AccountsView: View {
                     List {
                         Section {
                             netAssetsCard
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                // 边距对齐账单页汇总卡（leading/trailing 0 只留 insetGrouped 自带分组边距），
+                                // 两页卡片宽度/观感一致
+                                .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 12, trailing: 0))
                                 .listRowBackground(Color.clear)
                         }
 
@@ -220,9 +226,9 @@ struct AccountsView: View {
                     .refreshable { await vm.load() }
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
+                }
             }
-            // 自绘顶栏：系统导航栏在 Tab 根页布局下会顶进状态栏（统计页同款修复）
-            .safeAreaInset(edge: .top, spacing: 0) { topBar }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .sheet(isPresented: $showAdd) {
                 AccountEditView(account: nil)
             }

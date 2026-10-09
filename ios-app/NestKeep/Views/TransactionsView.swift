@@ -552,10 +552,11 @@ struct TransactionsView: View {
     var body: some View {
         // 首页包在 NavigationView 里：日历页/账单列表页/区间详情页改为**系统原生 push**
         //（NavigationLink 编程式跳转），获得标准视差滑动、边缘阴影与左滑跟手返回。
-        // 首页本身仍隐藏系统导航栏，继续用自绘固定顶栏。
+        // 顶栏用 VStack 放列表上方（不悬浮）：iOS 15 下 safeAreaInset+List 的内容避让不可靠，
+        // 汇总卡顶部会被固定栏压住；改为上下结构后列表恒从栏下方开始，栏体不透明观感不变。
         NavigationView {
-            ZStack(alignment: .top) {
-                Color(.systemGroupedBackground).ignoresSafeArea()
+            VStack(spacing: 0) {
+                topBar
                 List {
                     // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
                     // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
@@ -587,11 +588,10 @@ struct TransactionsView: View {
                 // 让列表内容从安全区上方开始（Web 的 `calc(safe-area-top + 24px)`）
                 .environment(\.defaultMinListRowHeight, 0)
                 .refreshable { await vm.load() }
-                // 固定顶栏：占据真实布局空间，列表从其下方开始，滚动内容滑入其下被遮住
-                .safeAreaInset(edge: .top, spacing: 0) { topBar }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
             // 隐藏的编程式导航链接（iOS 15 手法）：三个二级页全部走系统 push
             .background(
                 VStack {
