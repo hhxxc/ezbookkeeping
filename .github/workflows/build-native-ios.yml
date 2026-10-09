@@ -17,7 +17,7 @@ name: Build NestKeep Native IPA (TrollStore)
 #   两者 Bundle ID 不同，可同时安装、互不覆盖；更新清单也各自独立。
 #   注意：网页壳（Capacitor）是第三个 App，Bundle ID com.nestkeep.app，本工作流不涉及。
 #
-# 出包文件名：NestKeep-<flavor>-<分支名>-<运行号>.ipa
+# 出包文件名：NestKeep-<flavor>-v<语义版本>.ipa（与 Release 版本号一致，如 NestKeep-dev-v1.6.22.ipa）
 # 出包后：在手机上用 TrollStore 打开对应 IPA 即可安装（会重新签名、永久驻留）。
 
 on:
@@ -60,7 +60,6 @@ jobs:
     runs-on: macos-latest
     env:
       FLAVOR: ${{ github.event.inputs.flavor || 'dev' }}
-      IPA_NAME: NestKeep-${{ github.event.inputs.flavor || 'dev' }}-${{ github.ref_name }}-${{ github.run_number }}.ipa
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -150,6 +149,10 @@ jobs:
           if [ -z "$V" ]; then V="1.6.3"; fi
           echo "app_version=$V" >> "$GITHUB_OUTPUT"
           echo "tag_suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+          # IPA 文件名带上语义版本号，与 Release/CFBundleShortVersionString 一致
+          #（旧名 NestKeep-<flavor>-<分支>-<运行号>.ipa 与版本号对不上，易混淆）
+          echo "IPA_NAME=NestKeep-${FLAVOR}-v${V}.ipa" >> "$GITHUB_ENV"
+          echo "==> IPA 文件名：NestKeep-${FLAVOR}-v${V}.ipa"
 
       - name: Inject app version into Info.plist
         working-directory: ios-app
