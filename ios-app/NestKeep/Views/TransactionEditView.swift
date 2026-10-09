@@ -305,9 +305,12 @@ struct TransactionEditView: View {
     @State private var showMoreSheet = false
     /// 「再记」成功后的轻提示
     @State private var flashText: String?
+    /// 保存成功后的回调（识图页预填编辑场景：成功后从识别结果列表移除该条）
+    var onSaved: (() -> Void)? = nil
 
-    init(transaction: Transaction?, mode: TransactionEditMode = .add) {
+    init(transaction: Transaction?, mode: TransactionEditMode = .add, onSaved: (() -> Void)? = nil) {
         _vm = StateObject(wrappedValue: TransactionEditViewModel(transaction: transaction, mode: mode))
+        self.onSaved = onSaved
     }
 
     /// 键盘布局：4 列 × 4 行（对齐主流记账 App 的计算器键盘）
@@ -368,7 +371,12 @@ struct TransactionEditView: View {
             }
         }
         .task { await vm.load() }
-        .onChange(of: vm.didSave) { saved in if saved { dismiss() } }
+        .onChange(of: vm.didSave) { saved in
+            if saved {
+                dismiss()
+                onSaved?()
+            }
+        }
         .sheet(isPresented: $showAccountSheet) {
             EditAccountPickerSheet(
                 title: vm.type == .transfer ? "选择转出账户" : "选择账户",

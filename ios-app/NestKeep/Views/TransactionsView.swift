@@ -621,7 +621,10 @@ struct TransactionsView: View {
             )
         }
         .navigationViewStyle(.stack)
-        .sheet(isPresented: $showAI) { AIReceiptView() }
+        .sheet(isPresented: $showAI, onDismiss: {
+            // 批量添加成功返回后刷新汇总与列表
+            Task { await vm.load() }
+        }) { AIReceiptView() }
         .sheet(isPresented: $showBackgroundSheet) {
             NavigationView {
                 HomeBackgroundSettingsView()
