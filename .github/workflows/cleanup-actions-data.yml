@@ -127,9 +127,18 @@ jobs:
           echo ""
           echo "== 清理 Release（保留最新 ${KEEP_RELEASES} 个，dry_run=${DRY_RUN}）=="
 
-          # 输出 tsv: id \t tag \t created \t name，按创建时间倒序（新的在前）
+          # 输出 tsv: id \t tag \t created \t name。
+          # 排序键：语义化版本 tag（vX.Y.Z / vX.Y.Z-stable）按 **版本号数值** 降序，
+          # 其余 tag 按 created_at 降序兜底（svkey=-1 排在后）。
+          # ⚠️ 不能按 created_at 排：CI 用 gh release create 建的 Release，
+          #    API 返回的 created_at 可能异常偏小（曾致最新版被当最旧删除，2026-10-09）。
           gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq 'sort_by(.created_at) | reverse | .[] | [.id, .tag_name, .created_at, .name] | @tsv' \
+            --jq '[.[] | . as $r | ($r.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+(-stable)?$")) as $ok |
+                    .svkey = (if $ok then ($r.tag_name | ltrimstr("v") | sub("-stable$";"") | split(".") |
+                                (.[0]|tonumber)*1000000 + (.[1]|tonumber)*1000 + (.[2]|tonumber))
+                              else -1 end)]
+                  | sort_by(.svkey, .created_at) | reverse
+                  | .[] | [.id, .tag_name, .created_at, .name] | @tsv' \
             > /tmp/releases.tsv
 
           total=$(wc -l < /tmp/releases.tsv | tr -d ' ')
