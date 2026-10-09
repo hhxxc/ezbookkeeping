@@ -3,6 +3,8 @@ import { type NavigationGuardReturn, createRouter, createWebHashHistory } from '
 import { TemplateType } from '@/core/template.ts';
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 
+// 布局与登录流程页静态导入；登录后的各功能页全部懒加载（vue-router 原生支持
+// component 返回动态 import），views 不打进入口包
 import MainLayout from '@/views/desktop/MainLayout.vue';
 import LoginPage from '@/views/desktop/LoginPage.vue';
 import SignUpPage from '@/views/desktop/SignupPage.vue';
@@ -13,26 +15,6 @@ import OAuth2CallbackPage from '@/views/desktop/OAuth2CallbackPage.vue';
 import UnlockPage from '@/views/desktop/UnlockPage.vue';
 
 import HomePage from '@/views/desktop/HomePage.vue';
-
-import TransactionListPage from '@/views/desktop/transactions/ListPage.vue';
-
-import StatisticsTransactionPage from '@/views/desktop/statistics/TransactionPage.vue';
-
-import InsightsExplorerPage from '@/views/desktop/insights/ExplorerPage.vue';
-
-import AccountListPage from '@/views/desktop/accounts/ListPage.vue';
-
-import TransactionCategoryListPage from '@/views/desktop/categories/ListPage.vue';
-
-import TransactionTagListPage from '@/views/desktop/tags/ListPage.vue';
-
-import TransactionTemplateListPage from '@/views/desktop/templates/ListPage.vue';
-
-import UserSettingsPage from '@/views/desktop/user/UserSettingsPage.vue';
-import AppSettingsPage from '@/views/desktop/app/AppSettingsPage.vue';
-
-import ExchangeRatesListPage from '@/views/desktop/exchangerates/ListPage.vue';
-import AboutPage from '@/views/desktop/AboutPage.vue';
 
 function checkLogin(): NavigationGuardReturn {
     if (!isUserLogined()) {
@@ -103,7 +85,7 @@ const router = createRouter({
                 },
                 {
                     path: '/transaction/list',
-                    component: TransactionListPage,
+                    component: () => import('@/views/desktop/transactions/ListPage.vue'),
                     beforeEnter: checkLogin,
                     props: route => ({
                         initPageType: route.query['pageType'],
@@ -120,7 +102,7 @@ const router = createRouter({
                 },
                 {
                     path: '/statistics/transaction',
-                    component: StatisticsTransactionPage,
+                    component: () => import('@/views/desktop/statistics/TransactionPage.vue'),
                     beforeEnter: checkLogin,
                     props: route => ({
                         initAnalysisType: route.query['analysisType'],
@@ -140,7 +122,7 @@ const router = createRouter({
                 },
                 {
                     path: '/insights/explorer',
-                    component: InsightsExplorerPage,
+                    component: () => import('@/views/desktop/insights/ExplorerPage.vue'),
                     beforeEnter: checkLogin,
                     props: route => ({
                         initId: route.query['id'],
@@ -152,22 +134,22 @@ const router = createRouter({
                 },
                 {
                     path: '/account/list',
-                    component: AccountListPage,
+                    component: () => import('@/views/desktop/accounts/ListPage.vue'),
                     beforeEnter: checkLogin
                 },
                 {
                     path: '/category/list',
-                    component: TransactionCategoryListPage,
+                    component: () => import('@/views/desktop/categories/ListPage.vue'),
                     beforeEnter: checkLogin
                 },
                 {
                     path: '/tag/list',
-                    component: TransactionTagListPage,
+                    component: () => import('@/views/desktop/tags/ListPage.vue'),
                     beforeEnter: checkLogin
                 },
                 {
                     path: '/template/list',
-                    component: TransactionTemplateListPage,
+                    component: () => import('@/views/desktop/templates/ListPage.vue'),
                     beforeEnter: checkLogin,
                     props: {
                         initType: TemplateType.Normal.type
@@ -175,7 +157,7 @@ const router = createRouter({
                 },
                 {
                     path: '/schedule/list',
-                    component: TransactionTemplateListPage,
+                    component: () => import('@/views/desktop/templates/ListPage.vue'),
                     beforeEnter: checkLogin,
                     props: {
                         initType: TemplateType.Schedule.type
@@ -183,12 +165,12 @@ const router = createRouter({
                 },
                 {
                     path: '/exchange_rates',
-                    component: ExchangeRatesListPage,
+                    component: () => import('@/views/desktop/exchangerates/ListPage.vue'),
                     beforeEnter: checkLogin
                 },
                 {
                     path: '/user/settings',
-                    component: UserSettingsPage,
+                    component: () => import('@/views/desktop/user/UserSettingsPage.vue'),
                     beforeEnter: checkLogin,
                     props: route => ({
                         initTab: route.query['tab']
@@ -196,7 +178,7 @@ const router = createRouter({
                 },
                 {
                     path: '/app/settings',
-                    component: AppSettingsPage,
+                    component: () => import('@/views/desktop/app/AppSettingsPage.vue'),
                     beforeEnter: checkLogin,
                     props: route => ({
                         initTab: route.query['tab']
@@ -204,7 +186,7 @@ const router = createRouter({
                 },
                 {
                     path: '/about',
-                    component: AboutPage,
+                    component: () => import('@/views/desktop/AboutPage.vue'),
                     beforeEnter: checkLogin
                 }
             ]
