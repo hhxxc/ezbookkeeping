@@ -1124,7 +1124,8 @@ function reload(done?: () => void): void {
         }
 
         loading.value = false;
-        setTransactionMonthListHeights(true);
+        setTransactionMonthListHeights(true)
+            .then(() => setTransactionInvisibleYearMonthList());
     }).catch(error => {
         if (error.processed || done) {
             loading.value = false;
@@ -1670,7 +1671,8 @@ function onPageAfterIn(): void {
     if (pendingDataRender) {
         pendingDataRender = false;
         loading.value = false;
-        setTransactionMonthListHeights(true);
+        setTransactionMonthListHeights(true)
+            .then(() => setTransactionInvisibleYearMonthList());
     }
 
     // Continue recognition queue if there are pending results
@@ -1690,6 +1692,9 @@ function onResize(): void {
     setTransactionMonthListHeights(true)
         .then(() => {
             setTransactionMonthListHeights(false);
+        })
+        .then(() => {
+            setTransactionInvisibleYearMonthList();
         });
 }
 
