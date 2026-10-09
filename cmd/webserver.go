@@ -109,13 +109,17 @@ func startWebServer(c *core.CliContext) error {
 	router.Use(corsMiddleware())
 
 	if config.EnableGZip {
+		// Brotli：客户端 Accept-Encoding 含 br 时优先用（比 gzip 再小 15~20%），其余交给 gzip
+		router.Use(middlewares.Brotli(5))
+
 		// Skip formats that are already compressed (fonts, images, archives),
 		// compressing them again only costs CPU without shrinking the payload
-		router.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedExtensions([]string{
-			".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".mp4",
-			".woff", ".woff2", ".ttf", ".eot", ".otf",
-			".zip", ".gz", ".br",
-		})))
+		// 注意：WithCustomShouldCompressFn 会覆盖 gzip 默认判断，
+		// middlewares.ShouldGzipCompress 里补齐了 Accept-Encoding/扩展名等检查
+		router.Use(gzip.Gzip(gzip.DefaultCompression,
+			gzip.WithExcludedExtensions(middlewares.CompressExcludedExtensions),
+			gzip.WithCustomShouldCompressFn(middlewares.ShouldGzipCompress),
+		))
 	}
 
 	router.Use(staticAssetsCacheControlMiddleware())
