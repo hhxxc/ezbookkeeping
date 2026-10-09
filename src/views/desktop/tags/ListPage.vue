@@ -145,33 +145,38 @@
                                                     @mouseenter="hoveredTagId = element.id" @mouseleave="hoveredTagId = ''">
                                                     <td>
                                                         <div class="d-flex align-center">
-                                                            <div class="d-flex align-center" v-if="editingTag.id !== element.id">
+                                                        <div class="d-flex align-center" v-if="editingTag.id !== element.id">
+                                                            <v-badge class="right-bottom-icon" color="secondary"
+                                                                     location="bottom right" offset-x="8" :icon="mdiEyeOffOutline"
+                                                                     v-if="element.hidden && !hasCustomTransactionTagIcon(element)">
+                                                                <v-icon size="20" start :icon="mdiPound"/>
+                                                            </v-badge>
+                                                            <v-icon size="20" start :icon="mdiPound" v-else-if="!element.hidden && !hasCustomTransactionTagIcon(element)"/>
+                                                            <ItemIcon class="me-2" icon-type="category" :icon-id="element.icon" :color="element.color"
+                                                                      :hidden-status="element.hidden"
+                                                                      v-else-if="hasCustomTransactionTagIcon(element)"/>
+                                                            <span class="transaction-tag-name">{{ element.name }}</span>
+                                                        </div>
+
+                                                        <v-text-field class="w-100 me-2" type="text"
+                                                                      density="compact" variant="underlined"
+                                                                      :disabled="loading || updating"
+                                                                      :placeholder="tt('Tag Title')"
+                                                                      v-model="editingTag.name"
+                                                                      v-else-if="editingTag.id === element.id"
+                                                                      @keyup.enter="save(editingTag)"
+                                                        >
+                                                            <template #prepend>
                                                                 <v-badge class="right-bottom-icon" color="secondary"
                                                                          location="bottom right" offset-x="8" :icon="mdiEyeOffOutline"
-                                                                         v-if="element.hidden">
+                                                                         v-if="element.hidden && !hasCustomTransactionTagIcon(editingTag)">
                                                                     <v-icon size="20" start :icon="mdiPound"/>
                                                                 </v-badge>
-                                                                <v-icon size="20" start :icon="mdiPound" v-else-if="!element.hidden"/>
-                                                                <span class="transaction-tag-name">{{ element.name }}</span>
-                                                            </div>
-
-                                                            <v-text-field class="w-100 me-2" type="text"
-                                                                          density="compact" variant="underlined"
-                                                                          :disabled="loading || updating"
-                                                                          :placeholder="tt('Tag Title')"
-                                                                          v-model="editingTag.name"
-                                                                          v-else-if="editingTag.id === element.id"
-                                                                          @keyup.enter="save(editingTag)"
-                                                            >
-                                                                <template #prepend>
-                                                                    <v-badge class="right-bottom-icon" color="secondary"
-                                                                             location="bottom right" offset-x="8" :icon="mdiEyeOffOutline"
-                                                                             v-if="element.hidden">
-                                                                        <v-icon size="20" start :icon="mdiPound"/>
-                                                                    </v-badge>
-                                                                    <v-icon size="20" start :icon="mdiPound" v-else-if="!element.hidden"/>
-                                                                </template>
-                                                            </v-text-field>
+                                                                <v-icon size="20" start :icon="mdiPound" v-else-if="!element.hidden && !hasCustomTransactionTagIcon(editingTag)"/>
+                                                                <ItemIcon class="me-2" icon-type="category" :icon-id="editingTag.icon" :color="editingTag.color"
+                                                                          v-else-if="hasCustomTransactionTagIcon(editingTag)"/>
+                                                            </template>
+                                                        </v-text-field>
 
                                                             <v-spacer/>
 
@@ -227,6 +232,13 @@
                                                             </template>
 
                                                             <template v-if="editingTag.id === element.id">
+                                                                <v-btn class="px-2" color="default"
+                                                                       density="comfortable" variant="text"
+                                                                       :prepend-icon="mdiPaletteOutline"
+                                                                       :disabled="loading || updating"
+                                                                       @click="openTagIconColorDialog(editingTag)">
+                                                                    {{ tt('Icon and Color') }}
+                                                                </v-btn>
                                                                 <v-btn class="px-2"
                                                                        density="comfortable" variant="text"
                                                                        :prepend-icon="mdiCheck"
@@ -267,12 +279,21 @@
                                                                   :disabled="loading || updating" :placeholder="tt('Tag Title')"
                                                                   v-model="newTag.name" @keyup.enter="save(newTag)">
                                                         <template #prepend>
-                                                            <v-icon size="20" start :icon="mdiPound"/>
+                                                            <ItemIcon class="me-2" icon-type="category" :icon-id="newTag.icon" :color="newTag.color"
+                                                                      v-if="hasCustomTransactionTagIcon(newTag)"/>
+                                                            <v-icon size="20" start :icon="mdiPound" v-else/>
                                                         </template>
                                                     </v-text-field>
 
                                                     <v-spacer/>
 
+                                                    <v-btn class="px-2" color="default"
+                                                           density="comfortable" variant="text"
+                                                           :prepend-icon="mdiPaletteOutline"
+                                                           :disabled="loading || updating"
+                                                           @click="openTagIconColorDialog(newTag)">
+                                                        {{ tt('Icon and Color') }}
+                                                    </v-btn>
                                                     <v-btn class="px-2" density="comfortable" variant="text"
                                                            :prepend-icon="mdiCheck"
                                                            :loading="tagUpdating['']"
@@ -306,6 +327,39 @@
             </v-card>
         </v-col>
     </v-row>
+
+    <v-dialog width="640" v-model="showTagIconColorDialog">
+        <v-card class="pa-sm-1 pa-md-2">
+            <template #title>
+                <div class="d-flex align-center">
+                    <h4 class="text-h4">{{ tt('Icon and Color') }}</h4>
+                </div>
+            </template>
+            <v-card-text class="d-flex flex-column flex-md-row flex-grow-1 overflow-y-auto">
+                <v-form class="w-100 mt-2" v-if="iconColorDialogTag">
+                    <v-row>
+                        <v-col cols="12" md="6">
+                            <icon-select icon-type="category"
+                                         :all-icon-infos="ALL_CATEGORY_ICONS"
+                                         :label="tt('Tag Icon')"
+                                         :color="iconColorDialogTag.color"
+                                         v-model="iconColorDialogTag.icon" />
+                        </v-col>
+                        <v-col cols="12" md="6">
+                            <color-select :all-color-infos="ALL_CATEGORY_COLORS"
+                                          :label="tt('Tag Color')"
+                                          v-model="iconColorDialogTag.color" />
+                        </v-col>
+                    </v-row>
+                </v-form>
+            </v-card-text>
+            <v-card-text class="overflow-y-visible">
+                <div class="w-100 d-flex justify-center flex-wrap mt-sm-1 mt-md-2 gap-4">
+                    <v-btn color="secondary" variant="tonal" @click="showTagIconColorDialog = false">{{ tt('Confirm') }}</v-btn>
+                </div>
+            </v-card-text>
+        </v-card>
+    </v-dialog>
 
     <v-dialog width="640" v-model="showTagMoveToDialog">
         <v-card class="pa-sm-1 pa-md-2">
@@ -357,11 +411,13 @@ import { useTagListPageBase } from '@/views/base/tags/TagListPageBase.ts';
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { DEFAULT_TAG_GROUP_ID } from '@/consts/tag.ts';
+import { ALL_CATEGORY_ICONS } from '@/consts/icon.ts';
+import { ALL_CATEGORY_COLORS } from '@/consts/color.ts';
 
 import { TransactionTagGroup } from '@/models/transaction_tag_group.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
 
-import { getAvailableTagCount } from '@/lib/tag.ts';
+import { getAvailableTagCount, hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import {
     mdiRefresh,
@@ -381,6 +437,7 @@ import {
     mdiDeleteOutline,
     mdiDrag,
     mdiDotsVertical,
+    mdiPaletteOutline,
     mdiPound
 } from '@mdi/js';
 
@@ -430,6 +487,13 @@ const tagRemoving = ref<Record<string, boolean>>({});
 const currentMovingTag = ref<TransactionTag | null>(null);
 const currentMoveTargetGroupId = ref<string>(DEFAULT_TAG_GROUP_ID);
 const showTagMoveToDialog = ref<boolean>(false);
+const showTagIconColorDialog = ref<boolean>(false);
+const iconColorDialogTag = ref<TransactionTag | null>(null);
+
+function openTagIconColorDialog(tag: TransactionTag): void {
+    iconColorDialogTag.value = tag;
+    showTagIconColorDialog.value = true;
+}
 
 const totalAvailableTagsCount = computed<number>(() => transactionTagsStore.allAvailableTagsCount);
 const displayTotalAvailableTagsCount = computed<string>(() => formatNumberToLocalizedNumerals(transactionTagsStore.allAvailableTagsCount));

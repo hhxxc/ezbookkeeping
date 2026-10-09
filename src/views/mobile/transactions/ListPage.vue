@@ -279,7 +279,8 @@
                                                          :key="tagId"
                                                          v-for="tagId in transaction.tagIds">
                                                     <template #media>
-                                                        <f7-icon f7="number"></f7-icon>
+                                                        <ItemIcon v-if="hasCustomTransactionTagIcon(allTransactionTags[tagId])" icon-type="category" :icon-id="allTransactionTags[tagId]?.icon" :color="allTransactionTags[tagId]?.color"></ItemIcon>
+                                                        <f7-icon v-else f7="number"></f7-icon>
                                                     </template>
                                                 </f7-chip>
                                             </div>
@@ -575,7 +576,8 @@
                                   @click="changeTagFilter(TransactionTagFilter.of(transactionTag.id).toTextualTagFilter())"
                     >
                         <template #before-title>
-                            <f7-icon class="transaction-tag-name transaction-tag-icon" f7="number"></f7-icon>
+                            <ItemIcon v-if="hasCustomTransactionTagIcon(transactionTag)" class="transaction-tag-name transaction-tag-icon" icon-type="category" :icon-id="transactionTag.icon" :color="transactionTag.color"></ItemIcon>
+                            <f7-icon v-else class="transaction-tag-name transaction-tag-icon" f7="number"></f7-icon>
                         </template>
                         <template #after>
                             <f7-icon class="list-item-checked-icon"
@@ -685,6 +687,7 @@ import {
     categoryTypeToTransactionType,
     transactionTypeToCategoryType
 } from '@/lib/category.ts';
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 const props = defineProps<{
     f7route: Router.Route;

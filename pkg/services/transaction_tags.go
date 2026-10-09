@@ -312,7 +312,7 @@ func (s *TransactionTagService) ModifyTag(c core.Context, tag *models.Transactio
 	tag.UpdatedUnixTime = time.Now().Unix()
 
 	return s.UserDataDB(tag.Uid).DoTransaction(c, func(sess *xorm.Session) error {
-		updatedRows, err := sess.ID(tag.TagId).Cols("name", "tag_group_id", "display_order", "updated_unix_time").Where("uid=? AND deleted=?", tag.Uid, false).Update(tag)
+		updatedRows, err := sess.ID(tag.TagId).Cols("name", "tag_group_id", "display_order", "icon", "color", "updated_unix_time").Where("uid=? AND deleted=?", tag.Uid, false).Update(tag)
 
 		if err != nil {
 			return err

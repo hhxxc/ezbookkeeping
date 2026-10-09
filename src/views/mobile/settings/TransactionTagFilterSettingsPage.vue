@@ -93,7 +93,12 @@
                                       v-show="showHidden || !transactionTag.hidden"
                                       @click="currentTransactionTagId = transactionTag.id">
                             <template #media>
-                                <f7-icon class="transaction-tag-icon" f7="number">
+                                <ItemIcon v-if="hasCustomTransactionTagIcon(transactionTag)" class="transaction-tag-icon" icon-type="category" :icon-id="transactionTag.icon" :color="transactionTag.color">
+                                    <f7-badge color="gray" class="right-bottom-icon" v-if="transactionTag.hidden">
+                                        <f7-icon f7="eye_slash_fill"></f7-icon>
+                                    </f7-badge>
+                                </ItemIcon>
+                                <f7-icon v-else class="transaction-tag-icon" f7="number">
                                     <f7-badge color="gray" class="right-bottom-icon" v-if="transactionTag.hidden">
                                         <f7-icon f7="eye_slash_fill"></f7-icon>
                                     </f7-badge>
@@ -186,6 +191,8 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { values } from '@/core/base.ts';
 import { TransactionTagFilterType } from '@/core/transaction.ts';
+
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 interface CollapseState {
     opened: boolean;

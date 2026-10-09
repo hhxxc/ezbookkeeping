@@ -78,7 +78,12 @@
                                   v-else-if="tag instanceof TransactionTag"
                                   @change="changeTagSelection">
                         <template #media>
-                            <f7-icon class="transaction-tag-icon" f7="number">
+                            <ItemIcon v-if="hasCustomTransactionTagIcon(tag)" class="transaction-tag-icon" icon-type="category" :icon-id="tag.icon" :color="tag.color">
+                                <f7-badge color="gray" class="right-bottom-icon" v-if="tag.hidden">
+                                    <f7-icon f7="eye_slash_fill"></f7-icon>
+                                </f7-badge>
+                            </ItemIcon>
+                            <f7-icon v-else class="transaction-tag-icon" f7="number">
                                 <f7-badge color="gray" class="right-bottom-icon" v-if="tag.hidden">
                                     <f7-icon f7="eye_slash_fill"></f7-icon>
                                 </f7-badge>
@@ -109,6 +114,8 @@ import { type CommonTransactionTagSelectionProps, useTransactionTagSelectionBase
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { TransactionTag } from '@/models/transaction_tag.ts';
+
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import { scrollToSelectedItem } from '@/lib/ui/common.ts';
 import { type Framework7Dom, scrollSheetToTop } from '@/lib/ui/mobile.ts';

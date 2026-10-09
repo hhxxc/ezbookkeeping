@@ -62,11 +62,23 @@
                           v-show="showHidden || !tag.hidden"
                           @taphold="setSortable()">
                 <template #media>
-                    <f7-icon class="transaction-tag-icon" f7="number">
-                        <f7-badge color="gray" class="right-bottom-icon" v-if="tag.hidden">
-                            <f7-icon f7="eye_slash_fill"></f7-icon>
-                        </f7-badge>
-                    </f7-icon>
+                    <a href="#" class="display-flex" @click.prevent="openTagIconSelection"
+                       v-if="editingTag.id === tag.id">
+                        <ItemIcon v-if="hasCustomTransactionTagIcon(editingTag)" class="transaction-tag-icon" icon-type="category" :icon-id="editingTag.icon" :color="editingTag.color"></ItemIcon>
+                        <f7-icon v-else class="transaction-tag-icon" f7="number"></f7-icon>
+                    </a>
+                    <template v-else>
+                        <ItemIcon v-if="hasCustomTransactionTagIcon(tag)" class="transaction-tag-icon" icon-type="category" :icon-id="tag.icon" :color="tag.color">
+                            <f7-badge color="gray" class="right-bottom-icon" v-if="tag.hidden">
+                                <f7-icon f7="eye_slash_fill"></f7-icon>
+                            </f7-badge>
+                        </ItemIcon>
+                        <f7-icon v-else class="transaction-tag-icon" f7="number">
+                            <f7-badge color="gray" class="right-bottom-icon" v-if="tag.hidden">
+                                <f7-icon f7="eye_slash_fill"></f7-icon>
+                            </f7-badge>
+                        </f7-icon>
+                    </template>
                 </template>
                 <template #title>
                     <div class="display-flex">
@@ -84,6 +96,13 @@
                     </div>
                 </template>
                 <template #after>
+                    <f7-button :class="{ 'no-padding': true }"
+                               raised fill
+                               icon-f7="paintbrush"
+                               color="orange"
+                               v-if="editingTag.id === tag.id"
+                               @click="openTagColorSelection">
+                    </f7-button>
                     <f7-button :class="{ 'no-padding': true, 'disabled': !isTagModified(tag) }"
                                raised fill
                                icon-f7="checkmark_alt"
@@ -120,7 +139,10 @@
 
             <f7-list-item ref="newTagItem" class="editing-list-item" v-if="newTag">
                 <template #media>
-                    <f7-icon class="transaction-tag-icon" f7="number"></f7-icon>
+                    <a href="#" class="display-flex" @click.prevent="openTagIconSelection">
+                        <ItemIcon v-if="hasCustomTransactionTagIcon(newTag)" class="transaction-tag-icon" icon-type="category" :icon-id="newTag.icon" :color="newTag.color"></ItemIcon>
+                        <f7-icon v-else class="transaction-tag-icon" f7="number"></f7-icon>
+                    </a>
                 </template>
                 <template #title>
                     <div class="display-flex">
@@ -133,6 +155,12 @@
                     </div>
                 </template>
                 <template #after>
+                    <f7-button :class="{ 'no-padding': true }"
+                               raised fill
+                               icon-f7="paintbrush"
+                               color="orange"
+                               @click="openTagColorSelection">
+                    </f7-button>
                     <f7-button :class="{ 'no-padding': true, 'disabled': !isTagModified(newTag) }"
                                raised fill
                                icon-f7="checkmark_alt"
@@ -215,6 +243,19 @@
                 <f7-actions-button bold close>{{ tt('Cancel') }}</f7-actions-button>
             </f7-actions-group>
         </f7-actions>
+
+        <icon-selection-sheet :all-icon-infos="ALL_CATEGORY_ICONS"
+                              :color="editingTagTarget?.color"
+                              v-model:show="showTagIconSelectionSheet"
+                              v-model="editingTagTarget.icon"
+                              v-if="editingTagTarget"
+        ></icon-selection-sheet>
+
+        <color-selection-sheet :all-color-infos="ALL_CATEGORY_COLORS"
+                               v-model:show="showTagColorSelectionSheet"
+                               v-model="editingTagTarget.color"
+                               v-if="editingTagTarget"
+        ></color-selection-sheet>
     </f7-page>
 </template>
 
@@ -230,12 +271,14 @@ import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { TextDirection } from '@/core/text.ts';
 import { DEFAULT_TAG_GROUP_ID } from '@/consts/tag.ts';
+import { ALL_CATEGORY_ICONS } from '@/consts/icon.ts';
+import { ALL_CATEGORY_COLORS } from '@/consts/color.ts';
 
 import { TransactionTagGroup } from '@/models/transaction_tag_group.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
 
 import { scrollToSelectedItem } from '@/lib/ui/common.ts';
-import { getFirstShowingId, getLastShowingId } from '@/lib/tag.ts';
+import { getFirstShowingId, getLastShowingId, hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 const props = defineProps<{
     f7router: Router.Router;
@@ -278,6 +321,33 @@ const displayOrderSaving = ref<boolean>(false);
 const textDirection = computed<TextDirection>(() => getCurrentLanguageTextDirection());
 const firstShowingId = computed<string | null>(() => getFirstShowingId(tags.value, showHidden.value));
 const lastShowingId = computed<string | null>(() => getLastShowingId(tags.value, showHidden.value));
+
+const showTagIconSelectionSheet = ref<boolean>(false);
+const showTagColorSelectionSheet = ref<boolean>(false);
+
+const editingTagTarget = computed<TransactionTag | null>(() => {
+    if (editingTag.value.id && editingTag.value.id !== '') {
+        return editingTag.value;
+    }
+
+    return newTag.value;
+});
+
+function openTagIconSelection(): void {
+    if (!editingTagTarget.value) {
+        return;
+    }
+
+    showTagIconSelectionSheet.value = true;
+}
+
+function openTagColorSelection(): void {
+    if (!editingTagTarget.value) {
+        return;
+    }
+
+    showTagColorSelectionSheet.value = true;
+}
 
 const displayTagGroupName = computed<string>(() => {
     const tagGroup = transactionTagsStore.allTransactionTagGroupsMap[activeTagGroupId.value];

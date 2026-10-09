@@ -462,7 +462,9 @@
                                                                     <v-list-item-title class="cursor-pointer"
                                                                                        @click="changeTagFilter(TransactionTagFilter.of(transactionTag.id).toTextualTagFilter())">
                                                                         <div class="d-flex align-center">
-                                                                            <v-icon size="24" :icon="mdiPound"/>
+                                                                            <ItemIcon icon-type="category" :icon-id="transactionTag.icon" :color="transactionTag.color"
+                                                                                      v-if="hasCustomTransactionTagIcon(transactionTag)"/>
+                                                                            <v-icon size="24" :icon="mdiPound" v-else/>
                                                                             <span class="text-sm ms-3">{{ transactionTag.name }}</span>
                                                                         </div>
                                                                     </v-list-item-title>
@@ -545,10 +547,16 @@
                                                     </div>
                                                 </td>
                                                 <td class="transaction-table-column-tags" v-if="showTagInTransactionListPage">
-                                                    <v-chip class="transaction-tag" size="small" :prepend-icon="mdiPound"
+                                                    <v-chip class="transaction-tag" size="small"
                                                             :text="allTransactionTags[tagId]?.name"
                                                             :key="tagId"
-                                                            v-for="tagId in transaction.tagIds"/>
+                                                            v-for="tagId in transaction.tagIds">
+                                                        <template #prepend>
+                                                            <ItemIcon icon-type="category" :icon-id="allTransactionTags[tagId]?.icon" :color="allTransactionTags[tagId]?.color"
+                                                                      v-if="hasCustomTransactionTagIcon(allTransactionTags[tagId])"/>
+                                                            <v-icon size="16" :icon="mdiPound" v-else/>
+                                                        </template>
+                                                    </v-chip>
                                                     <v-chip class="transaction-tag" size="small"
                                                             :text="tt('None')"
                                                             v-if="!transaction.tagIds || !transaction.tagIds.length"/>
@@ -688,6 +696,7 @@ import {
 } from '@/lib/category.ts';
 import { isDataExportingEnabled, isDataImportingEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
 import { scrollToSelectedItem, startDownloadFile } from '@/lib/ui/common.ts';
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import {
     mdiMagnify,

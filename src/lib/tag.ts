@@ -1,5 +1,7 @@
 import { reversed } from '@/core/base.ts';
 import { TransactionTag } from '@/models/transaction_tag.ts';
+import { TRANSACTION_TAG_NO_ICON } from '@/models/transaction_tag.ts';
+import { ALL_CATEGORY_ICONS } from '@/consts/icon.ts';
 
 export function isNoAvailableTag(tags: TransactionTag[], showHidden: boolean): boolean {
     for (const tag of tags) {
@@ -41,4 +43,8 @@ export function getLastShowingId(tags: TransactionTag[], showHidden: boolean): s
     }
 
     return null;
+}
+
+export function hasCustomTransactionTagIcon(tag: { icon?: string; color?: string } | null | undefined): boolean {
+    return !!tag && !!tag.icon && tag.icon !== TRANSACTION_TAG_NO_ICON && !!ALL_CATEGORY_ICONS[tag.icon];
 }

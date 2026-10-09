@@ -440,7 +440,8 @@
                                  :key="tagId"
                                  v-for="tagId in transaction.tagIds">
                             <template #media>
-                                <f7-icon f7="number"></f7-icon>
+                                <ItemIcon v-if="hasCustomTransactionTagIcon(allTagsMap[tagId])" icon-type="category" :icon-id="allTagsMap[tagId]?.icon" :color="allTagsMap[tagId]?.color"></ItemIcon>
+                                <f7-icon v-else f7="number"></f7-icon>
                             </template>
                         </f7-chip>
                     </f7-block>
@@ -726,6 +727,7 @@ import {
     allVisiblePrimaryTransactionCategoriesByType
 } from '@/lib/category.ts';
 import { type SetTransactionOptions } from '@/lib/transaction.ts';
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 import { getMapProvider, isTransactionPicturesEnabled } from '@/lib/server_settings.ts';
 import { ALL_CURRENCIES } from '@/consts/currency.ts';
 import { DEFAULT_CATEGORY_COLOR } from '@/consts/color.ts';

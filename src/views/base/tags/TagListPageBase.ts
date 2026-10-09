@@ -38,7 +38,7 @@ export function useTagListPageBase() {
 
     function isTagModified(tag: TransactionTag): boolean {
         if (tag.id) {
-            return editingTag.value.name !== '' && editingTag.value.name !== tag.name;
+            return editingTag.value.name !== '' && (editingTag.value.name !== tag.name || editingTag.value.icon !== tag.icon || editingTag.value.color !== tag.color);
         } else {
             return tag.name !== '';
         }
@@ -60,6 +60,8 @@ export function useTagListPageBase() {
         editingTag.value.id = tag.id;
         editingTag.value.groupId = tag.groupId;
         editingTag.value.name = tag.name;
+        editingTag.value.icon = tag.icon;
+        editingTag.value.color = tag.color;
     }
 
     return {

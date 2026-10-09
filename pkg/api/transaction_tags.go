@@ -217,11 +217,23 @@ func (a *TransactionTagsApi) TagModifyHandler(c *core.WebContext) (any, *errs.Er
 		Name:         tagModifyReq.Name,
 		TagGroupId:   tagModifyReq.GroupId,
 		DisplayOrder: tag.DisplayOrder,
+		Icon:         tag.Icon,
+		Color:        tag.Color,
+	}
+
+	if tagModifyReq.Icon != nil {
+		newTag.Icon = *tagModifyReq.Icon
+	}
+
+	if tagModifyReq.Color != nil {
+		newTag.Color = *tagModifyReq.Color
 	}
 
 	tagNameChanged := newTag.Name != tag.Name
+	tagIconChanged := newTag.Icon != tag.Icon
+	tagColorChanged := newTag.Color != tag.Color
 
-	if !tagNameChanged && newTag.TagGroupId == tag.TagGroupId {
+	if !tagNameChanged && newTag.TagGroupId == tag.TagGroupId && !tagIconChanged && !tagColorChanged {
 		return nil, errs.ErrNothingWillBeUpdated
 	}
 
@@ -248,6 +260,8 @@ func (a *TransactionTagsApi) TagModifyHandler(c *core.WebContext) (any, *errs.Er
 	tag.Name = newTag.Name
 	tag.TagGroupId = newTag.TagGroupId
 	tag.DisplayOrder = newTag.DisplayOrder
+	tag.Icon = newTag.Icon
+	tag.Color = newTag.Color
 	tagResp := tag.ToTransactionTagInfoResponse()
 
 	return tagResp, nil
@@ -337,6 +351,8 @@ func (a *TransactionTagsApi) createNewTagModel(uid int64, tagCreateReq *models.T
 		Uid:          uid,
 		Name:         tagCreateReq.Name,
 		TagGroupId:   tagCreateReq.GroupId,
+		Icon:         tagCreateReq.Icon,
+		Color:        tagCreateReq.Color,
 		DisplayOrder: order,
 	}
 }

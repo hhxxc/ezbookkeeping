@@ -19,7 +19,13 @@
         @update:modelValue="updateModelValue"
     >
         <template #chip="{ props, item }">
-            <v-chip :prepend-icon="mdiPound" :text="item.title" v-bind="props"/>
+            <v-chip :text="item.title" v-bind="props">
+                <template #prepend>
+                    <ItemIcon icon-type="category" :icon-id="item.raw?.icon" :color="item.raw?.color"
+                              v-if="hasCustomTransactionTagIcon(item.raw)"/>
+                    <v-icon size="18" :icon="mdiPound" v-else/>
+                </template>
+            </v-chip>
         </template>
 
         <template #subheader="{ props }">
@@ -31,7 +37,9 @@
                 <template #title>
                     <v-list-item-title>
                         <div class="d-flex align-center">
-                            <v-icon size="20" start :icon="mdiPound"/>
+                            <ItemIcon class="me-2" icon-type="category" :icon-id="item.raw.icon" :color="item.raw.color"
+                                      v-if="hasCustomTransactionTagIcon(item.raw)"/>
+                            <v-icon size="20" start :icon="mdiPound" v-else/>
                             <span>{{ item.title }}</span>
                         </div>
                     </v-list-item-title>
@@ -41,7 +49,9 @@
                 <template #title>
                     <v-list-item-title>
                         <div class="d-flex align-center">
-                            <v-icon size="20" start :icon="mdiPound"/>
+                            <ItemIcon class="me-2" icon-type="category" :icon-id="item.raw.icon" :color="item.raw.color"
+                                      v-if="hasCustomTransactionTagIcon(item.raw)"/>
+                            <v-icon size="20" start :icon="mdiPound" v-else/>
                             <span>{{ item.title }}</span>
                         </div>
                     </v-list-item-title>
@@ -71,6 +81,8 @@ import { type CommonTransactionTagSelectionProps, useTransactionTagSelectionBase
 import { useTransactionTagsStore } from '@/stores/transactionTag.ts';
 
 import { TransactionTag } from '@/models/transaction_tag.ts';
+
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import type { ComponentDensity, InputVariant } from '@/lib/ui/desktop.ts';
 

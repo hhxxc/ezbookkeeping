@@ -94,9 +94,13 @@
                                           v-for="transactionTag in allVisibleTags[tagGroup.id]">
                                     <v-list-item class="ps-2">
                                         <template #prepend>
+                                            <template v-if="hasCustomTransactionTagIcon(transactionTag)">
+                                                <ItemIcon icon-type="category" :icon-id="transactionTag.icon" :color="transactionTag.color"
+                                                          :hidden-status="transactionTag.hidden"/>
+                                            </template>
                                             <v-badge class="right-bottom-icon" color="secondary"
                                                      location="bottom right" offset-x="2" offset-y="2" :icon="mdiEyeOffOutline"
-                                                     v-if="transactionTag.hidden">
+                                                     v-else-if="transactionTag.hidden">
                                                 <v-icon size="24" :icon="mdiPound"/>
                                             </v-badge>
                                             <v-icon size="24" :icon="mdiPound" v-else-if="!transactionTag.hidden"/>
@@ -150,6 +154,8 @@ import { TransactionTagFilterType } from '@/core/transaction.ts';
 
 import type { TransactionTagGroup } from '@/models/transaction_tag_group.ts';
 import type { TransactionTag } from '@/models/transaction_tag.ts';
+
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import {
     mdiMagnify,

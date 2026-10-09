@@ -7,6 +7,8 @@ type TransactionTag struct {
 	Deleted         bool   `xorm:"INDEX(IDX_tag_uid_deleted_group_order) NOT NULL"`
 	TagGroupId      int64  `xorm:"INDEX(IDX_tag_uid_deleted_group_order) NOT NULL DEFAULT 0"`
 	Name            string `xorm:"VARCHAR(64) NOT NULL"`
+	Icon            int64  `xorm:"NOT NULL DEFAULT 0"`
+	Color           string `xorm:"VARCHAR(6) NOT NULL DEFAULT ''"`
 	DisplayOrder    int32  `xorm:"INDEX(IDX_tag_uid_deleted_group_order) NOT NULL"`
 	Hidden          bool   `xorm:"NOT NULL"`
 	CreatedUnixTime int64
@@ -23,6 +25,8 @@ type TransactionTagGetRequest struct {
 type TransactionTagCreateRequest struct {
 	GroupId int64  `json:"groupId,string"`
 	Name    string `json:"name" binding:"required,notBlank,max=64"`
+	Icon    int64  `json:"icon,string" binding:"omitempty,gte=0"`
+	Color   string `json:"color" binding:"omitempty,max=6"`
 }
 
 // TransactionTagCreateBatchRequest represents all parameters of transaction tag batch creation request
@@ -34,9 +38,11 @@ type TransactionTagCreateBatchRequest struct {
 
 // TransactionTagModifyRequest represents all parameters of transaction tag modification request
 type TransactionTagModifyRequest struct {
-	Id      int64  `json:"id,string" binding:"required,min=1"`
-	GroupId int64  `json:"groupId,string"`
-	Name    string `json:"name" binding:"required,notBlank,max=64"`
+	Id      int64   `json:"id,string" binding:"required,min=1"`
+	GroupId int64   `json:"groupId,string"`
+	Name    string  `json:"name" binding:"required,notBlank,max=64"`
+	Icon    *int64  `json:"icon,string" binding:"omitempty,gte=0"`
+	Color   *string `json:"color" binding:"omitempty,max=6"`
 }
 
 // TransactionTagHideRequest represents all parameters of transaction tag hiding request
@@ -68,6 +74,8 @@ type TransactionTagInfoResponse struct {
 	TagGroupId   int64  `json:"groupId,string"`
 	DisplayOrder int32  `json:"displayOrder"`
 	Hidden       bool   `json:"hidden"`
+	Icon         int64  `json:"icon,string"`
+	Color        string `json:"color"`
 }
 
 // FillFromOtherTag fills all the fields in this current tag from other transaction tag
@@ -77,6 +85,8 @@ func (t *TransactionTag) FillFromOtherTag(tag *TransactionTag) {
 	t.Deleted = tag.Deleted
 	t.Name = tag.Name
 	t.TagGroupId = tag.TagGroupId
+	t.Icon = tag.Icon
+	t.Color = tag.Color
 	t.DisplayOrder = tag.DisplayOrder
 	t.Hidden = tag.Hidden
 	t.CreatedUnixTime = tag.CreatedUnixTime
@@ -92,6 +102,8 @@ func (t *TransactionTag) ToTransactionTagInfoResponse() *TransactionTagInfoRespo
 		TagGroupId:   t.TagGroupId,
 		DisplayOrder: t.DisplayOrder,
 		Hidden:       t.Hidden,
+		Icon:         t.Icon,
+		Color:        t.Color,
 	}
 }
 

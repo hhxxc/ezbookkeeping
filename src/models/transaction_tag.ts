@@ -1,22 +1,30 @@
+export const TRANSACTION_TAG_NO_ICON = '0';
+
 export class TransactionTag implements TransactionTagInfoResponse {
     public id: string;
     public name: string;
     public groupId: string;
     public displayOrder: number;
     public hidden: boolean;
+    public icon: string;
+    public color: string;
 
-    private constructor(id: string, name: string, groupId: string, displayOrder: number, hidden: boolean) {
+    private constructor(id: string, name: string, groupId: string, displayOrder: number, hidden: boolean, icon: string, color: string) {
         this.id = id;
         this.name = name;
         this.groupId = groupId;
         this.displayOrder = displayOrder;
         this.hidden = hidden;
+        this.icon = icon;
+        this.color = color;
     }
 
     public toCreateRequest(): TransactionTagCreateRequest {
         return {
             name: this.name,
-            groupId: this.groupId
+            groupId: this.groupId,
+            icon: this.icon,
+            color: this.color
         };
     }
 
@@ -24,16 +32,18 @@ export class TransactionTag implements TransactionTagInfoResponse {
         return {
             id: this.id,
             groupId: this.groupId,
-            name: this.name
+            name: this.name,
+            icon: this.icon,
+            color: this.color
         };
     }
 
     public clone(): TransactionTag {
-        return new TransactionTag(this.id, this.name, this.groupId, this.displayOrder, this.hidden);
+        return new TransactionTag(this.id, this.name, this.groupId, this.displayOrder, this.hidden, this.icon, this.color);
     }
 
     public static of(tagResponse: TransactionTagInfoResponse): TransactionTag {
-        return new TransactionTag(tagResponse.id, tagResponse.name, tagResponse.groupId, tagResponse.displayOrder, tagResponse.hidden);
+        return new TransactionTag(tagResponse.id, tagResponse.name, tagResponse.groupId, tagResponse.displayOrder, tagResponse.hidden, tagResponse.icon || TRANSACTION_TAG_NO_ICON, tagResponse.color || '');
     }
 
     public static ofMulti(tagResponses: TransactionTagInfoResponse[]): TransactionTag[] {
@@ -47,13 +57,15 @@ export class TransactionTag implements TransactionTagInfoResponse {
     }
 
     public static createNewTag(name?: string, groupId?: string): TransactionTag {
-        return new TransactionTag('', name || '', groupId || '0', 0, false);
+        return new TransactionTag('', name || '', groupId || '0', 0, false, TRANSACTION_TAG_NO_ICON, '');
     }
 }
 
 export interface TransactionTagCreateRequest {
     readonly groupId: string;
     readonly name: string;
+    readonly icon: string;
+    readonly color: string;
 }
 
 export interface TransactionTagCreateBatchRequest {
@@ -66,6 +78,8 @@ export interface TransactionTagModifyRequest {
     readonly id: string;
     readonly groupId: string;
     readonly name: string;
+    readonly icon: string;
+    readonly color: string;
 }
 
 export interface TransactionTagHideRequest {
@@ -92,4 +106,6 @@ export interface TransactionTagInfoResponse {
     readonly groupId: string;
     readonly displayOrder: number;
     readonly hidden: boolean;
+    readonly icon: string;
+    readonly color: string;
 }

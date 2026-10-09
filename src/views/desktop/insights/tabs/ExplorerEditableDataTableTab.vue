@@ -139,9 +139,14 @@
         <template #item.tags="{ item }">
             <div class="d-flex">
                 <v-chip class="transaction-tag" size="small"
-                        :key="tag.id" :prepend-icon="mdiPound"
+                        :key="tag.id"
                         :text="tag.name"
-                        v-for="tag in item.tags"/>
+                        v-for="tag in item.tags">
+                    <template #prepend>
+                        <ItemIcon icon-type="category" :icon-id="tag.icon" :color="tag.color" v-if="hasCustomTransactionTagIcon(tag)"/>
+                        <v-icon size="16" :icon="mdiPound" v-else/>
+                    </template>
+                </v-chip>
                 <v-chip class="transaction-tag" size="small"
                         :text="tt('None')"
                         v-if="!item.tagIds || !item.tagIds.length"/>
@@ -192,6 +197,7 @@ import { TransactionType } from '@/core/transaction.ts';
 import type { TransactionInsightDataItem } from '@/models/transaction.ts';
 
 import { getObjectOwnFieldWithValueCount } from '@/lib/common.ts';
+import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
 import {
     mdiArrowRight,
