@@ -119,10 +119,17 @@ def download_ipa_from_release(version, out_dir):
         print(r.stderr, file=sys.stderr)
         raise SystemExit(f"下载 Release {tag} 失败；可用 --ipa 指定本地 IPA，"
                          f"或确认 tag 与资产名。")
-    for name in os.listdir(out_dir):
-        if name.lower().endswith(".ipa"):
-            return os.path.join(out_dir, name)
-    raise SystemExit("下载完成但未找到 .ipa 文件")
+    # out_dir 可能残留历史版本的 IPA，绝不能随便拿目录里第一个：
+    # 优先精确匹配本次版本号（如 NestKeep-dev-v1.6.38.ipa），否则取 mtime 最新的。
+    ipa_files = [n for n in os.listdir(out_dir) if n.lower().endswith(".ipa")]
+    exact = [n for n in ipa_files if f"v{version}" in n]
+    picked = max(exact or ipa_files,
+                 key=lambda n: os.path.getmtime(os.path.join(out_dir, n)),
+                 default=None)
+    if not picked:
+        raise SystemExit("下载完成但未找到 .ipa 文件")
+    print(f"==> 选用本地 IPA：{picked}")
+    return os.path.join(out_dir, picked)
 
 
 def release_ipa_url(version):
