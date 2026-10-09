@@ -199,6 +199,8 @@ struct SettingsView: View {
             .listStyle(.insetGrouped)
             // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
             .navigationTitle("设置")
+            // 紧凑居中标题（不设的话根页默认出大标题，与二级页观感不一致）
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showUpdateSheet) {
                 UpdateResultSheet(updateStore: updateStore)
             }
@@ -207,6 +209,13 @@ struct SettingsView: View {
                 Button("取消", role: .cancel) {}
             }
         }
+        // 关键：显式指定 Stack 样式。iOS 15 的 NavigationView 默认走 DoubleColumn
+        //（侧栏）样式，嵌在 MainTabView 的 ZStack 布局里时导航栏安全区会失效——
+        // 栏体顶进状态栏，返回按钮/标题与时间、电量图标重叠（统计页 b95c25e9、
+        // 账户页 8eafd403 是同一问题，当时改了自绘顶栏）。详情 Tab 的 NavigationView
+        // 一直带 .stack，其二级页（账单明细/日历/区间详情）从未出现过重叠，
+        // 因此设置 Tab 的全部二级页统一跟随 .stack 方案修复。
+        .navigationViewStyle(.stack)
     }
 }
 
