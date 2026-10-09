@@ -75,7 +75,6 @@ final class CategoriesViewModel: ObservableObject {
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
-        }
     }
 }
 
