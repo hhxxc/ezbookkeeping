@@ -822,6 +822,8 @@ struct TransactionsView: View {
 
         return VStack(alignment: .leading, spacing: 0) {
             // ① 月份 + 支出徽标 + 隐藏金额开关
+            // trailing 32：给右上角悬浮的「换背景图」按钮（30×30、距边 12，占 12~42pt）让位，
+            // 否则行尾的眼睛按钮会被它整个盖住（点不到也看不见）
             HStack(spacing: 8) {
                 Text(vm.summaryMonthTitle)
                     .font(.system(size: 16, weight: .semibold))
@@ -844,6 +846,7 @@ struct TransactionsView: View {
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.trailing, 32)
             .padding(.bottom, 6)
 
             // 大支出金额
