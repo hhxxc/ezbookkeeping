@@ -158,7 +158,6 @@ struct AccountsView: View {
     }
 
     var body: some View {
-        NavigationView {
             Group {
                 if vm.isLoading && vm.accounts.isEmpty {
                     ProgressView()
@@ -217,31 +216,8 @@ struct AccountsView: View {
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
             }
-            .navigationTitle("账户")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    if isSorting {
-                        Button("完成") { finishSorting() }
-                    } else {
-                        Button {
-                            vm.hideAmounts.toggle()
-                        } label: {
-                            Image(systemName: vm.hideAmounts ? "eye.slash" : "eye")
-                        }
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !isSorting {
-                        HStack(spacing: 16) {
-                            Button("排序") {
-                                sortItems = flatSortableAccounts()
-                                isSorting = true
-                            }
-                            Button { showAdd = true } label: { Image(systemName: "plus") }
-                        }
-                    }
-                }
-            }
+            // 自绘顶栏：系统导航栏在 Tab 根页布局下会顶进状态栏（统计页同款修复）
+            .safeAreaInset(edge: .top, spacing: 0) { topBar }
             .refreshable { await vm.load() }
             .sheet(isPresented: $showAdd) {
                 AccountEditView(account: nil)
@@ -270,8 +246,78 @@ struct AccountsView: View {
             } message: {
                 Text("该账户下的账单不会被删除，但账户将不可用。")
             }
-        }
         .task { await vm.load() }
+    }
+
+    // MARK: - 顶部自绘栏（系统导航栏在 Tab 根页会顶进状态栏，与统计页同款方案）
+    /// 标题 + 眼睛（隐藏金额）/ 排序 / 新增；排序模式时右侧换成「完成」
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Text(isSorting ? "排序模式" : "账户")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(HomePalette.ink)
+
+            Spacer()
+
+            if isSorting {
+                Button {
+                    finishSorting()
+                } label: {
+                    Text("完成")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(Theme.brand)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
+                } label: {
+                    Image(systemName: vm.hideAmounts ? "eye.slash" : "eye")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(HomePalette.ink)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color.primary.opacity(0.05)))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    sortItems = flatSortableAccounts()
+                    isSorting = true
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(HomePalette.ink)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color.primary.opacity(0.05)))
+                }
+                .buttonStyle(.plain)
+
+                Button { showAdd = true } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Theme.brand)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Theme.brand.opacity(0.14)))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        .background(
+            VStack(spacing: 0) {
+                Color(.systemGroupedBackground)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(height: 0.5)
+            }
+            .ignoresSafeArea(edges: .top)
+        )
     }
 
     private func finishSorting() {
