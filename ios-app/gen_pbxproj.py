@@ -13,66 +13,15 @@
 import os
 import uuid
 
-# 所有需要编译进 App 的 Swift 源文件（相对 NestKeep 目录）
-SWIFT_FILES = [
-    "NestKeepApp.swift",
-    "Core/APIError.swift",
-    "Core/AppSettings.swift",
-    "Core/APIClient.swift",
-    "Core/AuthManager.swift",
-    "Core/UI.swift",
-    "Core/UpdateChecker.swift",
-    "Core/PictureUploader.swift",
-    "Core/ServerSettings.swift",
-    "Core/ReceiptRecognizer.swift",
-    "Core/HomeBackground.swift",
-    "Core/CachedImage.swift",
-    "Core/AppLockManager.swift",
-    "Core/CloudSettingsStore.swift",
-    "Models/User.swift",
-    "Models/Account.swift",
-    "Models/AccountRequests.swift",
-    "Models/Transaction.swift",
-    "Models/Installment.swift",
-    "Models/Category.swift",
-    "Models/CategoryRequests.swift",
-    "Models/PresetCategory.swift",
-    "Models/Tag.swift",
-    "Models/Token.swift",
-    "Models/ApiModels.swift",
-    "Models/ExchangeRate.swift",
-    "Views/RootView.swift",
-    "Views/LoginView.swift",
-    "Views/MainTabView.swift",
-    "Views/AccountsView.swift",
-    "Views/AccountEditView.swift",
-    "Views/MoveAllTransactionsView.swift",
-    "Views/ReconciliationStatementView.swift",
-    "Views/TransactionsView.swift",
-    "Views/TransactionDetailView.swift",
-    "Views/TransactionEditView.swift",
-    "Views/InstallmentDetailView.swift",
-    "Views/TransactionCalendarView.swift",
-    "Views/CategoriesView.swift",
-    "Views/PresetCategoriesView.swift",
-    "Views/TagsView.swift",
-    "Views/TemplatesView.swift",
-    "Views/TemplateEditView.swift",
-    "Views/ProfileEditView.swift",
-    "Views/TwoFactorAuthView.swift",
-    "Views/SessionsView.swift",
-    "Views/DataManagementView.swift",
-    "Views/AboutView.swift",
-    "Views/StatisticsView.swift",
-    "Views/StatisticsSettingsView.swift",
-    "Views/SettingsView.swift",
-    "Views/SettingsPagesView.swift",
-    "Views/AIReceiptView.swift",
-    "Views/ExchangeRatesView.swift",
-    "Views/HomeBackgroundSettingsView.swift",
-    "Views/AppLockView.swift",
-    "Views/AppLockSettingsView.swift",
-]
+# 自动收集 NestKeep 目录下全部 Swift 源文件（增删文件无需再手动登记，重跑本脚本即可）。
+# sorted 保证顺序确定 → uuid5 文件 ID 稳定，重复生成不会产生无谓 diff。
+_SWIFT_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "NestKeep")
+SWIFT_FILES = sorted(
+    os.path.relpath(os.path.join(dp, name), _SWIFT_ROOT).replace("\\", "/")
+    for dp, _dirs, names in os.walk(_SWIFT_ROOT)
+    for name in names
+    if name.endswith(".swift")
+)
 
 INFOPLIST = "Info.plist"
 # 资源目录（AppIcon 图标、颜色等）；作为 folder reference 加入 Resources 构建阶段

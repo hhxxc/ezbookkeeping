@@ -72,14 +72,14 @@ final class TemplateEditViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            async let cats = APIClient.shared.requestCategoryList()
-            async let tagList: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
-            async let groupList: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
+            async let accs = AppDataStore.shared.getAccounts()
+            async let cats = AppDataStore.shared.getCategories()
+            async let tg = AppDataStore.shared.getTags()
             accounts = try await accs
             categories = try await cats
-            tags = (try? await tagList) ?? []
-            tagGroups = (try? await groupList) ?? []
+            let fetched = await tg
+            tags = fetched.tags
+            tagGroups = fetched.groups
 
             if let t = template {
                 name = t.name

@@ -22,8 +22,9 @@ final class AIReceiptViewModel: ObservableObject {
     @Published var categories: [TransactionCategory] = []
 
     func loadRefData() async {
-        accounts = (try? await APIClient.shared.request("/api/v1/accounts/list.json")) ?? []
-        categories = (try? await APIClient.shared.requestCategoryList()) ?? []
+        // 走共享缓存（识图落库与记账页共用同一份引用数据）
+        accounts = (try? await AppDataStore.shared.getAccounts()) ?? []
+        categories = (try? await AppDataStore.shared.getCategories()) ?? []
     }
 
     /// 最近一次识别用的图片，供「重试识别」复用

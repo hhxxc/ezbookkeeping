@@ -83,14 +83,15 @@ final class TransactionEditViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            async let cats = APIClient.shared.requestCategoryList()
-            async let tagList: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
-            async let groupList: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
+            // 引用数据走共享缓存：高频入口不再每次 4 连拉（缓存 120s 内直接复用）
+            async let accs = AppDataStore.shared.getAccounts()
+            async let cats = AppDataStore.shared.getCategories()
+            async let tg = AppDataStore.shared.getTags()
             accounts = try await accs
             categories = try await cats
-            tags = (try? await tagList) ?? []
-            tagGroups = (try? await groupList) ?? []
+            let fetched = await tg
+            tags = fetched.tags
+            tagGroups = fetched.groups
 
             if let tx = pending {
                 type = tx.transactionType
@@ -260,6 +261,8 @@ final class TransactionEditViewModel: ObservableObject {
                 )
             }
             isLoading = false
+            // 交易落库改变账户余额 → 失效账户缓存（AppDataStore 也监听 transactionsChanged，此处直接调用更可靠）
+            AppDataStore.shared.invalidateAccounts()
             if keepOpen {
                 resetForNextEntry()
             } else {

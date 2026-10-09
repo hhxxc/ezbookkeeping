@@ -9,6 +9,8 @@ final class StatisticsViewModel: ObservableObject {
     @Published var month: Int
     @Published var isLoading = false
     @Published var error: String?
+    /// 本 Tab 是否已成功加载过（供「首次选中才加载」门控）
+    @Published var hasLoadedOnce = false
 
     @Published var totalExpenseCents: Int64 = 0
     @Published var totalIncomeCents: Int64 = 0
@@ -112,12 +114,9 @@ final class StatisticsViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            if categories.isEmpty {
-                categories = (try? await APIClient.shared.requestCategoryList()) ?? []
-            }
-            if accounts.isEmpty {
-                accounts = (try? await APIClient.shared.request("/api/v1/accounts/list.json")) ?? []
-            }
+            // 引用数据走共享缓存（冷启动只拉一次）
+            categories = (try? await AppDataStore.shared.getCategories()) ?? []
+            accounts = (try? await AppDataStore.shared.getAccounts()) ?? []
             guard let start = Calendar.current.date(from: DateComponents(
                       year: year,
                       month: isYearMode ? 1 : month,
@@ -166,6 +165,7 @@ final class StatisticsViewModel: ObservableObject {
 
             buildCategoryStats(stats.items)
             buildDaily(daily)
+            hasLoadedOnce = true
             isLoading = false
         } catch {
             isLoading = false
@@ -384,7 +384,7 @@ final class StatisticsViewModel: ObservableObject {
     /// 按需加载标签列表（筛选面板打开时调用）
     func loadTagListIfNeeded() async {
         guard tagList.isEmpty else { return }
-        tagList = (try? await APIClient.shared.request("/api/v1/transaction/tags/list.json")) ?? []
+        tagList = (try? await AppDataStore.shared.getTags())?.tags ?? []
     }
 }
 
@@ -507,7 +507,11 @@ struct StatisticsView: View {
                         }
                 }
             }
-        .task { await vm.load() }
+        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉统计
+        .task { if router.selection == .statistics { await vm.load() } }
+        .onChange(of: router.selection) { sel in
+            if sel == .statistics && !vm.hasLoadedOnce { Task { await vm.load() } }
+        }
     }
 
     // MARK: - 顶部自绘栏：月份/年份切换胶囊 + 筛选入口（风格对齐首页顶栏胶囊）

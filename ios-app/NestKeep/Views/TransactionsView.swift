@@ -199,10 +199,10 @@ final class TransactionsViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            // 四路请求完全并行（accounts/cats/transactions/amounts 互不依赖），
-            // 原先三段串行把首屏时间拖成 T1+T2+T3
-            async let accs: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
-            async let cats = APIClient.shared.requestCategoryList()
+            // 四路并行；accounts/categories 走共享缓存（staleTime 内不发请求），
+            // 下拉刷新时也就只刷账单和汇总，不再重拉账户/分类
+            async let accs = AppDataStore.shared.getAccounts()
+            async let cats = AppDataStore.shared.getCategories()
             async let txs = fetchTransactions()
             async let amounts: Void = loadAmounts()
             accounts = try await accs
@@ -520,6 +520,7 @@ final class TransactionsViewModel: ObservableObject {
             )
             transactions.removeAll { $0.id == tx.id }
             await loadAmounts()
+            AppDataStore.shared.invalidateAccounts()
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }

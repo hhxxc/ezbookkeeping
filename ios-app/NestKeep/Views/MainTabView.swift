@@ -89,6 +89,7 @@ struct MainTabView: View {
                     .zIndex(router.selection == .list ? 1 : 0)
 
                 AccountsView()
+                    .environmentObject(router)
                     .offset(x: router.selection == .accounts ? 0 : Self.parkedOffset)
                     .allowsHitTesting(router.selection == .accounts)
                     .zIndex(router.selection == .accounts ? 1 : 0)

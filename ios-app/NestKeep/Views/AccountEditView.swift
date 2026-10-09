@@ -162,6 +162,7 @@ struct AccountEditView: View {
                 )
             }
             isSaving = false
+            AppDataStore.shared.invalidateAccounts()
             dismiss()
         } catch {
             isSaving = false

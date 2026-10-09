@@ -9,12 +9,16 @@ final class AccountsViewModel: ObservableObject {
     @Published var error: String?
     /// 是否隐藏金额（对齐 Web 的眼睛图标）
     @Published var hideAmounts = false
+    /// 本 Tab 是否已成功加载过（供「首次选中才加载」门控）
+    @Published var hasLoadedOnce = false
 
-    func load() async {
+    func load(force: Bool = false) async {
         isLoading = true
         error = nil
         do {
-            accounts = try await APIClient.shared.request("/api/v1/accounts/list.json")
+            // 走共享缓存；下拉刷新 force=true 绕过 staleTime 强制拉新（余额要新鲜）
+            accounts = try await AppDataStore.shared.getAccounts(force: force)
+            hasLoadedOnce = true
             isLoading = false
         } catch {
             isLoading = false
@@ -99,6 +103,7 @@ final class AccountsViewModel: ObservableObject {
                 "/api/v1/accounts/delete.json", method: .POST, body: AccountIdRequest(id: account.id)
             )
             accounts.removeAll { $0.id == account.id }
+            AppDataStore.shared.invalidateAccounts()
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -110,7 +115,7 @@ final class AccountsViewModel: ObservableObject {
                 "/api/v1/accounts/hide.json", method: .POST,
                 body: AccountHideRequest(id: account.id, hidden: !(account.hidden ?? false))
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -125,7 +130,7 @@ final class AccountsViewModel: ObservableObject {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/accounts/move.json", method: .POST, body: req
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -134,6 +139,7 @@ final class AccountsViewModel: ObservableObject {
 
 struct AccountsView: View {
     @StateObject private var vm = AccountsViewModel()
+    @EnvironmentObject private var router: TabRouter
     @Environment(\.mainTabBarInset) private var tabBarInset
     @State private var editingAccount: Account?
     @State private var showAdd = false
@@ -238,7 +244,7 @@ struct AccountsView: View {
                         .padding(.horizontal, 17)
                         .padding(.bottom, 16)
                     }
-                    .refreshable { await vm.load() }
+                    .refreshable { await vm.load(force: true) }
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
                 }
                 }
@@ -271,7 +277,11 @@ struct AccountsView: View {
             } message: {
                 Text("该账户下的账单不会被删除，但账户将不可用。")
             }
-        .task { await vm.load() }
+        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉数据
+        .task { if router.selection == .accounts { await vm.load() } }
+        .onChange(of: router.selection) { sel in
+            if sel == .accounts && !vm.hasLoadedOnce { Task { await vm.load() } }
+        }
     }
 
     // MARK: - 顶部自绘栏（系统导航栏在 Tab 根页会顶进状态栏，与统计页同款方案）

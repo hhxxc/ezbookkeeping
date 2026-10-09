@@ -18,8 +18,8 @@ final class TemplatesViewModel: ObservableObject {
         isLoading = true
         error = nil
         do {
-            async let c = APIClient.shared.requestCategoryList()
-            async let a: [Account] = APIClient.shared.request("/api/v1/accounts/list.json")
+            async let c = AppDataStore.shared.getCategories()
+            async let a = AppDataStore.shared.getAccounts()
             if templateType == 3 {
                 async let p: [InstallmentPlan] = APIClient.shared.request("/api/v1/transactions/installments/list.json")
                 accounts = (try? await a) ?? []

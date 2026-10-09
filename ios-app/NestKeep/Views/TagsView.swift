@@ -37,14 +37,13 @@ final class TagsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
 
-    func load() async {
+    func load(force: Bool = false) async {
         isLoading = true
         error = nil
         do {
-            async let t: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
-            async let g: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
-            tags = (try? await t) ?? []
-            groups = (try? await g) ?? []
+            let fetched = try await AppDataStore.shared.getTags(force: force)
+            tags = fetched.tags
+            groups = fetched.groups
             isLoading = false
         } catch {
             isLoading = false
@@ -61,7 +60,7 @@ final class TagsViewModel: ObservableObject {
                 body: TagCreateRequest(groupId: groupId, name: name,
                                        icon: icon ?? "0", color: color ?? "")
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -75,7 +74,7 @@ final class TagsViewModel: ObservableObject {
                                        icon: icon ?? tag.icon ?? "0",
                                        color: color ?? tag.color ?? "")
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -89,7 +88,7 @@ final class TagsViewModel: ObservableObject {
                 body: TagModifyRequest(id: tag.id, groupId: groupId, name: tag.name,
                                        icon: tag.icon ?? "0", color: tag.color ?? "")
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -101,7 +100,7 @@ final class TagsViewModel: ObservableObject {
                 "/api/v1/transaction/tags/hide.json", method: .POST,
                 body: TagHideRequest(id: tag.id, hidden: !(tag.hidden ?? false))
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -112,7 +111,7 @@ final class TagsViewModel: ObservableObject {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/transaction/tags/delete.json", method: .POST, body: TagIdRequest(id: tag.id)
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -124,7 +123,7 @@ final class TagsViewModel: ObservableObject {
                 "/api/v1/transaction/tags/groups/add.json", method: .POST,
                 body: TagGroupCreateRequest(name: name)
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -136,7 +135,7 @@ final class TagsViewModel: ObservableObject {
                 "/api/v1/transaction/tags/groups/modify.json", method: .POST,
                 body: TagGroupModifyRequest(id: group.id, name: name)
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -148,7 +147,7 @@ final class TagsViewModel: ObservableObject {
                 "/api/v1/transaction/tags/groups/delete.json", method: .POST,
                 body: TagGroupDeleteRequest(id: group.id)
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -163,7 +162,7 @@ final class TagsViewModel: ObservableObject {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/transaction/tags/groups/move.json", method: .POST, body: req
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -178,7 +177,7 @@ final class TagsViewModel: ObservableObject {
             let _: EmptyResult = try await APIClient.shared.request(
                 "/api/v1/transaction/tags/move.json", method: .POST, body: req
             )
-            await load()
+            await load(force: true)
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -339,7 +338,7 @@ struct TagsView: View {
                 }
             }
         }
-        .refreshable { await vm.load() }
+        .refreshable { await vm.load(force: true) }
         .sheet(item: $input) { ctx in
             TagInputSheet(context: ctx) { name, icon, color in
                 switch ctx.kind {
