@@ -348,8 +348,8 @@ struct TransactionEditView: View {
     /// 保存成功后的回调（识图页预填编辑场景：成功后从识别结果列表移除该条）
     var onSaved: (() -> Void)? = nil
 
-    init(transaction: Transaction?, mode: TransactionEditMode = .add, onSaved: (() -> Void)? = nil) {
-        _vm = StateObject(wrappedValue: TransactionEditViewModel(transaction: transaction, mode: mode))
+    init(transaction: Transaction?, mode: TransactionEditMode = .add, onSaved: (() -> Void)? = nil, defaultInstallment: Bool = false) {
+        _vm = StateObject(wrappedValue: TransactionEditViewModel(transaction: transaction, mode: mode, defaultInstallment: defaultInstallment))
         self.onSaved = onSaved
     }
 
@@ -732,7 +732,7 @@ struct TransactionEditView: View {
                 }
                 .font(.system(size: 13, design: .rounded))
 
-                Text("首期 \(chipDateFormatter.string(from: vm.date)) 起，每月一期按月预记")
+                Text("首期 \(Self.chipDateFormatter.string(from: vm.date)) 起，每月一期按月预记")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
