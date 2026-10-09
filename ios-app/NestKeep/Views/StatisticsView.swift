@@ -203,19 +203,45 @@ final class StatisticsViewModel: ObservableObject {
         incomeByCategory = makeStats(from: incMap, total: totalIncomeCents)
     }
 
+    /// 饼图配色兜底盘：分类自身颜色撞色时依次取用（低饱和、明暗模式均可读）
+    private static let chartFallbackPalette: [Color] = [
+        Color(hex: "#0EA5E9"), Color(hex: "#F97316"), Color(hex: "#14B8A6"),
+        Color(hex: "#8B5CF6"), Color(hex: "#F43F5E"), Color(hex: "#84CC16"),
+        Color(hex: "#EAB308"), Color(hex: "#06B6D4"), Color(hex: "#EC4899"),
+        Color(hex: "#6366F1"), Color(hex: "#22C55E"), Color(hex: "#A855F7")
+    ]
+
     private func makeStats(from map: [String: Int64], total: Int64) -> [CategoryStat] {
-        map.compactMap { key, amount in
+        let sorted = map.compactMap { key, amount -> (key: String, colorHex: String?, amount: Int64)? in
             guard amount > 0 else { return nil }
-            let cat = findCategory(key)
-            return CategoryStat(
-                id: key,
-                name: cat?.name ?? "未分类",
-                color: cat?.color.flatMap { Color(hex: $0) } ?? Theme.brand,
-                amount: amount,
-                ratio: total > 0 ? Double(amount) / Double(total) : 0
-            )
+            return (key, findCategory(key)?.color, amount)
         }
         .sorted { $0.amount > $1.amount }
+
+        // 撞色消解：分类自身颜色若与排位更靠前的分类重复，从兜底盘依次取未用色
+        //（否则饼图/图例出现多个同色块，无法区分）
+        var usedColors: [Color] = []
+        var fallbackIdx = 0
+        return sorted.map { item in
+            let cat = findCategory(item.key)
+            var color = item.colorHex.flatMap { Color(hex: $0) } ?? Theme.brand
+            if usedColors.contains(color) {
+                let palette = Self.chartFallbackPalette
+                while usedColors.contains(palette[fallbackIdx % palette.count]) {
+                    fallbackIdx += 1
+                }
+                color = palette[fallbackIdx % palette.count]
+                fallbackIdx += 1
+            }
+            usedColors.append(color)
+            return CategoryStat(
+                id: item.key,
+                name: cat?.name ?? "未分类",
+                color: color,
+                amount: item.amount,
+                ratio: total > 0 ? Double(item.amount) / Double(total) : 0
+            )
+        }
     }
 
     private func findCategory(_ id: String) -> TransactionCategory? {
@@ -402,49 +428,35 @@ struct StatisticsView: View {
     private var accent: Color { mode == .expense ? HomePalette.expense : HomePalette.income }
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    periodModePicker
-                    overviewCard
-                    modePicker
-                    if !stats.isEmpty {
-                        pieCard
-                        rankCard
-                    }
-                    if hasDailyData {
-                        dailyChartCard
-                    }
-                    dailyReportCard
-                    viewDetailsLink
-                    if let error = vm.error {
-                        Text(error).font(.footnote).foregroundColor(.red)
-                    }
+        ScrollView {
+            VStack(spacing: 16) {
+                periodModePicker
+                overviewCard
+                modePicker
+                if !stats.isEmpty {
+                    pieCard
+                    rankCard
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 24)
-            }
-            // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
-            .background(Theme.pageBackground.ignoresSafeArea())
-            .navigationTitle("统计")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    HStack(spacing: 14) {
-                        Button { vm.shiftPeriod(by: -1) } label: { Image(systemName: "chevron.left") }
-                        Text(vm.periodLabel).font(.subheadline.weight(.medium)).frame(minWidth: 82)
-                        Button { vm.shiftPeriod(by: 1) } label: { Image(systemName: "chevron.right") }
-                    }
+                if hasDailyData {
+                    dailyChartCard
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showMoreSheet = true } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .foregroundColor(vm.hasFilter ? Theme.brand : .primary)
-                    }
+                dailyReportCard
+                viewDetailsLink
+                if let error = vm.error {
+                    Text(error).font(.footnote).foregroundColor(.red)
                 }
             }
-            .refreshable { await vm.load() }
-            .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
+        }
+        // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
+        .background(Theme.pageBackground.ignoresSafeArea())
+        // 自绘顶栏（首页同款 safeAreaInset 方案）：替代系统导航栏工具条——
+        // 修复顶栏顶进状态栏、左侧残留返回箭头的问题
+        .safeAreaInset(edge: .top, spacing: 0) { topBar }
+        .refreshable { await vm.load() }
+        .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
                 Button("筛选账户") { showFilterSheet = true }
                 Button("筛选分类") { showFilterSheet = true }
                 Button("筛选标签") { showFilterSheet = true }
@@ -468,8 +480,62 @@ struct StatisticsView: View {
                         }
                 }
             }
-        }
         .task { await vm.load() }
+    }
+
+    // MARK: - 顶部自绘栏：月份/年份切换胶囊 + 筛选入口（风格对齐首页顶栏胶囊）
+    private var topBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 14) {
+                Button { vm.shiftPeriod(by: -1) } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+
+                Text(verbatim: vm.periodLabel)
+                    .font(.system(size: 15, weight: .semibold))
+                    .monospacedDigit()
+                    .frame(minWidth: 72)
+
+                Button { vm.shiftPeriod(by: 1) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+            }
+            .foregroundColor(HomePalette.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
+
+            Spacer()
+
+            Button { showMoreSheet = true } label: {
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(vm.hasFilter ? Theme.brand : HomePalette.ink)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.primary.opacity(0.05)))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+        .background(
+            VStack(spacing: 0) {
+                Color(.systemGroupedBackground)
+                Rectangle()
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(height: 0.5)
+            }
+            .ignoresSafeArea(edges: .top)
+        )
     }
 
     // MARK: - 周期切换（月 / 年，对齐 Web 导航栏 `.period-mode-segmented`）
@@ -656,7 +722,8 @@ struct StatisticsView: View {
                 rows.append(DailyReportRow(id: d, label: "\(vm.month)月\(d)日", income: inc, expense: exp))
             }
         }
-        return rows
+        // 倒序：最新的日期排最前（平均行仍固定在表格底部）
+        return Array(rows.reversed())
     }
 
     private var reportTotalIncome: Int64 { dailyReportRows.reduce(0) { $0 + $1.income } }
