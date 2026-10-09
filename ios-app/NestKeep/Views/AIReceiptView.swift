@@ -26,9 +26,27 @@ final class AIReceiptViewModel: ObservableObject {
         categories = (try? await APIClient.shared.requestCategoryList()) ?? []
     }
 
+    /// 最近一次识别用的图片，供「重试识别」复用
+    private var lastImages: [Data] = []
+
+    /// 手动重试：用上次的图片重新识别
+    func retry() async {
+        await recognizeAll(lastImages)
+    }
+
+    /// 识别失败自动重试一次（超时/网络抖动；识别本身较慢，只重试一次避免久等）
+    private func recognizeWithRetry(_ data: Data) async throws -> [ReceiptRecognizer.Recognized] {
+        do {
+            return try await ReceiptRecognizer.recognize(imageData: data)
+        } catch {
+            return try await ReceiptRecognizer.recognize(imageData: data)
+        }
+    }
+
     /// 识别多张图片（顺序识别，结果合并；单张失败不中断，最后汇总提示）
     func recognizeAll(_ images: [Data]) async {
         guard !images.isEmpty else { return }
+        lastImages = images
         isLoading = true
         error = nil
         results = []
@@ -42,7 +60,7 @@ final class AIReceiptViewModel: ObservableObject {
         for (index, data) in images.enumerated() {
             progressText = images.count > 1 ? "识别中 \(index + 1)/\(images.count)…" : "识别中…"
             do {
-                all += try await ReceiptRecognizer.recognize(imageData: data)
+                all += try await recognizeWithRetry(data)
             } catch {
                 if firstError == nil {
                     firstError = (error as? APIError)?.errorDescription ?? error.localizedDescription
@@ -222,6 +240,8 @@ final class AIReceiptViewModel: ObservableObject {
 }
 
 struct AIReceiptView: View {
+    /// 入口选完图带进来的图片；非空时进页直接开始识别（不再自动拉起相册）
+    var initialImages: [Data] = []
     @StateObject private var vm = AIReceiptViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showPicker = false
@@ -287,6 +307,25 @@ struct AIReceiptView: View {
                             .foregroundColor(Theme.expense)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
+
+                        // 识别失败：用上次的图片一键重试（不需要重新选图）
+                        if !vm.isLoading && !vm.lastImages.isEmpty {
+                            Button {
+                                Task { await vm.retry() }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("重试识别").bold()
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Theme.brand)
+                                .foregroundColor(.white)
+                                .cornerRadius(12)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                        }
                     }
 
                     // 识别结果列表：点行勾选/取消（默认全选），✎ 进预填编辑页
@@ -340,7 +379,11 @@ struct AIReceiptView: View {
             // iOS 15 系统导航栏安全区坑（详见项目记忆）：NavigationView 必须显式 .stack
             .navigationViewStyle(.stack)
             .sheet(isPresented: $showPicker) {
+                // 关闭相册由 binding 驱动（ReceiptPhotoPicker 不自行 UIKit dismiss），
+                // 规避 iOS 15 上嵌套 sheet 被 UIKit dismiss 后父 sheet 的「返回」失效
                 ReceiptPhotoPicker { datas in
+                    showPicker = false
+                    guard !datas.isEmpty else { return }
                     Task { await vm.recognizeAll(datas) }
                 }
             }
@@ -365,9 +408,11 @@ struct AIReceiptView: View {
             }
             .task {
                 await vm.loadRefData()
-                // 进入页面直接拉起相册，少一步「选择票据图片」
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                showPicker = true
+                // 入口已带图进来（先选完图再进本页）：直接开始识别，不再拉起相册。
+                // 空图进入（无入口图）时保留「选择票据图片」按钮手动选。
+                if !initialImages.isEmpty {
+                    await vm.recognizeAll(initialImages)
+                }
             }
         }
     }
@@ -488,12 +533,66 @@ struct AIReceiptView: View {
     }
 }
 
-/// 相册多选（PHPicker，免相册权限）。识图页专用：一次最多选 9 张，全部加载完回调。
+/// AI 识图入口的「直连」流程状态：点入口**直接拉起相册**（不再先弹中间页），
+/// 选完图关掉相册后再进识别页。识别页关闭后回调给宿主刷新首页。
+@MainActor
+final class AIReceiptFlow: ObservableObject {
+    @Published var showPicker = false
+    @Published var showReceipt = false
+    private(set) var images: [Data] = []
+
+    func start() {
+        images = []
+        showPicker = true
+    }
+
+    /// 相册结束（选完或取消）。取消时只关相册留在原页；选到图则关相册后进识别页。
+    func handleFinished(_ datas: [Data]) {
+        showPicker = false
+        guard !datas.isEmpty else { return }
+        images = datas
+        // iOS 15：上一个 sheet 的收起动画没走完就 present 下一个会静默失败，
+        // 稍等再进识别页
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { [weak self] in
+            self?.showReceipt = true
+        }
+    }
+}
+
+/// 两个入口（首页 AI 卡片 / 加号长按菜单）共用的 sheet 组合：
+/// 第一层 = 相册，第二层 = 识别页
+struct AIReceiptFlowModifier: ViewModifier {
+    @ObservedObject var flow: AIReceiptFlow
+    /// 识别页关闭后的回调（首页刷新等）
+    var onReceiptDismiss: (() -> Void)? = nil
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $flow.showPicker) {
+                ReceiptPhotoPicker { datas in flow.handleFinished(datas) }
+            }
+            .sheet(isPresented: $flow.showReceipt, onDismiss: { onReceiptDismiss?() }) {
+                AIReceiptView(initialImages: flow.images)
+            }
+    }
+}
+
+extension Notification.Name {
+    /// 交易有增删改（如加号长按入口的 AI 批量落库完成后），首页监听刷新
+    static let transactionsChanged = Notification.Name("nestkeep.transactionsChanged")
+}
+
+/// 相册多选（PHPicker，免相册权限）。识图专用：一次最多选 9 张，全部加载完回调。
+/// ⚠️ 本组件不自行 dismiss（哪怕点了取消）——统一走回调由调用方改 SwiftUI binding 关闭。
+/// iOS 15 上嵌套 sheet 场景里 UIKit 自己 `picker.dismiss` 会搞乱 presentation 状态，
+/// 导致父 sheet 之后 dismiss（返回）失灵。
+/// 回调参数为本次选中的图片（取消/未选时为空数组）。
 struct ReceiptPhotoPicker: UIViewControllerRepresentable {
     var selectionLimit: Int = 9
-    let onPicked: ([Data]) -> Void
+    /// 回调统一在主线程；取消时传 []
+    let onFinished: ([Data]) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onPicked: onPicked) }
+    func makeCoordinator() -> Coordinator { Coordinator(onFinished: onFinished) }
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
@@ -506,15 +605,38 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
 
+    /// 压到长边 ≤1600px（像素）再编码 JPEG：识图模型对分辨率不敏感，截图原图 JPEG 有
+    /// 几百 KB，压缩后显著缩短弱网上行时间（超时的主要来源之一）
+    private static func compressedData(_ image: UIImage) -> Data? {
+        // image.size 是点，先换算成像素（@3x 截图 390×844pt 实为 1170×2532px）
+        let pixelWidth = image.size.width * image.scale
+        let pixelHeight = image.size.height * image.scale
+        let longEdge = max(pixelWidth, pixelHeight)
+        let maxEdge: CGFloat = 1600
+        if longEdge > maxEdge {
+            let ratio = maxEdge / longEdge
+            let newSize = CGSize(width: pixelWidth * ratio, height: pixelHeight * ratio)
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = 1
+            let scaled = UIGraphicsImageRenderer(size: newSize, format: format).image { _ in
+                image.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+            return scaled.jpegData(compressionQuality: 0.8)
+        }
+        return image.jpegData(compressionQuality: 0.8)
+    }
+
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        let onPicked: ([Data]) -> Void
-        init(onPicked: @escaping ([Data]) -> Void) { self.onPicked = onPicked }
+        let onFinished: ([Data]) -> Void
+        init(onFinished: @escaping ([Data]) -> Void) { self.onFinished = onFinished }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            picker.dismiss(animated: true)
-
+            // 注意：这里绝不调用 picker.dismiss，关闭交给调用方的 SwiftUI binding
             let providers = results.map(\.itemProvider).filter { $0.canLoadObject(ofClass: UIImage.self) }
-            guard !providers.isEmpty else { return }
+            guard !providers.isEmpty else {
+                onFinished([])
+                return
+            }
 
             // loadObject 回调在后台线程且并发到达：用锁保护的槽位数组按序收集
             let lock = NSLock()
@@ -525,7 +647,7 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
                 group.enter()
                 provider.loadObject(ofClass: UIImage.self) { object, _ in
                     if let image = object as? UIImage {
-                        let data = image.jpegData(compressionQuality: 0.8)
+                        let data = ReceiptPhotoPicker.compressedData(image)
                         lock.lock()
                         slots[index] = data
                         lock.unlock()
@@ -534,9 +656,8 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
                 }
             }
 
-            group.notify(queue: .main) { [onPicked] in
-                let images = slots.compactMap { $0 }
-                if !images.isEmpty { onPicked(images) }
+            group.notify(queue: .main) { [onFinished] in
+                onFinished(slots.compactMap { $0 })
             }
         }
     }

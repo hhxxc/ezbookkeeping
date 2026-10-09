@@ -64,8 +64,8 @@ struct MainTabView: View {
     /// 长按中央加号弹出的模板菜单
     @State private var showAddMenu = false
     @State private var showTemplates = false
-    /// AI 识图记账
-    @State private var showAI = false
+    /// AI 识图直连流程（点入口直接拉起相册）
+    @StateObject private var aiFlow = AIReceiptFlow()
     @ObservedObject private var serverSettings = ServerSettings.shared
 
     /// 底部导航条内容高度（不含底部安全区）。
@@ -127,15 +127,16 @@ struct MainTabView: View {
             Button("记一笔") { showAdd = true }
             Button("模板与计划账单") { showTemplates = true }
             if serverSettings.enableImageRecognition {
-                Button("AI 识图记账") { showAI = true }
+                Button("AI 识图记账") { aiFlow.start() }
             }
             Button("取消", role: .cancel) {}
         } message: {
             Text("选择记账方式")
         }
-        .sheet(isPresented: $showAI) {
-            AIReceiptView()
-        }
+        // AI 识图直连流程：直接拉起相册，选完图进识别页；识别页关闭后通知首页刷新
+        .modifier(AIReceiptFlowModifier(flow: aiFlow, onReceiptDismiss: {
+            NotificationCenter.default.post(name: .transactionsChanged, object: nil)
+        }))
         .sheet(isPresented: $showTemplates) {
             NavigationView {
                 TemplatesView()

@@ -546,7 +546,8 @@ struct TransactionsView: View {
     @State private var showListPage = false
     /// 列表 / 日历 两种浏览方式（对齐 Web 的 TransactionListPageType）
     @State private var showCalendar = false
-    @State private var showAI = false
+    /// AI 识图直连流程：点入口直接拉起相册，选完图进识别页
+    @StateObject private var aiFlow = AIReceiptFlow()
     /// 汇总卡右上角「换背景图」入口
     @State private var showBackgroundSheet = false
     @StateObject private var calendarVM = TransactionCalendarViewModel()
@@ -628,10 +629,10 @@ struct TransactionsView: View {
             )
         }
         .navigationViewStyle(.stack)
-        .sheet(isPresented: $showAI, onDismiss: {
-            // 批量添加成功返回后刷新汇总与列表
+        // AI 识图直连流程：点入口直接拉起相册，选完图进识别页，关闭后刷新首页
+        .modifier(AIReceiptFlowModifier(flow: aiFlow, onReceiptDismiss: {
             Task { await vm.load() }
-        }) { AIReceiptView() }
+        }))
         .sheet(isPresented: $showBackgroundSheet) {
             NavigationView {
                 HomeBackgroundSettingsView()
@@ -657,6 +658,10 @@ struct TransactionsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
             // 切背景图后刷新汇总卡底图
             backgroundToken = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .transactionsChanged)) { _ in
+            // 加号长按菜单等别的入口落库了交易（如 AI 识图批量添加）→ 刷新首页
+            Task { await vm.load() }
         }
         // 跨 Tab 跳转：统计页「查看账单明细」等 → 应用筛选并原生 push 账单列表页
         .onChange(of: router.pendingTransactionFilter) { request in
@@ -782,7 +787,7 @@ struct TransactionsView: View {
     /// AI 识图入口卡（对齐 Web 的 `.home-ai-entry-card`）：
     /// 40×40 主色透明底圆角图标 + 标题/副标题 + 右侧 chevron
     private var aiEntryCard: some View {
-        Button { showAI = true } label: {
+        Button { aiFlow.start() } label: {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .font(.system(size: 20))

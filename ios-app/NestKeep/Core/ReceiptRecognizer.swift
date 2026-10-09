@@ -96,10 +96,14 @@ enum ReceiptRecognizer {
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         req.httpBody = body
 
-        // 识图较慢，单独放宽超时（与 Web 的 DEFAULT_LLM_API_TIMEOUT 对齐）
+        // 识图较慢，单独放宽超时（与 Web 的 DEFAULT_LLM_API_TIMEOUT 对齐）。
+        // ⚠️ 必须用这个 config 建 session：URLSession.shared 不吃 configuration（默认 60s，
+        // 之前一直用它导致 120s 配置形同虚设，弱网大图必超时）
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 120
-        let (data, _) = try await URLSession.shared.data(for: req)
+        config.timeoutIntervalForResource = 180
+        let session = URLSession(configuration: config)
+        let (data, _) = try await session.data(for: req)
 
         let decoder = JSONDecoder()
         if let envelope = try? decoder.decode(APIEnvelope<[Recognized]>.self, from: data) {
