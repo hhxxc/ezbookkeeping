@@ -536,6 +536,10 @@ func startWebServer(c *core.CliContext) error {
 				if config.TransactionFromAIImageRecognition {
 					apiV1Route.POST("/llm/transactions/recognize_receipt_image.json", bindApi(api.LargeLanguageModels.RecognizeReceiptImageHandler))
 					apiV1Route.POST("/llm/transactions/parse_text.json", bindApi(api.LargeLanguageModels.ParseTransactionTextHandler))
+
+					if config.TransactionFromVoiceInput && config.IsASRReady() {
+						apiV1Route.POST("/llm/transactions/parse_audio.json", bindApi(api.LargeLanguageModels.ParseTransactionAudioHandler))
+					}
 				}
 			}
 

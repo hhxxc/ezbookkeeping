@@ -79,6 +79,11 @@ const (
 	GoogleAILLMProvider            string = "google_ai"
 )
 
+// Automatic Speech Recognition (ASR) provider types
+const (
+	SiliconFlowASRProvider string = "siliconflow"
+)
+
 // Uuid generator types
 const (
 	InternalUuidGeneratorType string = "internal"
@@ -168,6 +173,11 @@ const (
 	defaultAnthropicLargeLanguageModelAPIMaximumTokens uint32 = 1024
 	defaultLargeLanguageModelAPIRequestTimeout         uint32 = 60000 // 60 seconds
 	defaultLargeLanguageModelAPIRequestTimeoutPerModel uint32 = 30000 // 30 seconds, used when fallback models are configured
+
+	defaultASRModelID       string = "FunAudioLLM/SenseVoiceSmall"
+	defaultASRRequestTimeout uint32 = 30000 // 30 seconds
+
+	defaultTransactionParseAudioFileSize uint32 = 2097152 // 2MB
 
 	defaultInMemoryDuplicateCheckerCleanupInterval uint32 = 60  // 1 minutes
 	defaultDuplicateSubmissionsInterval            uint32 = 300 // 5 minutes
@@ -291,6 +301,15 @@ type MultiLanguageContentConfig struct {
 	MultiLanguageContent map[string]string
 }
 
+// ASRConfig represents the Automatic Speech Recognition setting config
+type ASRConfig struct {
+	ASRProvider           string
+	SiliconFlowAPIKey     string
+	SiliconFlowAPIKeyFile string
+	ModelID               string
+	RequestTimeout        uint32
+}
+
 // Config represents the global setting config
 type Config struct {
 	// Global
@@ -351,10 +370,14 @@ type Config struct {
 
 	// Large Language Model
 	TransactionFromAIImageRecognition bool
+	TransactionFromVoiceInput         bool
 	MaxAIRecognitionPictureFileSize   uint32
 
 	// Large Language Model for Receipt Image Recognition
 	ReceiptImageRecognitionLLMConfig *LLMConfig
+
+	// Automatic Speech Recognition
+	ASRConfig *ASRConfig
 
 	// Uuid
 	UuidGeneratorType string
@@ -530,6 +553,12 @@ func LoadConfiguration(configFilePath string) (*Config, error) {
 	}
 
 	config.ReceiptImageRecognitionLLMConfig, err = loadLLMConfiguration(cfgFile, "llm_image_recognition")
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = loadASRConfiguration(config, cfgFile, "asr")
 
 	if err != nil {
 		return nil, err
@@ -864,9 +893,54 @@ func loadStorageConfiguration(config *Config, configFile *ini.File, sectionName 
 
 func loadLLMGlobalConfiguration(config *Config, configFile *ini.File, sectionName string) error {
 	config.TransactionFromAIImageRecognition = getConfigItemBoolValue(configFile, sectionName, "transaction_from_ai_image_recognition", false)
+	config.TransactionFromVoiceInput = getConfigItemBoolValue(configFile, sectionName, "transaction_from_voice_input", false)
 	config.MaxAIRecognitionPictureFileSize = getConfigItemUint32Value(configFile, sectionName, "max_ai_recognition_picture_size", defaultAIRecognitionPictureMaxSize)
 
 	return nil
+}
+
+// loadASRConfiguration loads the Automatic Speech Recognition configuration.
+// If "asr_provider" is not set, ASR is disabled (config.ASRConfig is nil).
+func loadASRConfiguration(config *Config, configFile *ini.File, sectionName string) error {
+	asrProvider := getConfigItemStringValue(configFile, sectionName, "asr_provider")
+
+	if asrProvider == "" {
+		config.ASRConfig = nil
+		return nil
+	}
+
+	if asrProvider != SiliconFlowASRProvider {
+		return errs.ErrInvalidASRProvider
+	}
+
+	asrConfig := &ASRConfig{}
+	asrConfig.ASRProvider = asrProvider
+	asrConfig.SiliconFlowAPIKey = strings.TrimSpace(getConfigItemStringValue(configFile, sectionName, "siliconflow_api_key"))
+	asrConfig.SiliconFlowAPIKeyFile = getConfigItemStringValue(configFile, sectionName, "siliconflow_api_key_file")
+
+	if asrConfig.SiliconFlowAPIKey == "" && asrConfig.SiliconFlowAPIKeyFile != "" {
+		keyData, err := os.ReadFile(asrConfig.SiliconFlowAPIKeyFile)
+
+		if err != nil {
+			return errs.ErrOperationFailed
+		}
+
+		asrConfig.SiliconFlowAPIKey = strings.TrimSpace(string(keyData))
+	}
+
+	asrConfig.ModelID = getConfigItemStringValue(configFile, sectionName, "model_id", defaultASRModelID)
+	asrConfig.RequestTimeout = getConfigItemUint32Value(configFile, sectionName, "request_timeout", defaultASRRequestTimeout)
+
+	config.ASRConfig = asrConfig
+
+	return nil
+}
+
+// IsASRReady returns whether the ASR configuration is complete enough to serve voice input
+func (config *Config) IsASRReady() bool {
+	return config.ASRConfig != nil &&
+		config.ASRConfig.ASRProvider != "" &&
+		config.ASRConfig.SiliconFlowAPIKey != ""
 }
 
 func loadLLMConfiguration(configFile *ini.File, sectionName string) (*LLMConfig, error) {

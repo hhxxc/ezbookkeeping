@@ -59,6 +59,11 @@ func (a *ServerSettingsApi) ServerSettingsJavascriptHandler(c *core.WebContext) 
 	if config.ReceiptImageRecognitionLLMConfig != nil && config.ReceiptImageRecognitionLLMConfig.LLMProvider != "" {
 		if config.TransactionFromAIImageRecognition {
 			a.appendBooleanSetting(builder, "llmt", config.TransactionFromAIImageRecognition)
+
+			// 语音记账开关：llmt=1 且服务端开启语音输入且 ASR 配置就绪时才下发 llmv=1
+			if config.TransactionFromVoiceInput && config.IsASRReady() {
+				a.appendBooleanSetting(builder, "llmv", true)
+			}
 		}
 	}
 
