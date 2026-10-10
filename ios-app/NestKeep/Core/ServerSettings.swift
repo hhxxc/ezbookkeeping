@@ -31,17 +31,47 @@ final class ServerSettings: ObservableObject {
     private(set) var raw: [String: String] = [:]
 
     private var loaded = false
+    private var lastLoadedAt = Date.distantPast
 
-    /// 拉取并解析服务端设置（每个会话只真正请求一次；失败可重试）
+    /// 拉取并解析服务端设置（成功后本会话内不再重复请求；失败不置 loaded，可重试）
     func loadIfNeeded(force: Bool = false) async {
         if loaded && !force { return }
-        let url = AppSettings.shared.serverURL.appendingPathComponent("/mobile/server_settings.js")
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
-              let text = String(data: data, encoding: .utf8) else {
-            return
+        await fetchAndParse()
+    }
+
+    /// 前台/页面回显时的补拉：从未成功、解析结果为空（上次拉到空壳/失败）、
+    /// 或距上次成功超过 10 分钟时重拉一次。用于冷启动拉取失败后自愈，
+    /// 避免「AI 识图入口」等整个会话消失。
+    func refreshIfNeeded() async {
+        if !loaded || raw.isEmpty || Date().timeIntervalSince(lastLoadedAt) > 600 {
+            await fetchAndParse()
         }
-        parse(text)
-        loaded = true
+    }
+
+    /// 最多重试 3 次（间隔 1s/2s），短超时（请求 8s / 资源 10s），
+    /// 避免隧道未就绪时默认 60s 超时把启动流程拖死。
+    private func fetchAndParse() async {
+        let url = AppSettings.shared.serverURL.appendingPathComponent("/mobile/server_settings.js")
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 8
+        config.timeoutIntervalForResource = 10
+        let session = URLSession(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
+
+        for attempt in 0..<3 {
+            if let (data, resp) = try? await session.data(from: url),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let text = String(data: data, encoding: .utf8),
+               text.contains("EZBOOKKEEPING_SERVER_SETTINGS") {
+                parse(text)
+                loaded = true
+                lastLoadedAt = Date()
+                return
+            }
+            if attempt < 2 {
+                try? await Task.sleep(nanoseconds: UInt64(1_000_000_000 * (attempt + 1)))
+            }
+        }
     }
 
     /// 解析 `EZBOOKKEEPING_SERVER_SETTINGS['key']=value;` 形式的多行文本。

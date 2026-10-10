@@ -67,6 +67,7 @@ struct MainTabView: View {
     /// AI 识图直连流程（点入口直接拉起相册）
     @StateObject private var aiFlow = AIReceiptFlow()
     @ObservedObject private var serverSettings = ServerSettings.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     /// 底部导航条内容高度（不含底部安全区）。
     /// 通过环境值下发，供从页面内推入的二级页 / sheet 复用（它们自身在 tab 层级之外）。
@@ -152,6 +153,13 @@ struct MainTabView: View {
         .task {
             await ServerSettings.shared.loadIfNeeded()
             await UpdateStore.shared.autoCheckIfNeeded()
+        }
+        // 回前台补拉服务端设置：冷启动拉取失败（隧道未就绪等）会导致
+        // 「AI 识图」入口整个会话消失，回前台自愈一次
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                Task { await ServerSettings.shared.refreshIfNeeded() }
+            }
         }
     }
 }
