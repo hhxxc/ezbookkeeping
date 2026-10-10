@@ -592,13 +592,6 @@ struct TransactionsView: View {
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
-                        // 筛选态横幅：顶栏胶囊位于隐藏导航栏区域（iOS 15 push/pop 后
-                        // 该区域触摸偶发被吞、点不掉），这里在内容区首屏再给一个必可点按的清除入口
-                        if vm.isFiltering {
-                            filterBanner
-                                .padding(.top, 8)
-                                .padding(.bottom, 12)
-                        }
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
                             // 水平 17pt 沿用原 insetGrouped 的系统分组边距
@@ -758,52 +751,33 @@ struct TransactionsView: View {
     /// 用 `overlay` 悬浮在列表之上（透明底、无导航栏），与 Web 的无导航栏观感一致。
     private var topBar: some View {
         HStack(spacing: 10) {
-            if vm.isFiltering {
-                // 筛选态：左侧「清除筛选」胶囊
-                Button {
-                    vm.clearFilter()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "xmark")
-                        Text("清除筛选")
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(Theme.brand)
-                    .clipShape(Capsule())
+            // 月份切换胶囊：左箭头 · 月份 · 右箭头
+            HStack(spacing: 14) {
+                Button { vm.shiftMonth(by: -1) } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
                 }
                 .buttonStyle(.plain)
-            } else {
-                // 月份切换胶囊：左箭头 · 月份 · 右箭头
-                HStack(spacing: 14) {
-                    Button { vm.shiftMonth(by: -1) } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
 
-                    Text(verbatim: "\(vm.year)年\(vm.month)月")
-                        .font(.system(size: 15, weight: .semibold))
-                        .monospacedDigit()
-                        .frame(minWidth: 78)
+                Text(verbatim: "\(vm.year)年\(vm.month)月")
+                    .font(.system(size: 15, weight: .semibold))
+                    .monospacedDigit()
+                    .frame(minWidth: 78)
 
-                    Button { vm.shiftMonth(by: 1) } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
+                Button { vm.shiftMonth(by: 1) } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
                 }
-                .foregroundColor(HomePalette.ink)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-                )
+                .buttonStyle(.plain)
             }
+            .foregroundColor(HomePalette.ink)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+            )
 
             Spacer()
 
@@ -843,36 +817,6 @@ struct TransactionsView: View {
                     Circle()
                         .fill(active ? Theme.brand.opacity(0.14) : Color.primary.opacity(0.05))
                 )
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// 筛选态横幅（内容区首屏、必可点按）：点击清除全部筛选与搜索关键词
-    private var filterBanner: some View {
-        Button {
-            vm.clearFilter()
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                    .font(.system(size: 14))
-                Text("当前处于筛选状态")
-                    .font(.system(size: 13, weight: .medium))
-                Spacer()
-                HStack(spacing: 3) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text("清除")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-            }
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Theme.brand)
-            )
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
