@@ -409,17 +409,17 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 	}
 
 	if len(recognizedResult.AccountName) > 0 {
-		account, exists := accountMap[recognizedResult.AccountName]
+		account := matchAccountByName(c, uid, recognizedResult.AccountName, accountMap)
 
-		if exists {
+		if account != nil {
 			recognizedReceiptImageResponse.SourceAccountId = account.AccountId
 		}
 	}
 
 	if len(recognizedResult.DestinationAccountName) > 0 {
-		account, exists := accountMap[recognizedResult.DestinationAccountName]
+		account := matchAccountByName(c, uid, recognizedResult.DestinationAccountName, accountMap)
 
-		if exists {
+		if account != nil {
 			recognizedReceiptImageResponse.DestinationAccountId = account.AccountId
 		}
 	}
@@ -494,4 +494,149 @@ func (a *LargeLanguageModelsApi) getLongDateTime(dateTime string) string {
 	}
 
 	return dateTime
+}
+
+// paymentChannelKeywordGroups contains synonyms of common payment channels used on
+// receipts and order screenshots (e.g. "微信支付"/"余额宝"), so that channel names
+// can still be matched to the user's own account names (e.g. "微信零钱"/"支付宝")
+var paymentChannelKeywordGroups = [][]string{
+	{"微信", "零钱", "零钱通", "wechat"},
+	{"支付宝", "花呗", "余额宝", "alipay"},
+	{"云闪付", "闪付", "unionpay"},
+	{"现金", "cash"},
+}
+
+// matchAccountByName resolves an LLM-recognized account name into one of the user's
+// accounts. Receipts often carry channel names such as "微信支付" or "招商银行" that
+// differ from the user's own account names (e.g. "微信零钱"/"招行卡"), and the previous
+// exact-match-only logic silently left the payment account empty in those cases.
+// Strategies, in order:
+//  1. exact name match
+//  2. payment channel synonym groups: both names hit the same channel group
+//  3. longest common substring (>= 2 runes), unique best candidate wins
+func matchAccountByName(c *core.WebContext, uid int64, name string, accountMap map[string]*models.Account) *models.Account {
+	if account, exists := accountMap[name]; exists {
+		return account
+	}
+
+	if account := matchAccountByChannelKeywords(name, accountMap); account != nil {
+		log.Infof(c, "[large_language_models.matchAccountByName] account name \"%s\" fuzzy matched to account \"%s\" by channel keywords for user \"uid:%d\"", name, account.Name, uid)
+		return account
+	}
+
+	if account := matchAccountByCommonSubstring(name, accountMap); account != nil {
+		log.Infof(c, "[large_language_models.matchAccountByName] account name \"%s\" fuzzy matched to account \"%s\" by common substring for user \"uid:%d\"", name, account.Name, uid)
+		return account
+	}
+
+	log.Infof(c, "[large_language_models.matchAccountByName] account name \"%s\" cannot be matched to any user account, leaving it empty for user \"uid:%d\"", name, uid)
+	return nil
+}
+
+// matchAccountByChannelKeywords matches when the recognized name and exactly one
+// account name contain synonyms from the same payment channel group
+func matchAccountByChannelKeywords(name string, accountMap map[string]*models.Account) *models.Account {
+	lowerName := strings.ToLower(name)
+	nameGroup := -1
+
+	for i, keywords := range paymentChannelKeywordGroups {
+		if containsAny(lowerName, keywords) {
+			nameGroup = i
+			break
+		}
+	}
+
+	if nameGroup < 0 {
+		return nil
+	}
+
+	var matched *models.Account
+
+	for _, account := range accountMap {
+		lowerAccountName := strings.ToLower(account.Name)
+
+		if containsAny(lowerAccountName, paymentChannelKeywordGroups[nameGroup]) {
+			if matched != nil {
+				return nil // multiple candidates in the same channel, too ambiguous
+			}
+
+			matched = account
+		}
+	}
+
+	return matched
+}
+
+// matchAccountByCommonSubstring picks the account sharing the longest common
+// substring (at least 2 runes) with the recognized name, only when the best
+// candidate is strictly unique (e.g. "招商银行" vs "招商银行储蓄卡")
+func matchAccountByCommonSubstring(name string, accountMap map[string]*models.Account) *models.Account {
+	lowerName := strings.ToLower(name)
+
+	var best *models.Account
+	bestScore := 0
+	secondScore := 0
+
+	for _, account := range accountMap {
+		score := longestCommonSubstringLength(lowerName, strings.ToLower(account.Name))
+
+		if score > bestScore {
+			secondScore = bestScore
+			bestScore = score
+			best = account
+		} else if score > secondScore {
+			secondScore = score
+		}
+	}
+
+	if best != nil && bestScore >= 2 && bestScore > secondScore {
+		return best
+	}
+
+	return nil
+}
+
+func containsAny(text string, keywords []string) bool {
+	for i := 0; i < len(keywords); i++ {
+		if strings.Contains(text, keywords[i]) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func longestCommonSubstringLength(a, b string) int {
+	aRunes := []rune(a)
+	bRunes := []rune(b)
+
+	if len(aRunes) == 0 || len(bRunes) == 0 {
+		return 0
+	}
+
+	prev := make([]int, len(bRunes)+1)
+	current := make([]int, len(bRunes)+1)
+	maxLength := 0
+
+	for i := 1; i <= len(aRunes); i++ {
+		for j := 1; j <= len(bRunes); j++ {
+			if aRunes[i-1] == bRunes[j-1] {
+				current[j] = prev[j-1] + 1
+
+				if current[j] > maxLength {
+					maxLength = current[j]
+				}
+			} else {
+				current[j] = 0
+			}
+		}
+
+		prev, current = current, prev
+
+		for j := 0; j <= len(bRunes); j++ {
+			current[j] = 0
+		}
+	}
+
+	return maxLength
 }
