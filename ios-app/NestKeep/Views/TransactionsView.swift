@@ -642,6 +642,9 @@ struct TransactionsView: View {
                     // 通过 overlay 视图的响应链向上找到所属 UIScrollView 直接关闭）
                     // allowsHitTesting(false)：overlay 视图绝不能参与命中测试，否则页面点不动
                     .overlay(ScrollIndicatorHider().allowsHitTesting(false))
+                    // iOS 15 下 ScrollView 不支持 .refreshable（iOS 16+ 才有），
+                    // 通过同样的响应链手法给 UIScrollView 挂真 UIRefreshControl
+                    .overlay(ScrollRefreshAttacher { await vm.load() }.allowsHitTesting(false))
                 }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
@@ -1105,6 +1108,72 @@ private struct ScrollIndicatorHider: UIViewRepresentable {
                 return
             }
             responder = next
+        }
+    }
+}
+
+/// iOS 15 的 ScrollView 下拉刷新补丁：`.refreshable` 在 iOS 15 只对 List 生效，
+/// ScrollView 要 iOS 16+ 才原生支持。此视图作为滚动内容的 overlay，沿响应链找到
+/// 所属 UIScrollView 后挂一个真 UIRefreshControl（UIScroll 挂 UIRefreshControl
+/// 自 iOS 10 起实测稳定）。iOS 16+ 直接交给系统 `.refreshable`，不做任何事，避免双刷新控件。
+/// 同样必须放在滚动内容**内部**（overlay 在内容上而非 ScrollView 外层），响应链才经过 UIScrollView。
+/// （模块内可见：AccountsView 的 ScrollView 列表同样使用）
+struct ScrollRefreshAttacher: UIViewRepresentable {
+    let onRefresh: () async -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        let action = onRefresh
+        DispatchQueue.main.async { Self.attach(from: uiView, onRefresh: action) }
+    }
+
+    static func attach(from view: UIView, onRefresh: @escaping () async -> Void) {
+        if #available(iOS 16.0, *) { return }
+        var responder: UIResponder? = view
+        while let next = responder?.next {
+            if let scrollView = next as? UIScrollView {
+                if let box = objc_getAssociatedObject(scrollView, &ScrollRefreshAttacher.associatedKey) as? RefreshBox {
+                    box.onRefresh = onRefresh
+                } else {
+                    let box = RefreshBox(scrollView: scrollView, onRefresh: onRefresh)
+                    objc_setAssociatedObject(scrollView, &ScrollRefreshAttacher.associatedKey, box, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                }
+                return
+            }
+            responder = next
+        }
+    }
+
+    private static var associatedKey: UInt8 = 0
+
+    /// 持有 UIRefreshControl 与回调；关联到 scrollView 上保活
+    private final class RefreshBox: NSObject {
+        private weak var scrollView: UIScrollView?
+        private let control = UIRefreshControl()
+        var onRefresh: () async -> Void
+
+        init(scrollView: UIScrollView, onRefresh: @escaping () async -> Void) {
+            self.scrollView = scrollView
+            self.onRefresh = onRefresh
+            super.init()
+            control.addTarget(self, action: #selector(pullTriggered), for: .valueChanged)
+            scrollView.addSubview(control)
+        }
+
+        @objc private func pullTriggered() {
+            // Tint 与页面浅色背景协调
+            control.tintColor = .secondaryLabel
+            let action = onRefresh
+            Task { @MainActor in
+                await action()
+                self.control.endRefreshing()
+            }
         }
     }
 }

@@ -243,6 +243,8 @@ struct AccountsView: View {
                         }
                         .padding(.horizontal, 17)
                         .padding(.bottom, 16)
+                        // iOS 15 ScrollView 无 .refreshable，挂真 UIRefreshControl（见 ScrollRefreshAttacher 注释）
+                        .overlay(ScrollRefreshAttacher { await vm.load(force: true) }.allowsHitTesting(false))
                     }
                     .refreshable { await vm.load(force: true) }
                     // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
