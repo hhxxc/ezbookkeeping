@@ -61,7 +61,11 @@ final class AIVoiceViewModel: ObservableObject {
             onParsed?(results)
         } catch {
             isParsing = false
-            self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            if let urlError = error as? URLError, urlError.code == .timedOut {
+                self.error = "解析超时了（模型响应慢或网络不稳），点「解析成账单」重试一次"
+            } else {
+                self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
         }
     }
 
@@ -146,6 +150,21 @@ struct AIVoiceView: View {
 
                 micButton
                     .padding(.bottom, 8)
+
+                // 手动解析 / 超时重试入口（自动停顿解析失败时从这里重试）
+                if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
+                    Button {
+                        vm.parseIfNeeded()
+                    } label: {
+                        Text("解析成账单")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 28)
+                            .padding(.vertical, 10)
+                            .background(Capsule().fill(Theme.brand))
+                    }
+                    .padding(.top, -4)
+                }
 
                 Text(statusText)
                     .font(.footnote)

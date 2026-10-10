@@ -100,8 +100,8 @@ enum ReceiptRecognizer {
         // ⚠️ 必须用这个 config 建 session：URLSession.shared 不吃 configuration（默认 60s，
         // 之前一直用它导致 120s 配置形同虚设，弱网大图必超时）
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 120
-        config.timeoutIntervalForResource = 180
+        config.timeoutIntervalForRequest = 200
+        config.timeoutIntervalForResource = 300
         let session = URLSession(configuration: config)
         let (data, _) = try await session.data(for: req)
 

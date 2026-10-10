@@ -24,10 +24,12 @@ enum TransactionTextParser {
         req.setValue(tz.identifier, forHTTPHeaderField: "X-Timezone-Name")
         req.httpBody = try JSONSerialization.data(withJSONObject: ["text": text], options: [])
 
-        // LLM 解析较慢，放宽超时（口径同 ReceiptRecognizer）
+        // LLM 解析较慢，放宽超时（口径同 ReceiptRecognizer）。
+        // 注意：服务端主模型 + 3 个 fallback 轮换、每模型 30s，最坏 ~120s 才返回错误，
+        // 客户端超时必须大于服务端最坏耗时，否则会先在客户端报 "The request timed out."
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 120
-        config.timeoutIntervalForResource = 180
+        config.timeoutIntervalForRequest = 200
+        config.timeoutIntervalForResource = 300
         let session = URLSession(configuration: config)
         let (data, _) = try await session.data(for: req)
 
