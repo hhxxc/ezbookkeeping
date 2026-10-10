@@ -169,3 +169,6 @@ conf/api_key.txt
 # Python 缓存（py_compile / import 产生的字节码，不入库）
 __pycache__/
 *.pyc
+
+# iOS IPA build artifacts
+dist-ipa/

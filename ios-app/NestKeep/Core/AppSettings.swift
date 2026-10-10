@@ -52,6 +52,12 @@ final class AppSettings: ObservableObject {
         if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") {
             s = "https://" + s
         }
+        // 强制 HTTPS：用户填 http:// 时统一升级为 https://。
+        // 明文 HTTP 会被 ATS 拦截（Info.plist 未开 NSAllowsArbitraryLoads），
+        // 与其请求必然失败，不如在入口处直接升级，避免用户困惑。
+        if s.lowercased().hasPrefix("http://") {
+            s = "https://" + s.dropFirst("http://".count)
+        }
         guard let url = URL(string: s), let host = url.host, !host.isEmpty else { return nil }
         return url
     }
