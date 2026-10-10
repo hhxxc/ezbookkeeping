@@ -21,8 +21,8 @@ struct TransactionFilter: Equatable {
     var accountIds: [String] = []
     var startDate: Date?
     var endDate: Date?
-    /// 排序字段：time / amount
-    var sortBy: String = "time"
+    /// 排序字段：""=默认（数字关键词搜索时后端金额精确命中置顶），time / amount 为显式排序
+    var sortBy: String = ""
     /// 排序方向：asc / desc
     var sortOrder: String = "desc"
 
@@ -1722,6 +1722,7 @@ struct TransactionFilterSheet: View {
 
                 Section(header: Text("排序")) {
                     Picker("排序字段", selection: $filter.sortBy) {
+                        Text("默认").tag("")
                         Text("时间").tag("time")
                         Text("金额").tag("amount")
                     }
