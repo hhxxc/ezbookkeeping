@@ -150,13 +150,6 @@ struct SettingsView: View {
 
                 // 版本与更新
                 Section(header: Text("关于")) {
-                    HStack {
-                        Text("App 版本")
-                        Spacer()
-                        Text("\(UpdateChecker.currentAppVersion) (\(UpdateChecker.currentBuildNumber))")
-                            .foregroundColor(.secondary)
-                    }
-
                     NavigationLink {
                         AboutView()
                     } label: {
@@ -164,12 +157,20 @@ struct SettingsView: View {
                     }
 
                     HStack {
-                        Text("后端版本")
+                        Text("App 版本")
                         Spacer()
-                        if let sv = updateStore.serverVersion, let v = sv.version {
+                        Text(UpdateChecker.currentAppVersion)
+                            .foregroundColor(.secondary)
+                        Text("build \(UpdateChecker.currentBuildNumber)")
+                            .font(.caption)
+                            .foregroundColor(.secondary.opacity(0.6))
+                    }
+
+                    if let sv = updateStore.serverVersion, let v = sv.version {
+                        HStack {
+                            Text("后端版本")
+                            Spacer()
                             Text(v).foregroundColor(.secondary)
-                        } else {
-                            Text("—").foregroundColor(.secondary)
                         }
                     }
 
