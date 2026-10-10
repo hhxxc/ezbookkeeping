@@ -11,8 +11,12 @@ final class AppSettings: ObservableObject {
 
     init() {
         if let saved = UserDefaults.standard.string(forKey: serverKey),
-           let url = URL(string: saved), url.scheme == "http" || url.scheme == "https" {
+           let url = Self.normalizeServerURL(saved) {
+            // 顺手修复历史脏数据（如 "https://https://..."）
             self.serverURL = url
+            if url.absoluteString != saved {
+                UserDefaults.standard.set(url.absoluteString, forKey: serverKey)
+            }
         } else {
             // 默认外网入口（ddnsto 隧道）
             self.serverURL = URL(string: "https://example-server.invalid")!
@@ -21,9 +25,34 @@ final class AppSettings: ObservableObject {
 
     @MainActor
     func setServerURL(_ string: String) {
-        guard let url = URL(string: string.trimmingCharacters(in: .whitespaces)),
-              url.scheme == "http" || url.scheme == "https" else { return }
+        guard let url = Self.normalizeServerURL(string) else { return }
         serverURL = url
         UserDefaults.standard.set(url.absoluteString, forKey: serverKey)
+    }
+
+    /// 归一化用户输入的服务器地址：
+    /// - 去首尾空白
+    /// - 重复 scheme（如 "https://https://x"）折叠为一个
+    /// - 无 scheme 时自动补 "https://"
+    /// - 必须能解析出 host 才接受
+    static func normalizeServerURL(_ raw: String) -> URL? {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !s.isEmpty else { return nil }
+        // 折叠重复 scheme：只要开头连续出现 http(s):// 就剥到只剩一个
+        while true {
+            let lower = s.lowercased()
+            if lower.hasPrefix("https://https://") {
+                s = String(s.dropFirst("https://".count))
+            } else if lower.hasPrefix("http://http://") {
+                s = String(s.dropFirst("http://".count))
+            } else {
+                break
+            }
+        }
+        if !s.lowercased().hasPrefix("http://") && !s.lowercased().hasPrefix("https://") {
+            s = "https://" + s
+        }
+        guard let url = URL(string: s), let host = url.host, !host.isEmpty else { return nil }
+        return url
     }
 }
