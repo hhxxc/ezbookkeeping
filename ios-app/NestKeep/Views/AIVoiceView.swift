@@ -154,7 +154,7 @@ struct AIVoiceView: View {
                 // 手动解析 / 超时重试入口（自动停顿解析失败时从这里重试）
                 if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
                     Button {
-                        vm.parseIfNeeded()
+                        Task { await vm.parseIfNeeded() }
                     } label: {
                         Text("解析成账单")
                             .font(.system(size: 16, weight: .semibold))
