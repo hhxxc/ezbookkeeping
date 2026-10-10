@@ -66,6 +66,8 @@ struct MainTabView: View {
     @State private var showTemplates = false
     /// AI 识图直连流程（点入口直接拉起相册）
     @StateObject private var aiFlow = AIReceiptFlow()
+    /// 语音记账流程（语音页 → 结果确认页）
+    @StateObject private var voiceFlow = AIVoiceFlow()
     @ObservedObject private var serverSettings = ServerSettings.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -130,6 +132,7 @@ struct MainTabView: View {
             Button("模板与计划账单") { showTemplates = true }
             if serverSettings.enableImageRecognition {
                 Button("AI 识图记账") { aiFlow.start() }
+                Button("语音记账") { voiceFlow.start() }
             }
             Button("取消", role: .cancel) {}
         } message: {
@@ -137,6 +140,10 @@ struct MainTabView: View {
         }
         // AI 识图直连流程：直接拉起相册，选完图进识别页；识别页关闭后通知首页刷新
         .modifier(AIReceiptFlowModifier(flow: aiFlow, onReceiptDismiss: {
+            NotificationCenter.default.post(name: .transactionsChanged, object: nil)
+        }))
+        // 语音记账：语音页 → 结果确认页；关闭后通知首页刷新
+        .modifier(AIVoiceFlowModifier(flow: voiceFlow, onResultsDismiss: {
             NotificationCenter.default.post(name: .transactionsChanged, object: nil)
         }))
         .sheet(isPresented: $showTemplates) {

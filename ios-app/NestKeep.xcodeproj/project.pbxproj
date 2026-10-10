@@ -19,8 +19,10 @@
 		ecb68b58493a52a09deef5c1 /* PictureUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = e9f53efa1b31536d8458a290 /* PictureUploader.swift */; };
 		6715215fcd535d969f8d6280 /* ReceiptRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91d072c7a11d57cfa8b72024 /* ReceiptRecognizer.swift */; };
 		338c858929485dca8755738d /* ServerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58854c8306d45b57bb373c14 /* ServerSettings.swift */; };
+		dc16d8aedee854328c0c13a7 /* TransactionTextParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = d1868c31f5ec5b6caf1935b5 /* TransactionTextParser.swift */; };
 		a2a03949c3c759fc8720b78d /* UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8f1cb5e6d2ab59c79d1dad97 /* UI.swift */; };
 		f222835fc89a57ac808a67fc /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84d8becc80c2522a8c056b7f /* UpdateChecker.swift */; };
+		d4daef3e9a885e2794cf838e /* VoiceTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */; };
 		574dbc9fffe5518c98920162 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78fe97771f275491a820e1d6 /* Account.swift */; };
 		0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423ad0e33f075c4abee4e5df /* AccountRequests.swift */; };
 		db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ac235b0b29e8548681d4ac1e /* ApiModels.swift */; };
@@ -35,6 +37,7 @@
 		3aa4828ec9215e7b80ab7f98 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = ef5eb4a8cbd25593b141cc8f /* User.swift */; };
 		0f517518251d5fa1a4752aad /* NestKeepApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1b870188c31f5fc881b28c38 /* NestKeepApp.swift */; };
 		cdf2b3806da95702b2e95365 /* AIReceiptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = d8cf5b7b239d51bb8987fcfc /* AIReceiptView.swift */; };
+		adffcbe887d85bb19aada9ec /* AIVoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a54c982da54557f18ecf3b2a /* AIVoiceView.swift */; };
 		83ec7f771f035456ab14bf7a /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53071711e20355478bef69b3 /* AboutView.swift */; };
 		e91b4408634459ac95260d99 /* AccountEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e024dcd9330c54318acdf7bf /* AccountEditView.swift */; };
 		dc231398963051488e3e881b /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = cb972d23c64853e39535066b /* AccountsView.swift */; };
@@ -81,8 +84,10 @@
 		e9f53efa1b31536d8458a290 /* PictureUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/PictureUploader.swift; sourceTree = "<group>"; };
 		91d072c7a11d57cfa8b72024 /* ReceiptRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ReceiptRecognizer.swift; sourceTree = "<group>"; };
 		58854c8306d45b57bb373c14 /* ServerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ServerSettings.swift; sourceTree = "<group>"; };
+		d1868c31f5ec5b6caf1935b5 /* TransactionTextParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/TransactionTextParser.swift; sourceTree = "<group>"; };
 		8f1cb5e6d2ab59c79d1dad97 /* UI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/UI.swift; sourceTree = "<group>"; };
 		84d8becc80c2522a8c056b7f /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/UpdateChecker.swift; sourceTree = "<group>"; };
+		384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/VoiceTranscriber.swift; sourceTree = "<group>"; };
 		78fe97771f275491a820e1d6 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Account.swift; sourceTree = "<group>"; };
 		423ad0e33f075c4abee4e5df /* AccountRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AccountRequests.swift; sourceTree = "<group>"; };
 		ac235b0b29e8548681d4ac1e /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ApiModels.swift; sourceTree = "<group>"; };
@@ -97,6 +102,7 @@
 		ef5eb4a8cbd25593b141cc8f /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/User.swift; sourceTree = "<group>"; };
 		1b870188c31f5fc881b28c38 /* NestKeepApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepApp.swift; sourceTree = "<group>"; };
 		d8cf5b7b239d51bb8987fcfc /* AIReceiptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIReceiptView.swift; sourceTree = "<group>"; };
+		a54c982da54557f18ecf3b2a /* AIVoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AIVoiceView.swift; sourceTree = "<group>"; };
 		53071711e20355478bef69b3 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AboutView.swift; sourceTree = "<group>"; };
 		e024dcd9330c54318acdf7bf /* AccountEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AccountEditView.swift; sourceTree = "<group>"; };
 		cb972d23c64853e39535066b /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AccountsView.swift; sourceTree = "<group>"; };
@@ -157,8 +163,10 @@
 				e9f53efa1b31536d8458a290 /* PictureUploader.swift */,
 				91d072c7a11d57cfa8b72024 /* ReceiptRecognizer.swift */,
 				58854c8306d45b57bb373c14 /* ServerSettings.swift */,
+				d1868c31f5ec5b6caf1935b5 /* TransactionTextParser.swift */,
 				8f1cb5e6d2ab59c79d1dad97 /* UI.swift */,
 				84d8becc80c2522a8c056b7f /* UpdateChecker.swift */,
+				384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */,
 				78fe97771f275491a820e1d6 /* Account.swift */,
 				423ad0e33f075c4abee4e5df /* AccountRequests.swift */,
 				ac235b0b29e8548681d4ac1e /* ApiModels.swift */,
@@ -173,6 +181,7 @@
 				ef5eb4a8cbd25593b141cc8f /* User.swift */,
 				1b870188c31f5fc881b28c38 /* NestKeepApp.swift */,
 				d8cf5b7b239d51bb8987fcfc /* AIReceiptView.swift */,
+				a54c982da54557f18ecf3b2a /* AIVoiceView.swift */,
 				53071711e20355478bef69b3 /* AboutView.swift */,
 				e024dcd9330c54318acdf7bf /* AccountEditView.swift */,
 				cb972d23c64853e39535066b /* AccountsView.swift */,
@@ -297,8 +306,10 @@
 				ecb68b58493a52a09deef5c1 /* PictureUploader.swift in Sources */,
 				6715215fcd535d969f8d6280 /* ReceiptRecognizer.swift in Sources */,
 				338c858929485dca8755738d /* ServerSettings.swift in Sources */,
+				dc16d8aedee854328c0c13a7 /* TransactionTextParser.swift in Sources */,
 				a2a03949c3c759fc8720b78d /* UI.swift in Sources */,
 				f222835fc89a57ac808a67fc /* UpdateChecker.swift in Sources */,
+				d4daef3e9a885e2794cf838e /* VoiceTranscriber.swift in Sources */,
 				574dbc9fffe5518c98920162 /* Account.swift in Sources */,
 				0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */,
 				db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */,
@@ -313,6 +324,7 @@
 				3aa4828ec9215e7b80ab7f98 /* User.swift in Sources */,
 				0f517518251d5fa1a4752aad /* NestKeepApp.swift in Sources */,
 				cdf2b3806da95702b2e95365 /* AIReceiptView.swift in Sources */,
+				adffcbe887d85bb19aada9ec /* AIVoiceView.swift in Sources */,
 				83ec7f771f035456ab14bf7a /* AboutView.swift in Sources */,
 				e91b4408634459ac95260d99 /* AccountEditView.swift in Sources */,
 				dc231398963051488e3e881b /* AccountsView.swift in Sources */,

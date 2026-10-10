@@ -27,6 +27,16 @@ final class AIReceiptViewModel: ObservableObject {
         categories = (try? await AppDataStore.shared.getCategories()) ?? []
     }
 
+    /// 语音记账等入口直接带入的解析结果（跳过识别，进确认/落库流程）
+    func prefill(_ items: [ReceiptRecognizer.Recognized]) {
+        error = nil
+        isLoading = false
+        progressText = ""
+        results = items
+        // 默认全部添加（与识别完成后的口径一致）
+        selectedIds = Set(items.map(\.id))
+    }
+
     /// 最近一次识别用的图片，供「重试识别」复用
     private(set) var lastImages: [Data] = []
 
@@ -247,6 +257,8 @@ final class AIReceiptViewModel: ObservableObject {
 struct AIReceiptView: View {
     /// 入口选完图带进来的图片；非空时进页直接开始识别（不再自动拉起相册）
     var initialImages: [Data] = []
+    /// 语音记账等入口预填的解析结果；非空时进页直接进确认/落库流程
+    var initialResults: [ReceiptRecognizer.Recognized] = []
     @StateObject private var vm = AIReceiptViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showPicker = false
@@ -417,6 +429,9 @@ struct AIReceiptView: View {
                 // 空图进入（无入口图）时保留「选择票据图片」按钮手动选。
                 if !initialImages.isEmpty {
                     await vm.recognizeAll(initialImages)
+                } else if !initialResults.isEmpty {
+                    // 语音记账入口：解析结果已就绪，直接进确认/落库流程
+                    vm.prefill(initialResults)
                 }
             }
         }

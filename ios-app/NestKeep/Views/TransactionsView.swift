@@ -553,6 +553,8 @@ struct TransactionsView: View {
     @State private var showCalendar = false
     /// AI 识图直连流程：点入口直接拉起相册，选完图进识别页
     @StateObject private var aiFlow = AIReceiptFlow()
+    /// 语音记账流程：语音页解析成功 → 结果确认页
+    @StateObject private var voiceFlow = AIVoiceFlow()
     /// 汇总卡右上角「换背景图」入口
     @State private var showBackgroundSheet = false
     @StateObject private var calendarVM = TransactionCalendarViewModel()
@@ -596,6 +598,8 @@ struct TransactionsView: View {
                         if serverSettings.enableImageRecognition {
                             aiEntryCard
                                 .padding(.top, 12)
+                            voiceEntryCard
+                                .padding(.top, 12)
                         }
                     }
                     .padding(.horizontal, 17)
@@ -636,6 +640,10 @@ struct TransactionsView: View {
         .navigationViewStyle(.stack)
         // AI 识图直连流程：点入口直接拉起相册，选完图进识别页，关闭后刷新首页
         .modifier(AIReceiptFlowModifier(flow: aiFlow, onReceiptDismiss: {
+            Task { await vm.load() }
+        }))
+        // 语音记账流程：语音页解析成功 → 结果确认页，关闭后刷新首页
+        .modifier(AIVoiceFlowModifier(flow: voiceFlow, onResultsDismiss: {
             Task { await vm.load() }
         }))
         .sheet(isPresented: $showBackgroundSheet) {
@@ -805,6 +813,39 @@ struct TransactionsView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(HomePalette.ink)
                     Text("拍张小票，AI 自动记账")
+                        .font(.system(size: 13))
+                        .foregroundColor(HomePalette.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(.tertiaryLabel))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(HomePalette.card)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 语音记账入口卡：样式与 AI 识图卡同构（麦克风徽章）
+    private var voiceEntryCard: some View {
+        Button { voiceFlow.start() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Theme.brand)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.brand.opacity(0.13))
+                    .cornerRadius(12)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("语音记账")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(HomePalette.ink)
+                    Text("说句话，AI 自动记账")
                         .font(.system(size: 13))
                         .foregroundColor(HomePalette.secondary)
                         .lineLimit(1)

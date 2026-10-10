@@ -83,5 +83,10 @@
     <!-- 交易地理位置：记账时可选记录当前位置，需声明用途 -->
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>用于在记账时记录交易发生的位置。</string>
+    <!-- 语音记账：系统语音识别 + 麦克风，缺一项系统直接拒绝启动识别 -->
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>用于把你说的话转成文字，自动填入记账信息。语音在设备本地识别。</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>用于语音记账时录入你的声音并转成文字。</string>
 </dict>
 </plist>
