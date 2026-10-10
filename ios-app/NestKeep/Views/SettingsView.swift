@@ -157,18 +157,18 @@ struct SettingsView: View {
                     }
 
                     HStack {
-                        Text("App 版本")
+                        Text("版本")
                         Spacer()
                         Text(UpdateChecker.currentAppVersion)
                             .foregroundColor(.secondary)
-                        Text("build \(UpdateChecker.currentBuildNumber)")
+                        Text("v\(UpdateChecker.currentBuildNumber)")
                             .font(.caption)
                             .foregroundColor(.secondary.opacity(0.6))
                     }
 
                     if let sv = updateStore.serverVersion, let v = sv.version {
                         HStack {
-                            Text("后端版本")
+                            Text("服务器")
                             Spacer()
                             Text(v).foregroundColor(.secondary)
                         }
