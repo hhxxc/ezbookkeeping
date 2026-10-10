@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 登录页：服务器地址 + 用户名/密码 + 两步验证 + 忘记密码。
-/// 完全原生 iOS 风格（NavigationView + Form）。
+/// 自定义卡片式设计（渐变 Logo 头部 + 圆角输入卡 + 品牌渐变登录按钮）。
 struct LoginView: View {
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var settings: AppSettings
@@ -25,6 +25,9 @@ struct LoginView: View {
     @State private var requestingReset = false
     @State private var forgetMessage: String?
 
+    // 服务器地址输入（本地缓冲，失焦/提交时归一化保存）
+    @State private var serverText = ""
+
     enum TwoFAVerifyType {
         case passcode
         case backupCode
@@ -32,64 +35,188 @@ struct LoginView: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("服务器")) {
-                    TextField("https://...", text: Binding(
-                        get: { settings.serverURL.absoluteString },
-                        set: { settings.setServerURL($0) }
-                    ))
-                    .textContentType(.URL)
-                    .keyboardType(.URL)
-                    .autocapitalization(.none)
-                }
-
-                Section(header: Text("登录")) {
-                    TextField("用户名或邮箱", text: $loginName)
-                        .textContentType(.username)
-                        .autocapitalization(.none)
-                    SecureField("密码", text: $password)
-                        .textContentType(.password)
-                }
-
-                if let error = error {
-                    Section {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.footnote)
+            ScrollView {
+                VStack(spacing: 0) {
+                    header
+                    loginCard
+                    if let error = error {
+                        errorBanner(error)
                     }
+                    loginButton
+                    forgetPasswordButton
                 }
-
-                Section {
-                    Button {
-                        doLogin()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isLoading {
-                                ProgressView()
-                            } else {
-                                Text("登录")
-                            }
-                            Spacer()
-                        }
-                    }
-                    .disabled(isLoading || loginName.isEmpty || password.isEmpty)
-
-                    Button("忘记密码？") {
-                        forgetEmail = ""
-                        forgetMessage = nil
-                        showForgetSheet = true
-                    }
-                    .font(.footnote)
-                    .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+            }
+            .background(Theme.pageBackground.ignoresSafeArea())
+            .navigationBarHidden(true)
+            .onAppear {
+                if serverText.isEmpty {
+                    serverText = settings.serverURL.absoluteString
                 }
             }
-            .navigationTitle("巢记")
         }
-        .sheet(isPresented: $show2FASheet) {
-            NavigationView {
-                Form {
-                    Section(footer: Text("该账号开启了两步验证，请输入认证器 App 的 6 位动态码，或切换到备份码。")) {
+        .navigationViewStyle(.stack)
+        .sheet(isPresented: $show2FASheet) { twoFASheetContent }
+        .sheet(isPresented: $showForgetSheet) { forgetSheetContent }
+    }
+
+    // MARK: - 子视图
+
+    /// 顶部品牌区：渐变圆形 Logo + 应用名 + 副标题
+    private var header: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Theme.aiGradient)
+                    .frame(width: 84, height: 84)
+                    .shadow(color: Theme.brand.opacity(0.3), radius: 12, y: 6)
+                Image(systemName: "bird.fill")
+                    .font(.system(size: 38, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .padding(.top, 24)
+
+            Text("巢记")
+                .font(.system(size: 30, weight: .bold))
+                .foregroundColor(HomePalette.ink)
+
+            Text("轻量记账，安全同步")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding(.bottom, 36)
+    }
+
+    /// 卡片式输入区：服务器地址 / 用户名 / 密码
+    private var loginCard: some View {
+        VStack(spacing: 0) {
+            fieldRow(icon: "globe", placeholder: "服务器地址 https://…", text: $serverText, isFirst: true, isLast: false)
+                .keyboardType(.URL)
+                .textContentType(.URL)
+                .autocapitalization(.none)
+                .disableAutocorrection(true)
+                .onSubmit { commitServerURL() }
+
+            divider
+
+            fieldRow(icon: "person", placeholder: "用户名或邮箱", text: $loginName, isFirst: false, isLast: false)
+                .textContentType(.username)
+                .autocapitalization(.none)
+
+            divider
+
+            fieldRow(icon: "lock", placeholder: "密码", text: $password, isFirst: false, isLast: true, isSecure: true)
+                .textContentType(.password)
+                .submitLabel(.go)
+                .onSubmit { doLogin() }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(HomePalette.card)
+                .shadow(color: Color.black.opacity(0.06), radius: 10, y: 4)
+        )
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(HomePalette.divider.opacity(0.5))
+            .frame(height: 0.5)
+            .padding(.leading, 48)
+    }
+
+    private func fieldRow(icon: String, placeholder: String, text: Binding<String>, isFirst: Bool, isLast: Bool, isSecure: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16))
+                .foregroundColor(Theme.brand)
+                .frame(width: 22)
+
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: text)
+                } else {
+                    TextField(placeholder, text: text)
+                }
+            }
+            .font(.body)
+            .foregroundColor(HomePalette.ink)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, (isFirst || isLast) ? 14 : 12)
+        .frame(minHeight: 48)
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(message)
+                .font(.footnote)
+                .multilineTextAlignment(.leading)
+        }
+        .foregroundColor(Theme.income)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Theme.income.opacity(0.1))
+        )
+        .padding(.top, 14)
+    }
+
+    private var loginButton: some View {
+        Button {
+            commitServerURL()
+            doLogin()
+        } label: {
+            HStack {
+                Spacer()
+                if isLoading {
+                    ProgressView().tint(.white)
+                } else {
+                    Text("登录")
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                Spacer()
+            }
+            .frame(height: 50)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(canLogin ? AnyShapeStyle(Theme.aiGradient) : AnyShapeStyle(Color(.systemFill)))
+            )
+            .foregroundColor(canLogin ? .white : .secondary)
+        }
+        .disabled(!canLogin || isLoading)
+        .padding(.top, 24)
+    }
+
+    private var canLogin: Bool {
+        !loginName.isEmpty && !password.isEmpty
+    }
+
+    private var forgetPasswordButton: some View {
+        Button("忘记密码？") {
+            forgetEmail = ""
+            forgetMessage = nil
+            showForgetSheet = true
+        }
+        .font(.footnote)
+        .foregroundColor(Theme.brand)
+        .padding(.top, 16)
+        .padding(.bottom, 24)
+    }
+
+    /// 服务器地址归一化后保存（修重复 scheme / 补 https://）
+    private func commitServerURL() {
+        if let url = AppSettings.normalizeServerURL(serverText) {
+            settings.setServerURL(url.absoluteString)
+            serverText = url.absoluteString
+        }
+    }
+
+    private var twoFASheetContent: some View {
+        NavigationView {
+            Form {
+                Section(footer: Text("该账号开启了两步验证，请输入认证器 App 的 6 位动态码，或切换到备份码。")) {
                         if twoFAVerifyType == .passcode {
                             TextField("6 位动态码", text: $passcode)
                                 .keyboardType(.numberPad)
@@ -133,11 +260,12 @@ struct LoginView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showForgetSheet) {
-            NavigationView {
-                Form {
-                    Section(footer: Text("请输入注册时使用的邮箱，我们会发送一封含重置密码链接的邮件。")) {
+    }
+
+    private var forgetSheetContent: some View {
+        NavigationView {
+            Form {
+                Section(footer: Text("请输入注册时使用的邮箱，我们会发送一封含重置密码链接的邮件。")) {
                         TextField("邮箱地址", text: $forgetEmail)
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
