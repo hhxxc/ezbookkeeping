@@ -87,6 +87,7 @@ const (
 // Duplicate checker types
 const (
 	InMemoryDuplicateCheckerType string = "in_memory"
+	DatabaseDuplicateCheckerType string = "database"
 )
 
 // OAuth 2.0 user identifier types
@@ -1130,8 +1131,12 @@ func loadUuidConfiguration(config *Config, configFile *ini.File, sectionName str
 }
 
 func loadDuplicateCheckerConfiguration(config *Config, configFile *ini.File, sectionName string) error {
-	if getConfigItemStringValue(configFile, sectionName, "checker_type") == InMemoryDuplicateCheckerType {
+	checkerType := getConfigItemStringValue(configFile, sectionName, "checker_type")
+
+	if checkerType == InMemoryDuplicateCheckerType {
 		config.DuplicateCheckerType = InMemoryDuplicateCheckerType
+	} else if checkerType == DatabaseDuplicateCheckerType {
+		config.DuplicateCheckerType = DatabaseDuplicateCheckerType
 	} else {
 		return errs.ErrInvalidDuplicateCheckerType
 	}

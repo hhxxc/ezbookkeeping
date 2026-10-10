@@ -3,6 +3,7 @@ package duplicatechecker
 import (
 	"time"
 
+	"github.com/mayswind/ezbookkeeping/pkg/datastore"
 	"github.com/mayswind/ezbookkeeping/pkg/errs"
 	"github.com/mayswind/ezbookkeeping/pkg/settings"
 )
@@ -24,6 +25,32 @@ func InitializeDuplicateChecker(config *settings.Config) error {
 		Container.current = checker
 
 		return err
+	} else if config.DuplicateCheckerType == settings.DatabaseDuplicateCheckerType {
+		checker, err := NewDatabaseDuplicateChecker(config, datastore.Container.UserStore)
+
+		if err != nil {
+			return err
+		}
+
+		err = checker.SyncTable()
+
+		if err != nil {
+			return err
+		}
+
+		Container.current = checker
+
+		// periodic cleanup of expired records (once per hour)
+		go func() {
+			ticker := time.NewTicker(1 * time.Hour)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				checker.CleanupExpiredKeys()
+			}
+		}()
+
+		return nil
 	}
 
 	return errs.ErrInvalidDuplicateCheckerType

@@ -2330,6 +2330,7 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreate
 		HideAmount:        transactionCreateReq.HideAmount,
 		Comment:           transactionCreateReq.Comment,
 		CreatedIp:         clientIp,
+		SourceType:        getTransactionSourceTypeFromRequest(transactionCreateReq.Source),
 	}
 
 	if transactionCreateReq.Type == models.TRANSACTION_TYPE_TRANSFER {
@@ -2343,4 +2344,14 @@ func (a *TransactionsApi) createNewTransactionModel(uid int64, transactionCreate
 	}
 
 	return transaction
+}
+
+// getTransactionSourceTypeFromRequest maps the optional request source field to the transaction source type
+func getTransactionSourceTypeFromRequest(source string) models.TransactionSourceType {
+	switch source {
+	case "ai_image", "ai_speech":
+		return models.TRANSACTION_SOURCE_TYPE_AI_RECOGNITION
+	default:
+		return models.TRANSACTION_SOURCE_TYPE_MANUAL
+	}
 }

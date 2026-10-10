@@ -119,6 +119,17 @@ const (
 	TRANSACTION_TAG_FILTER_NOT_HAS_ALL TransactionTagFilterType = 3
 )
 
+// TransactionSourceType represents the origin channel of a transaction (lineage tracking)
+type TransactionSourceType byte
+
+// Types of transaction source
+const (
+	TRANSACTION_SOURCE_TYPE_MANUAL         TransactionSourceType = 0 // manual creation (default, backward compatible)
+	TRANSACTION_SOURCE_TYPE_IMPORT         TransactionSourceType = 1 // imported from external data files
+	TRANSACTION_SOURCE_TYPE_SCHEDULED      TransactionSourceType = 2 // created by scheduled transaction templates
+	TRANSACTION_SOURCE_TYPE_AI_RECOGNITION TransactionSourceType = 3 // created via AI image/speech recognition
+)
+
 // Transaction represents transaction data stored in database
 type Transaction struct {
 	TransactionId        int64             `xorm:"PK"`
@@ -141,6 +152,7 @@ type Transaction struct {
 	GeoLongitude         float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	GeoLatitude          float64           `xorm:"INDEX(IDX_transaction_uid_deleted_time_longitude_latitude)"`
 	CreatedIp            string            `xorm:"VARCHAR(39)"`
+	SourceType           TransactionSourceType `xorm:"NOT NULL DEFAULT 0"` // where this transaction comes from
 	ScheduledCreated     bool
 	CreatedUnixTime      int64
 	UpdatedUnixTime      int64
@@ -176,6 +188,7 @@ type TransactionCreateRequest struct {
 	Comment              string                         `json:"comment" binding:"max=255"`
 	GeoLocation          *TransactionGeoLocationRequest `json:"geoLocation" binding:"omitempty"`
 	ClientSessionId      string                         `json:"clientSessionId"`
+	Source               string                         `json:"source" binding:"omitempty,oneof=ai_image ai_speech"` // optional transaction origin for lineage tracking
 }
 
 // TransactionModifyRequest represents all parameters of transaction modification request

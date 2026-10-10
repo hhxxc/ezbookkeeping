@@ -846,6 +846,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 			Comment:           template.Comment,
 			CreatedIp:         c.ClientIP(),
 			ScheduledCreated:  true,
+			SourceType:        models.TRANSACTION_SOURCE_TYPE_SCHEDULED,
 		}
 
 		if template.Type == models.TRANSACTION_TYPE_TRANSFER {

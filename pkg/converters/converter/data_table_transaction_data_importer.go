@@ -384,6 +384,7 @@ func (c *DataTableTransactionDataImporter) ParseImportedData(ctx core.Context, u
 				GeoLongitude:         geoLongitude,
 				GeoLatitude:          geoLatitude,
 				CreatedIp:            ctx.ClientIP(),
+				SourceType:           models.TRANSACTION_SOURCE_TYPE_IMPORT,
 			},
 			TagIds:                             tagIds,
 			OriginalCategoryName:               subCategoryName,
