@@ -41,10 +41,9 @@ final class AIVoiceViewModel: ObservableObject {
         }
     }
 
-    /// 停顿自动停止 → 直接解析（口述记账「说完就走」，无需再点按钮）
-    func handleAutoStop() {
-        Task { await parseIfNeeded() }
-    }
+    /// 停顿自动停止 → 只停止录音，文字上屏供确认/修改，点「解析成账单」按钮再解析
+    /// （识别结果可能不准，直接自动解析会来不及修正）
+    func handleAutoStop() {}
 
     func parseIfNeeded() async {
         guard hasText, !isParsing else { return }
@@ -144,6 +143,21 @@ struct AIVoiceView: View {
                 Spacer()
                 Spacer()
 
+                // 确认按钮：转写不准可先改文字，再手动解析
+                Button {
+                    Task { await vm.parseIfNeeded() }
+                } label: {
+                    Text(vm.isParsing ? "正在解析…" : "解析成账单")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(vm.hasText && !vm.isParsing ? Theme.brand : Color(.systemGray4))
+                        .cornerRadius(25)
+                }
+                .disabled(!vm.hasText || vm.isParsing)
+                .padding(.horizontal, 24)
+
                 micButton
                     .padding(.bottom, 8)
 
@@ -183,8 +197,8 @@ struct AIVoiceView: View {
 
     private var statusText: String {
         if vm.isParsing { return "正在解析…" }
-        if vm.transcriber.isRecording { return "正在听…说完停顿一下即可" }
-        if vm.hasText { return "说完啦？点麦克风继续补充，或直接解析" }
+        if vm.transcriber.isRecording { return "正在听…说完停顿一下，确认文字后点解析" }
+        if vm.hasText { return "识别不准？直接改上面的文字，或点麦克风补充" }
         return "点击麦克风开始说话"
     }
 
