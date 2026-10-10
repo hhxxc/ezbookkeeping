@@ -374,6 +374,8 @@ func startWebServer(c *core.CliContext) error {
 			api.Systems.NestKeepLatestHandler(core.WrapWebContext(ginCtx))
 		})
 
+		// NestKeep 变体清单（latest-*.json）与 IPA 统一走 :name 兜底（gin 不支持段中间参数）
+
 		// NestKeep IPA 静态下发（无鉴权）：手机在国内可从自有域名下载安装包，不经 github.com
 		apiRoute.GET("/nestkeep/:name", func(ginCtx *gin.Context) {
 			api.Systems.NestKeepIpaHandler(core.WrapWebContext(ginCtx))
