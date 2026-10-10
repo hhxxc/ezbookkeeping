@@ -650,9 +650,13 @@ struct TransactionsView: View {
                 .navigationBarHidden(true)
             }
             .refreshable { await vm.load() }
-            // 返回首页后复位搜索聚焦标记，下次普通点汇总卡不再弹键盘
+            // 返回首页后复位搜索聚焦标记，下次普通点汇总卡不再弹键盘；
+            // 同时清掉筛选态/搜索词，避免"不点清除就一直在"的残留
             .onChange(of: showListPage) { visible in
-                if !visible { pushListWithSearch = false }
+                if !visible {
+                    pushListWithSearch = false
+                    if vm.isFiltering { vm.clearFilter() }
+                }
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             // 隐藏的编程式导航链接（iOS 15 手法）：三个二级页全部走系统 push
@@ -1230,6 +1234,16 @@ private struct BillListPageView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        // 筛选面板入口：收在搜索框行内，不占导航栏
+                        Button {
+                            showFilter = true
+                        } label: {
+                            Image(systemName: vm.filter.isActive
+                                    ? "line.3.horizontal.decrease.circle.fill"
+                                    : "line.3.horizontal.decrease.circle")
+                                .foregroundColor(vm.filter.isActive ? Theme.brand : .secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
@@ -1308,21 +1322,7 @@ private struct BillListPageView: View {
         .navigationTitle(vm.isFiltering ? "已筛选账单" : "账单明细")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                if vm.isFiltering {
-                    Button("清除筛选") { vm.clearFilter() }
-                        .font(.footnote)
-                }
-                Button {
-                    showFilter = true
-                } label: {
-                    Image(systemName: vm.filter.isActive
-                            ? "line.3.horizontal.decrease.circle.fill"
-                            : "line.3.horizontal.decrease.circle")
-                }
-            }
-        }
+        // 顶部不放常驻按钮：清除筛选只在空态出现，筛选入口收进搜索框右侧漏斗
         .sheet(isPresented: $showFilter) {
             TransactionFilterSheet(
                 filter: vm.filter,
@@ -1660,11 +1660,13 @@ struct TransactionRow: View {
     var body: some View {
         HStack(spacing: 12) {
             if showsCategoryIcon, let symbol = vm.categoryIcon(tx.categoryId) {
+                // 分类图标用**分类色**（浅底），对齐 Web 端；不用交易类型色（否则支出行全红）
+                let catColor = vm.categoryColor(tx.categoryId)
                 Image(systemName: symbol)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(iconColor)
+                    .foregroundColor(catColor)
                     .frame(width: 32, height: 32)
-                    .background(iconColor.opacity(0.13))
+                    .background(catColor.opacity(0.13))
                     .cornerRadius(10)
             } else {
                 Image(systemName: iconName)
