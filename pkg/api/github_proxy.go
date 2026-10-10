@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,10 +36,17 @@ var githubDownloadMirrorPrefixes = []string{
 	"https://gh-proxy.com/",
 }
 
-// IPA 体量为 MB 级，整体超时 2 分钟足够；首次代理拉取成功后即入磁盘缓存，
-// 同一文件的后续请求不再碰 GitHub。
+// IPA 体量为 MB 级。不做整体 Client.Timeout（慢源传完即可），但传输层各阶段
+// 收紧：拨号/握手各 10s、响应头 45s——被墙的源快速失败，尽快轮到下一个源；
+// 体量上限由 LimitReader 控制。
 var githubDownloadClient = &http.Client{
-	Timeout: 2 * time.Minute,
+	Transport: &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: 45 * time.Second,
+		IdleConnTimeout:       60 * time.Second,
+	},
 }
 
 // githubProxyMaxDownloadSize 限制单次代理下载上限，防止镜像返回异常响应拖爆内存
