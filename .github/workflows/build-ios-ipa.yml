@@ -72,10 +72,17 @@ jobs:
 
       - name: Prepare Capacitor entry (app shell)
         env:
-          DEFAULT_SERVER: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          DEFAULT_SERVER: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
           FALLBACK_SERVER: ${{ inputs.fallback_api_base_url || vars.IOS_FALLBACK_API_BASE_URL }}
           SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: |
+          if [ -z "$DEFAULT_SERVER" ]; then
+            echo "ERROR: 未配置壳的默认服务器地址。"
+            echo "  请在 GitHub 仓库 Settings > Secrets and variables > Actions > Variables"
+            echo "  里设置变量 IOS_API_BASE_URL（如 https://your-server.example.com），"
+            echo "  或手动触发工作流时通过 api_base_url 参数传入。"
+            exit 1
+          fi
           test -f ios-shell/index.html
           cp ios-shell/index.html dist/index.html
 
@@ -106,13 +113,13 @@ jobs:
 
       - name: Add iOS platform
         env:
-          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
           NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: test -d ios || npx cap add ios
 
       - name: Sync iOS platform
         env:
-          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL || 'https://example-server.invalid' }}
+          NESTKEEP_SHELL_SERVER_URL: ${{ inputs.api_base_url || vars.IOS_API_BASE_URL }}
           NESTKEEP_SHELL_VERSION: ${{ steps.version.outputs.version }}
         run: |
           npx cap sync ios

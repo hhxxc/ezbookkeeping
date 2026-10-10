@@ -183,7 +183,7 @@
 
 <div id="setup" class="hidden">
     <div class="hint">连不上服务器。请确认 NAS 上的 ezbookkeeping 容器正在运行，并检查下面的地址（不需要填结尾的斜杠）。</div>
-    <input id="serverInput" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://example-server.invalid"/>
+    <input id="serverInput" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://your-server.example.com"/>
     <div class="row">
         <button class="primary" id="saveBtn">保存并连接</button>
         <button id="defaultBtn">恢复默认</button>
@@ -208,7 +208,7 @@
         var STORAGE_KEY_LAST_REDIRECT = 'nestkeep.shell.lastRedirectAt';
         var PROBE_TIMEOUT_MS = 4500;
         var REDIRECT_LOOP_GUARD_MS = 10000;
-        var BUILD_DEFAULT = 'https://example-server.invalid';
+        var BUILD_DEFAULT = '';
 
         var elLogo = document.getElementById('logo');
         var elStatus = document.getElementById('status');

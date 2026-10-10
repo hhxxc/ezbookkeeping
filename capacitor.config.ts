@@ -6,7 +6,7 @@ import { CapacitorConfig } from '@capacitor/cli';
  * 架构说明
  * --------
  * IPA 只是一个「启动壳」：它不打包业务前端，而是直接加载服务器上的 Web 应用
- * （NAS 上的 Docker 容器提供，例如 https://example-server.invalid/mobile）。
+ * （自建的 Docker 容器提供，例如 https://your-server.example.com/mobile）。
  *
  *   - 前端有更新 → 只要更新 NAS 上的容器，App 下次启动/刷新就能拿到新版本，IPA 不用重新打包；
  *   - 只有「壳本身」变了（图标、原生配置、权限……）才需要重新出 IPA。
@@ -78,11 +78,9 @@ const config: CapacitorConfig = {
         iosScheme: 'capacitor',
         // 服务器连不上时显示打包在 App 里的诊断页（ios-shell/index.html）
         errorPath: 'index.html',
-        allowNavigation: envList('NESTKEEP_SHELL_ALLOW_NAVIGATION', [
-            'example-server.invalid',
-            '*.example.com.invalid',
-            'REDACTED'
-        ]),
+        // 默认放行当前服务器自己的域名；如需更多域名用环境变量
+        // NESTKEEP_SHELL_ALLOW_NAVIGATION（逗号分隔）传入
+        allowNavigation: envList('NESTKEEP_SHELL_ALLOW_NAVIGATION', serverUrl ? [new URL(serverUrl).hostname] : []),
         // 未注入服务器地址时不启用远程加载（本地开发时就用打包进 App 的前端）
         ...(serverUrl ? { url: serverUrl } : {})
     },
