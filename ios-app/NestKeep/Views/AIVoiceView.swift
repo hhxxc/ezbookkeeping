@@ -212,12 +212,10 @@ struct AIVoiceView: View {
             vm.toggleRecord()
         } label: {
             ZStack {
-                // 录音中的脉冲圈
-                Circle()
-                    .stroke(Theme.brand.opacity(vm.transcriber.isRecording ? 0.35 : 0), lineWidth: 2)
-                    .frame(width: 84, height: 84)
-                    .scaleEffect(vm.transcriber.isRecording ? 1.15 : 1.0)
-                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: vm.transcriber.isRecording)
+                // 录音中的发散光圈：三圈错峰从按钮向外扩散并淡出（雷达式）
+                ForEach(0..<3, id: \.self) { index in
+                    RippleRing(isActive: vm.transcriber.isRecording, delay: Double(index) * 0.66)
+                }
                 Circle()
                     .fill(vm.transcriber.isRecording ? Theme.expense : Theme.brand)
                     .frame(width: 72, height: 72)
@@ -227,5 +225,35 @@ struct AIVoiceView: View {
             }
         }
         .disabled(vm.isParsing)
+    }
+}
+
+/// 麦克风发散光圈：激活时从按钮边缘向外扩散并淡出（三圈错峰，雷达式）
+private struct RippleRing: View {
+    let isActive: Bool
+    var delay: Double = 0
+    @State private var pulsing = false
+
+    var body: some View {
+        Circle()
+            .stroke(Theme.brand, lineWidth: 2)
+            .frame(width: 72, height: 72)
+            .scaleEffect(pulsing ? 1.9 : 1.0)
+            .opacity(isActive ? (pulsing ? 0 : 0.5) : 0)
+            .animation(isActive ? .easeOut(duration: 2.0).repeatForever(autoreverses: false).delay(delay) : nil, value: pulsing)
+            .onChange(of: isActive) { active in
+                if active { restartPulse() }
+            }
+            .onAppear {
+                if isActive { restartPulse() }
+            }
+    }
+
+    /// 先归零再触发，保证每次重新录音时 repeatForever 都从头起波
+    private func restartPulse() {
+        pulsing = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            pulsing = true
+        }
     }
 }
