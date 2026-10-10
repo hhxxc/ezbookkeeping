@@ -452,7 +452,7 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         // 优先续传；resumeData 无效（如源已变更）会立即报错，调用方回退为全新下载
         let task: URLSessionDownloadTask
         if let resumeData {
-            task = session.downloadTask(withResumeData: resumeData)
+            task = try session.downloadTask(withResumeData: resumeData)
         } else {
             task = session.downloadTask(with: url)
         }
@@ -522,7 +522,8 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         guard let error else { return }
         // 网络中断类失败携带 resumeData（HTTP 状态错误等没有），供调用方续传；
         // 用户取消（NSURLErrorCancelled）也会走到这里，但调用方靠 Task.isCancelled 先行拦截
-        let rd = (task.error ?? error).userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+        let nsError = (task.error ?? error) as NSError
+        let rd = nsError.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
         resumeContinuation(with: .failure(DownloadError(message: error.localizedDescription, resumeData: rd)))
     }
 
