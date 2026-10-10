@@ -1021,16 +1021,14 @@ struct TransactionEditView: View {
 
     private func appendDigit(_ d: String) {
         guard vm.amountText.count < 24 else { return }
-        var segment = currentSegment
+        let segment = currentSegment
         if segment == "0" {
             // 前导 0 直接替换（0 → 5，而不是 05）
             vm.amountText.removeLast()
-            segment = ""
         } else if segment == "-0" {
             vm.amountText.removeLast(2)
-            segment = "-"
         }
-        vm.amountText += segment + d
+        vm.amountText += d
     }
 
     private func appendDot() {
