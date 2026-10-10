@@ -877,46 +877,42 @@ struct TransactionsView: View {
         .buttonStyle(.plain)
     }
 
-    /// AI 识图 / 语音记账入口：并排两张紧凑卡。原为两张全宽卡纵向堆叠，
-    /// 页面总高度超出一屏，语音卡会被底栏挡住；改为一行两卡收进首屏
+    /// AI 识图 / 语音记账入口：一行两条横向紧凑按钮。
+    /// 历史教训：两张「图标在上+标题副标题在下」的竖排卡高 ~106pt，
+    /// 把整页撑超一屏，底部入口被 tabbar 压住显示不全；
+    /// 压缩为「图标徽章 + 标题同行」的 48pt 矮条后整页收进一屏
     private var aiEntryRow: some View {
         HStack(spacing: 12) {
-            entryCard(title: "AI 识图", subtitle: "拍张小票，AI 记账", icon: "camera.fill") {
+            entryButton(title: "AI 识图", icon: "camera.fill") {
                 aiFlow.start()
             }
-            entryCard(title: "语音记账", subtitle: "说句话，AI 记账", icon: "mic.fill") {
+            entryButton(title: "语音记账", icon: "mic.fill") {
                 voiceFlow.start()
             }
         }
     }
 
-    /// 紧凑入口卡：图标徽章 + 标题/副标题纵向排布，宽度对半分
-    private func entryCard(title: String, subtitle: String, icon: String,
-                           action: @escaping () -> Void) -> some View {
+    /// 紧凑入口按钮：图标徽章 + 标题横向排布，宽度对半分
+    private func entryButton(title: String, icon: String,
+                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 19))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(Theme.brand)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 30, height: 30)
                     .background(Theme.brand.opacity(0.13))
-                    .cornerRadius(11)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(HomePalette.ink)
-                    Text(subtitle)
-                        .font(.system(size: 12))
-                        .foregroundColor(HomePalette.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                }
+                    .cornerRadius(9)
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity)
             .background(HomePalette.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
