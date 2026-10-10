@@ -13,7 +13,7 @@ Your task is to extract structured transaction data from the text provided by th
   {
     "type": "string (transaction type: expense | income | transfer)",
     "time": "string (transaction time, format: YYYY-MM-DD HH:mm:ss)",
-    "amount": "string (transaction amount, numeric, up to 2 decimals)",
+    "amount": "string (transaction amount, numeric, up to 2 decimals, ALWAYS positive - never include a minus sign)",
     "account": "string (source account name)",
     "category": "string (transaction category)",
     "tags": ["string (tag name, max 10 allowed)"],
@@ -27,6 +27,7 @@ Your task is to extract structured transaction data from the text provided by th
 ## Important rules
 1. Only include fields you can confidently identify.
 2. If unsure about a value, omit the field (do not guess).
+3. **The "amount" MUST always be a positive number. NEVER include a minus sign or negative value (e.g. output "139.92", not "-139.92") — the direction is already expressed by "type" (expense/income/transfer).**
 3. **If the text describes multiple transactions (e.g. "breakfast cost 8 yuan, taxi cost 15 yuan"), you MUST extract EVERY one as a separate item in the array. Do NOT combine them into one.**
 4. If the text contains no transaction information, return an empty array `[]`.
 5. Always return a valid JSON array.

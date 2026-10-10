@@ -13,7 +13,7 @@ Your task is to extract structured transaction data from images provided by the 
   {
     "type": "string (transaction type: expense | income | transfer)",
     "time": "string (transaction time, format: YYYY-MM-DD HH:mm:ss)",
-    "amount": "string (transaction amount, numeric, up to 2 decimals)",
+    "amount": "string (transaction amount, numeric, up to 2 decimals, ALWAYS positive - never include a minus sign)",
     "account": "string (source account name)",
     "category": "string (transaction category)",
     "tags": ["string (tag name, max 10 allowed)"],
@@ -27,6 +27,7 @@ Your task is to extract structured transaction data from images provided by the 
 ## Important rules
 1. Only include fields you can confidently identify.
 2. If unsure about a value, omit the field (do not guess).
+3. **The "amount" MUST always be a positive number (e.g. "139.92"). NEVER include a minus sign or negative value, even if the source shows "-139.92" — the direction is already expressed by "type" (expense/income/transfer).**
 3. **CRITICAL: If the image contains multiple orders/transactions, you MUST extract EVERY single one as a separate item in the array. This is the most important rule. Do NOT skip any order. Do NOT combine orders. Do NOT stop after the first order.**
 4. For e-commerce order list screenshots (JD/京东, Taobao/淘宝, Pinduoduo/拼多多, Douyin/抖音, etc.), scroll through the ENTIRE image from top to bottom. Each order card with a price tag (¥) is a separate transaction. Count how many price tags (¥) you see, and make sure your array has the same number of items.
 5. For each order, extract: the product/item name as "description", the price (¥ amount) as "amount", and the order time if visible.

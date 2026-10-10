@@ -383,6 +383,13 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 			return nil, errs.ErrOperationFailed
 		}
 
+		// 防御：模型可能把账单截图上的负号（如支付宝"-139.92"）带进 amount，
+		// 金额恒为正数，方向由 type 表达，负数一律取绝对值
+		if amount < 0 {
+			log.Warnf(c, "[large_language_models.parseRecognizedReceiptImageResponse] recognized amount \"%s\" is negative, using its absolute value", recognizedResult.Amount)
+			amount = -amount
+		}
+
 		recognizedReceiptImageResponse.SourceAmount = amount
 
 		if recognizedReceiptImageResponse.Type == models.TRANSACTION_TYPE_TRANSFER && len(recognizedResult.DestinationAmount) > 0 {
@@ -391,6 +398,10 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 			if err != nil {
 				log.Errorf(c, "[large_language_models.parseRecognizedReceiptImageResponse] recoginzed destination amount \"%s\" is invalid", recognizedResult.DestinationAmount)
 				return nil, errs.ErrOperationFailed
+			}
+
+			if destinationAmount < 0 {
+				destinationAmount = -destinationAmount
 			}
 
 			recognizedReceiptImageResponse.DestinationAmount = destinationAmount
