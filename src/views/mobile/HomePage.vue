@@ -239,12 +239,32 @@
             <f7-icon class="home-ai-entry-chevron" f7="chevron_right"></f7-icon>
         </f7-link>
 
-        <div class="home-ai-entry-card" v-if="isTransactionFromAIImageRecognitionEnabled()"
+        <div class="home-ai-entry-card" v-if="aiEntryState === 'ok'"
              @click="pickAIImage">
             <div class="home-ai-entry-icon"><f7-icon f7="camera_fill"></f7-icon></div>
             <div class="home-ai-entry-text">
                 <div class="home-ai-entry-title">{{ tt('AI Image Recognition') }}</div>
                 <div class="home-ai-entry-subtitle">{{ tt('Snap a receipt, let AI record it') }}</div>
+            </div>
+            <f7-icon class="home-ai-entry-chevron" f7="chevron_right"></f7-icon>
+        </div>
+
+        <div class="home-ai-entry-card home-ai-entry-card-failed" v-else-if="aiEntryState === 'load-failed'"
+             @click="onAIEntryRetry" @taphold="openAIEntryDiagnostic">
+            <div class="home-ai-entry-icon home-ai-entry-icon-warning"><f7-icon f7="exclamationmark_triangle"></f7-icon></div>
+            <div class="home-ai-entry-text">
+                <div class="home-ai-entry-title">{{ tt('AI service settings not loaded') }}</div>
+                <div class="home-ai-entry-subtitle">{{ tt('Tap to retry loading AI settings') }}</div>
+            </div>
+            <f7-icon class="home-ai-entry-chevron" f7="arrow_clockwise"></f7-icon>
+        </div>
+
+        <div class="home-ai-entry-card" v-if="aiEntryState === 'ok' && isTransactionFromVoiceInputEnabled() && recorderSupported"
+             @click="openVoiceInput">
+            <div class="home-ai-entry-icon home-ai-entry-icon-voice"><f7-icon f7="mic_fill"></f7-icon></div>
+            <div class="home-ai-entry-text">
+                <div class="home-ai-entry-title">{{ tt('AI Voice Input') }}</div>
+                <div class="home-ai-entry-subtitle">{{ tt('Hold to speak, let AI record it') }}</div>
             </div>
             <f7-icon class="home-ai-entry-chevron" f7="chevron_right"></f7-icon>
         </div>
@@ -277,7 +297,7 @@
             <f7-list dividers v-if="allTransactionTemplates">
                 <f7-list-item key="AIImageRecognition" :title="tt('AI Image Recognition')"
                               @click="pickAIImage(); showTransactionTemplatePopover = false"
-                              v-if="isTransactionFromAIImageRecognitionEnabled()">
+                              v-if="aiEntryState === 'ok'">
                     <template #media>
                         <f7-icon f7="wand_stars"></f7-icon>
                     </template>
@@ -298,11 +318,46 @@
         <a-i-image-recognition-sheet ref="aiImageRecognitionSheet"
                                      v-model:show="showAIReceiptImageRecognitionSheet"
                                      @recognition:change="onReceiptRecognitionChanged"/>
+
+        <voice-input-sheet v-model:show="showVoiceInputSheet"
+                           @recognition:change="onReceiptRecognitionChanged"/>
+
+        <f7-popup class="ai-entry-diagnostic-popup" :opened="showAIEntryDiagnosticPopup"
+                  @popup:closed="showAIEntryDiagnosticPopup = false">
+            <f7-page>
+                <f7-navbar :title="tt('AI Entry Diagnostics')">
+                    <f7-nav-right>
+                        <f7-link @click="showAIEntryDiagnosticPopup = false">{{ tt('Close') }}</f7-link>
+                    </f7-nav-right>
+                </f7-navbar>
+                <f7-list strong inset dividers>
+                    <f7-list-item :header="tt('Settings Loaded')">
+                        <span>{{ aiEntryDiagnosticSnapshot.settingsLoaded ? tt('Yes') : tt('No') }}</span>
+                    </f7-list-item>
+                    <f7-list-item :header="tt('Settings Load Failed')">
+                        <span>{{ aiEntryDiagnosticSnapshot.loadFailed ? tt('Yes') : tt('No') }}</span>
+                    </f7-list-item>
+                    <f7-list-item :header="tt('Load Retry Count')">
+                        <span>{{ aiEntryDiagnosticSnapshot.loadRetryCount }}</span>
+                    </f7-list-item>
+                    <f7-list-item :header="tt('AI Recognition Enabled (llmt)')">
+                        <span>{{ aiEntryDiagnosticSnapshot.textRecognitionEnabled ? tt('Yes') : tt('No') }}</span>
+                    </f7-list-item>
+                    <f7-list-item :header="tt('Voice Input Enabled (llmv)')">
+                        <span>{{ aiEntryDiagnosticSnapshot.voiceInputEnabled ? tt('Yes') : tt('No') }}</span>
+                    </f7-list-item>
+                    <f7-list-item :header="tt('Page URL')">
+                        <span class="ai-entry-diagnostic-url">{{ aiEntryDiagnosticSnapshot.pageUrl }}</span>
+                    </f7-list-item>
+                </f7-list>
+            </f7-page>
+        </f7-popup>
     </f7-page>
 </template>
 
 <script setup lang="ts">
 import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
+import VoiceInputSheet from '@/components/mobile/VoiceInputSheet.vue';
 
 import { ref, computed, useTemplateRef } from 'vue';
 import type { Router } from 'framework7/types';
@@ -324,7 +379,15 @@ import type { RecognizedReceiptImageResponses } from '@/models/large_language_mo
 
 import { isUserLogined, isUserUnlocked } from '@/lib/userstate.ts';
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
-import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { isTransactionFromVoiceInputEnabled } from '@/lib/server_settings.ts';
+import { getRecorderSupport } from '@/lib/audio_recorder.ts';
+import {
+    aiEntryState,
+    aiEntryDiagnosticSnapshot,
+    refreshAIEntryState,
+    retryAIEntry,
+    updateAIEntryDiagnosticSnapshot
+} from '@/lib/ai_entry_state.ts';
 import { isNativePhotoLibraryPickerAvailable, pickImagesFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 import { useSettingsStore } from '@/stores/setting.ts';
 import services from '@/lib/services.ts';
@@ -411,6 +474,37 @@ const aiImageInput = useTemplateRef<HTMLInputElement>('aiImageInput');
 const loading = ref<boolean>(true);
 const showTransactionTemplatePopover = ref<boolean>(false);
 const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
+const showVoiceInputSheet = ref<boolean>(false);
+const showAIEntryDiagnosticPopup = ref<boolean>(false);
+const retryingAIEntry = ref<boolean>(false);
+
+const recorderSupported = computed<boolean>(() => getRecorderSupport().mediaRecorder);
+
+function openVoiceInput(): void {
+    showVoiceInputSheet.value = true;
+}
+
+function onAIEntryRetry(): void {
+    if (retryingAIEntry.value) {
+        return;
+    }
+
+    retryingAIEntry.value = true;
+
+    retryAIEntry().then(success => {
+        retryingAIEntry.value = false;
+
+        if (!success) {
+            updateAIEntryDiagnosticSnapshot();
+            showAIEntryDiagnosticPopup.value = true;
+        }
+    });
+}
+
+function openAIEntryDiagnostic(): void {
+    updateAIEntryDiagnosticSnapshot();
+    showAIEntryDiagnosticPopup.value = true;
+}
 
 const allTransactionTemplates = computed<TransactionTemplate[]>(() => {
     const allTemplates = transactionTemplatesStore.allVisibleTemplates;
@@ -418,7 +512,7 @@ const allTransactionTemplates = computed<TransactionTemplate[]>(() => {
 });
 
 function openTransactionTemplatePopover(): void {
-    if (isTransactionFromAIImageRecognitionEnabled() || (allTransactionTemplates.value && allTransactionTemplates.value.length)) {
+    if (aiEntryState.value === 'ok' || (allTransactionTemplates.value && allTransactionTemplates.value.length)) {
         showTransactionTemplatePopover.value = true;
     }
 }
@@ -618,6 +712,9 @@ function uploadHomeBackgroundImage(event: Event): void {
 function onPageAfterIn(): void {
     homeSummaryBackgroundImage.value = settingsStore.appSettings.homeSummaryBackgroundImage;
     pageBackgroundImage.value = settingsStore.appSettings.pageBackgroundImage;
+
+    // AI 入口状态依赖 server_settings.js 的加载结果，每次进入页面都刷新一次
+    refreshAIEntryState();
 
     // Continue recognition queue if there are pending results
     if (pendingRecognitionQueue.value.length > 0) {
@@ -1134,5 +1231,31 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
 .dark .home-ai-entry-icon {
     background: rgba(77, 182, 172, 0.16);
     color: #4db6ac;
+}
+
+.home-ai-entry-icon-warning {
+    background: rgba(239, 152, 74, 0.15);
+    color: #ef984a;
+}
+
+.home-ai-entry-icon-voice {
+    background: rgba(59, 130, 246, 0.13);
+    color: #3b82f6;
+}
+
+.dark .home-ai-entry-icon-voice {
+    background: rgba(59, 130, 246, 0.2);
+    color: #7fb0d8;
+}
+
+.dark .home-ai-entry-icon-warning {
+    background: rgba(239, 152, 74, 0.2);
+    color: #eeb056;
+}
+
+.ai-entry-diagnostic-url {
+    word-break: break-all;
+    font-size: 12px;
+    color: var(--ebk-secondary-text-color);
 }
 </style>

@@ -856,6 +856,14 @@ export default {
             cancelableUuid: cancelableUuid
         } as ApiRequestConfig);
     },
+    parseTransactionAudio: ({ audioFile, cancelableUuid }: { audioFile: File, cancelableUuid?: string }): ApiResponsePromise<RecognizedReceiptImageResponses> => {
+        return axios.postForm<ApiResponse<RecognizedReceiptImageResponses>>('v1/llm/transactions/parse_audio.json', {
+            audio: audioFile
+        }, {
+            timeout: DEFAULT_LLM_API_TIMEOUT,
+            cancelableUuid: cancelableUuid
+        } as ApiRequestConfig);
+    },
     getLatestExchangeRates: (param: { ignoreError?: boolean }): ApiResponsePromise<LatestExchangeRateResponse> => {
         return axios.get<ApiResponse<LatestExchangeRateResponse>>('v1/exchange_rates/latest.json', {
             ignoreError: !!param.ignoreError,
