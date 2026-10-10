@@ -174,3 +174,5 @@ c
 scripts/nas_config_local.py
 scripts/deploy.local.sh
 nas.local.sh
+# 项目本地运维手册（个人定制，勿提交）
+AGENTS.md
