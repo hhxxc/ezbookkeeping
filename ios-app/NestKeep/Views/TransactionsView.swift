@@ -639,7 +639,8 @@ struct TransactionsView: View {
                     .padding(.bottom, tabBarInset + 16)
                     // 隐藏右侧滚动指示条（iOS 15 上 UIScrollView.appearance 不生效，
                     // 通过 overlay 视图的响应链向上找到所属 UIScrollView 直接关闭）
-                    .overlay(ScrollIndicatorHider())
+                    // allowsHitTesting(false)：overlay 视图绝不能参与命中测试，否则页面点不动
+                    .overlay(ScrollIndicatorHider().allowsHitTesting(false))
                 }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
@@ -1182,7 +1183,7 @@ private struct BillListPageView: View {
                         }
                     }
                     // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
-                    .overlay(ScrollIndicatorHider())
+                    .overlay(ScrollIndicatorHider().allowsHitTesting(false))
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
