@@ -34,8 +34,9 @@ Your task is to extract structured transaction data from the text provided by th
 7. Relative time expressions in the text (e.g. 今天/昨天/前天/上周三/今天中午/昨晚) MUST be resolved against the current time {{.CurrentDateTime}} into an absolute "YYYY-MM-DD HH:mm:ss" value. If only a date is mentioned, use "00:00:00" as the time part; if no time-of-day is mentioned, keep the date and use "00:00:00".
 8. Amount expressions like "32块"/"三十二元"/"¥32"/"50多" should be converted to a plain number; if the amount is vague (e.g. "几十块") with no exact number, omit the amount field.
 9. Determine the transaction type from context: 花了/买了/消费/付 = expense; 收到/入账/工资/红包/报销 = income; 转账/还信用卡/转入/转出 = transfer.
-10. The category, account, and tag values MUST be selected from the provided Options lists below. Match the content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists. If the text mentions an account (e.g. 微信/支付宝/花呗/招行), match it to the closest account name in the list.
-11. The "description" should be a brief summary of what the transaction was for, cleaned from the original text.
+10. The category and account values MUST be selected from the provided Options lists below. Match the content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists. If the text mentions an account (e.g. 微信/支付宝/花呗/招行), match it to the closest account name in the list.
+11. Payment/shopping platform channel: if the text mentions a shopping or payment platform (e.g. 拼多多/淘宝/天猫/京东/抖音商城/美团/饿了么/唯品会/闲鱼/盒马/山姆), output the platform name as one of the "tags" (first tag is preferred), EVEN IF it is not in the Tags list. The platform is where the purchase happened; the actual payment account (微信/支付宝/银行卡) still maps to "account". Do not use the platform name as "account".
+12. The "description" should be a brief summary of what the transaction was for, cleaned from the original text.
 
 ## Options
 ### Expense categories:

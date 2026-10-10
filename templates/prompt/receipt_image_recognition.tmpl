@@ -33,8 +33,9 @@ Your task is to extract structured transaction data from images provided by the 
 6. If the image contains no transaction information, return an empty array `[]`.
 7. Always return a valid JSON array.
 8. The current time is {{.CurrentDateTime}}. Use this as the fallback time only if no transaction time can be found on the image.
-9. The category, account, and tag values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
+9. The category and account values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
 10. Special mapping for category selection: if the receipt contains items related to 婴儿/宝宝/baby/infant/diapers/formula, select the most appropriate parenting/childcare expense category (e.g. 育儿花销, 育儿, etc.). If your options list contains multiple parenting categories, pick the most general one.
+11. Payment/shopping platform channel: if the receipt or order is from a shopping platform (e.g. 拼多多/淘宝/天猫/京东/抖音商城/美团/饿了么/唯品会/闲鱼/盒马/山姆), output the platform name as one of the "tags" (first tag is preferred), EVEN IF it is not in the Tags list. The platform is where the purchase happened; the actual payment account (微信/支付宝/银行卡) still maps to "account". Do not use the platform name as "account".
 
 ## Time extraction rules (IMPORTANT)
 1. Carefully scan the image for any date/time text. Receipts and transaction records almost always contain a transaction time.
