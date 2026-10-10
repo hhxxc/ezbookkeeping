@@ -578,14 +578,17 @@ struct TransactionsView: View {
         //（NavigationLink 编程式跳转），获得标准视差滑动、边缘阴影与左滑跟手返回。
         // 顶栏用 VStack 放列表上方（不悬浮）：iOS 15 下 safeAreaInset+List 的内容避让不可靠，
         // 汇总卡顶部会被固定栏压住；改为上下结构后列表恒从栏下方开始，栏体不透明观感不变。
+        // 顶栏放进 ScrollView 内容里随页滚动：内容超出视口时上滑顶栏先滚走，
+        // 滚动停顿后汇总卡顶部恰好停在状态栏下方（不与状态栏/顶栏重叠）；
+        // 不用 safeAreaInset 悬浮（iOS 15 下其内容避让不可靠，汇总卡顶部会被压住）。
         NavigationView {
-            VStack(spacing: 0) {
-                topBar
-                // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
-                // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
-                // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
-                // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
-                ScrollView {
+            ScrollView {
+                VStack(spacing: 0) {
+                    topBar
+                    // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
+                    // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
+                    // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
+                    // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
@@ -610,10 +613,10 @@ struct TransactionsView: View {
                     // 内容末尾自行留出底栏高度 + 呼吸空间
                     .padding(.bottom, tabBarInset + 16)
                 }
-                .refreshable { await vm.load() }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
             }
+            .refreshable { await vm.load() }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             // 隐藏的编程式导航链接（iOS 15 手法）：三个二级页全部走系统 push
             .background(
