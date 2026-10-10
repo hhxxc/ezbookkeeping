@@ -194,6 +194,11 @@ final class TransactionEditViewModel: ObservableObject {
         }
 
         let cents = Self.toCents(amount)
+        // 服务端上限：sourceAmount 必须小于 9999999999 分，超限时本地直接提示，避免等服务端报英文错误
+        if cents >= 9_999_999_999 {
+            error = "金额超出上限（单笔不能超过 99,999,999.98）"
+            return
+        }
         let utcOffset = (TimeZone(identifier: timeZoneIdentifier) ?? .current).secondsFromGMT(for: date) / 60
         isLoading = true
         error = nil
