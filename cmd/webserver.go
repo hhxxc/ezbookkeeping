@@ -366,8 +366,11 @@ func startWebServer(c *core.CliContext) error {
 
 		apiRoute.GET("/logout.json", bindApiWithTokenUpdate(api.Tokens.TokenRevokeCurrentHandler, config))
 
-		// GitHub download proxy (no auth required)
-		apiRoute.GET("/proxy/github/download", bindEventStreamApi(api.GitHubProxy.GitHubDownloadProxyHandler))
+		// GitHub download proxy (no auth required; direct handler：错误也不走
+		// event stream 信封，客户端按「内容非 IPA」处理即可)
+		apiRoute.GET("/proxy/github/download", func(ginCtx *gin.Context) {
+			api.GitHubProxy.GitHubDownloadProxyHandler(core.WrapWebContext(ginCtx))
+		})
 
 		// NestKeep native app update manifest (no auth; raw JSON from local data/nestkeep/latest.json)
 		apiRoute.GET("/nestkeep/latest.json", func(ginCtx *gin.Context) {
