@@ -541,6 +541,9 @@ struct TransactionsView: View {
     @Binding var showAdd: Bool
     // 底部避让由 MainTabView 统一施加；本页不再需要读取 mainTabBarInset
     @ObservedObject private var serverSettings = ServerSettings.shared
+    /// 底栏内容高度（MainTabView 经环境值下发）：iOS 15 上 safeAreaInset 穿不透
+    /// NavigationView，滚动内容末尾需自行留出底栏高度，避免最后一张卡被底栏挡住
+    @Environment(\.mainTabBarInset) private var tabBarInset
     /// 跨 Tab 路由（统计页跳转时应用筛选）
     @EnvironmentObject private var router: TabRouter
     @State private var editing: Transaction?
@@ -597,13 +600,15 @@ struct TransactionsView: View {
 
                         // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
                         // 开关拉取失败（隧道未就绪等）会导致入口整场消失，反复修不好；
-                        // 后端未开启时点进去会收到明确报错，比入口凭空消失更可理解
-                        aiEntryCard
-                            .padding(.top, 12)
-                        voiceEntryCard
+                        // 后端未开启时点进去会收到明确报错，比入口凭空消失更可理解。
+                        // 两入口并排一行（原两张全宽卡纵向堆叠把语音卡压到底栏下）
+                        aiEntryRow
                             .padding(.top, 12)
                     }
                     .padding(.horizontal, 17)
+                    // iOS 15：MainTabView 的 safeAreaInset 穿不透 NavigationView，
+                    // 内容末尾自行留出底栏高度 + 呼吸空间
+                    .padding(.bottom, tabBarInset + 16)
                 }
                 .refreshable { await vm.load() }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
@@ -798,66 +803,44 @@ struct TransactionsView: View {
         .buttonStyle(.plain)
     }
 
-    /// AI 识图入口卡（对齐 Web 的 `.home-ai-entry-card`）：
-    /// 40×40 主色透明底圆角图标 + 标题/副标题 + 右侧 chevron
-    private var aiEntryCard: some View {
-        Button { aiFlow.start() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(Theme.brand)
-                    .frame(width: 40, height: 40)
-                    .background(Theme.brand.opacity(0.13))
-                    .cornerRadius(12)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("AI 识图")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(HomePalette.ink)
-                    Text("拍张小票，AI 自动记账")
-                        .font(.system(size: 13))
-                        .foregroundColor(HomePalette.secondary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(.tertiaryLabel))
+    /// AI 识图 / 语音记账入口：并排两张紧凑卡。原为两张全宽卡纵向堆叠，
+    /// 页面总高度超出一屏，语音卡会被底栏挡住；改为一行两卡收进首屏
+    private var aiEntryRow: some View {
+        HStack(spacing: 12) {
+            entryCard(title: "AI 识图", subtitle: "拍张小票，AI 记账", icon: "camera.fill") {
+                aiFlow.start()
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(HomePalette.card)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(Rectangle())
+            entryCard(title: "语音记账", subtitle: "说句话，AI 记账", icon: "mic.fill") {
+                voiceFlow.start()
+            }
         }
-        .buttonStyle(.plain)
     }
 
-    /// 语音记账入口卡：样式与 AI 识图卡同构（麦克风徽章）
-    private var voiceEntryCard: some View {
-        Button { voiceFlow.start() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 20))
+    /// 紧凑入口卡：图标徽章 + 标题/副标题纵向排布，宽度对半分
+    private func entryCard(title: String, subtitle: String, icon: String,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: icon)
+                    .font(.system(size: 19))
                     .foregroundColor(Theme.brand)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 38, height: 38)
                     .background(Theme.brand.opacity(0.13))
-                    .cornerRadius(12)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("语音记账")
-                        .font(.system(size: 16, weight: .semibold))
+                    .cornerRadius(11)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(HomePalette.ink)
-                    Text("说句话，AI 自动记账")
-                        .font(.system(size: 13))
+                    Text(subtitle)
+                        .font(.system(size: 12))
                         .foregroundColor(HomePalette.secondary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(.tertiaryLabel))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(HomePalette.card)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle())
