@@ -345,6 +345,9 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
 
     struct DownloadError: LocalizedError {
         let message: String
+        /// URLSession 提供的断点续传数据（仅网络中断类失败会有；HTTP 状态错误没有）。
+        /// 供调用方在同一源上续传，而不是从头重下。
+        var resumeData: Data? = nil
         var errorDescription: String? { message }
     }
 
@@ -374,13 +377,19 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         return head == Data([0x50, 0x4B]) ? url : nil
     }
 
-    /// 清理除保留版本以外的旧安装包（换新版本下载时防 Caches 堆积）。
+    /// 清理除保留版本以外的旧安装包与断点数据（换新版本下载时防 Caches 堆积）。
     static func cleanStaleDownloads(keeping keepVersion: String) {
         let dir = destinationURL(version: keepVersion).deletingLastPathComponent()
         let keepName = "NestKeep-\(keepVersion).ipa"
         guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
-        for item in items where item.lastPathComponent != keepName && item.pathExtension.lowercased() == "ipa" {
-            try? FileManager.default.removeItem(at: item)
+        for item in items {
+            let name = item.lastPathComponent
+            guard name != keepName else { continue }
+            let isIPA = name.lowercased().hasSuffix(".ipa")
+            let isResume = name.lowercased().hasSuffix(".resumedata.plist")
+            if isIPA || isResume {
+                try? FileManager.default.removeItem(at: item)
+            }
         }
     }
 
@@ -389,16 +398,49 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         task?.cancel()
     }
 
+    // MARK: 断点续传（resumeData 持久化）
+
+    /// resumeData 落盘路径：Caches/NestKeepUpdate/NestKeep-<version>.resumedata.plist
+    /// 内容为 {url, data}：data 是 URLSession 的续传数据，url 是它对应的下载源——
+    /// 续传只能对同一个源进行（里面记录了已下载的字节偏移），换源必须从头下。
+    private static func resumeDataURL(version: String) -> URL {
+        destinationURL(version: version).deletingPathExtension().appendingPathExtension("resumedata.plist")
+    }
+
+    /// 保存断点数据（换新版本下载时会随 cleanStaleDownloads 一起清理）。
+    static func saveResumeData(_ data: Data, sourceURL: URL, version: String) {
+        let payload: [String: Any] = ["url": sourceURL.absoluteString, "data": data]
+        let url = resumeDataURL(version: version)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        (payload as NSDictionary).write(to: url)
+    }
+
+    /// 读取断点数据（无或损坏返回 nil）。
+    static func loadResumeData(version: String) -> (data: Data, sourceURL: URL)? {
+        let url = resumeDataURL(version: version)
+        guard let dict = NSDictionary(contentsOf: url),
+              let data = dict["data"] as? Data, !data.isEmpty,
+              let urlStr = dict["url"] as? String,
+              let source = URL(string: urlStr) else { return nil }
+        return (data, source)
+    }
+
+    /// 清除断点数据（下载成功或确认要从头重下时调用）。
+    static func clearResumeData(version: String) {
+        try? FileManager.default.removeItem(at: resumeDataURL(version: version))
+    }
+
     /// 从 url 下载并写入 destination（覆盖已有文件），返回 destination。
     ///
-    /// HTTP 非 2xx、内容不是 zip（IPA 实为 zip 包，防反代返回 200 的 HTML 错误页）
-    /// 都按失败抛出，由调用方换下一个候选源。
-    func download(from url: URL, to destination: URL) async throws -> URL {
+    /// - resumeData 非空时从断点续传（同一 URL 的中断点继续），失败或校验不过由调用方换策略。
+    /// - HTTP 非 2xx、内容不是 zip（IPA 实为 zip 包，防反代返回 200 的 HTML 错误页）
+    ///   都按失败抛出，由调用方换下一个候选源。
+    func download(from url: URL, to destination: URL, resumeData: Data? = nil) async throws -> URL {
         self.destination = destination
 
         let cfg = URLSessionConfiguration.ephemeral
         cfg.timeoutIntervalForRequest = 60     // 无数据进展的最大间隔
-        cfg.timeoutIntervalForResource = 300   // 单个源的整体上限
+        cfg.timeoutIntervalForResource = 300   // 单次尝试的整体上限（续传重试各自计时）
         let session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
         self.session = session
         defer {
@@ -407,7 +449,13 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
             self.task = nil
         }
 
-        let task = session.downloadTask(with: url)
+        // 优先续传；resumeData 无效（如源已变更）会立即报错，调用方回退为全新下载
+        let task: URLSessionDownloadTask
+        if let resumeData {
+            task = session.downloadTask(withResumeData: resumeData)
+        } else {
+            task = session.downloadTask(with: url)
+        }
         self.task = task
 
         _ = try await withTaskCancellationHandler(operation: {
@@ -472,7 +520,10 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         // 成功路径已由 didFinish 处理；error == nil 的收尾无需再动续体
         guard let error else { return }
-        resumeContinuation(with: .failure(error))
+        // 网络中断类失败携带 resumeData（HTTP 状态错误等没有），供调用方续传；
+        // 用户取消（NSURLErrorCancelled）也会走到这里，但调用方靠 Task.isCancelled 先行拦截
+        let rd = (task.error ?? error).userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+        resumeContinuation(with: .failure(DownloadError(message: error.localizedDescription, resumeData: rd)))
     }
 
     private func resumeContinuation(with result: Result<URL, Error>) {
@@ -578,10 +629,11 @@ final class UpdateStore: ObservableObject {
 
     // MARK: - IPA 下载（App 内下载 → 系统面板交给 TrollStore）
 
-    /// App 内下载 IPA：按候选顺序尝试（自有域名 → 后端反代 → GitHub），自动换源。
+    /// App 内下载 IPA：按候选顺序尝试（自有域名 → 后端反代 → GitHub），自动换源；
+    /// 同一源内网络中断优先**断点续传**（resumeData，跨启动也能续），反复失败才换源。
     ///
     /// 下载与 TrollStore 解耦：TrollStore 下载器无法换源、失败无提示，
-    /// 由 App 自己下载可以把进度、重试、换源都做进 UI 里。
+    /// 由 App 自己下载可以把进度、续传、重试、换源都做进 UI 里。
     func startDownload(latest: String, ipaURL: URL) {
         cancelDownload(rememberCancel: false)
         // 用户主动发起（或闲时任务启动）即清除该版本的取消记忆
@@ -592,6 +644,8 @@ final class UpdateStore: ObservableObject {
 
         let candidates = UpdateChecker.downloadCandidates(ipaURL: ipaURL, version: latest)
         let destination = IPAFileDownloader.destinationURL(version: latest)
+        // 上次（可能是上个启动会话）留下的断点：仅当源一致才能续传
+        let savedResume = IPAFileDownloader.loadResumeData(version: latest)
         let downloader = IPAFileDownloader { received, total in
             // 进度回调来自 URLSession 委托队列，跳回主线程刷新状态
             Task { @MainActor [weak self] in
@@ -604,19 +658,40 @@ final class UpdateStore: ObservableObject {
         self.downloader = downloader
 
         downloadTaskRef = Task { [weak self] in
-            var lastError: Error = IPAFileDownloader.DownloadError(message: "未知错误")
+            var lastError: Error = IPAFileDownloader.DownloadError(message: "未知错误", resumeData: nil)
             for candidate in candidates {
                 if Task.isCancelled { return }
-                do {
-                    let fileURL = try await downloader.download(from: candidate, to: destination)
-                    guard !Task.isCancelled else { return }
-                    self?.downloadState = .downloaded(fileURL: fileURL)
-                    return
-                } catch {
-                    // 任务被取消时 URLSession 报的是 NSURLErrorCancelled（非 CancellationError），
-                    // 统一靠 Task.isCancelled 识别，避免取消后被当成普通失败换源续传。
+                var resumeData: Data?
+                if let saved = savedResume, saved.sourceURL == candidate {
+                    resumeData = saved.data   // 跨启动续传
+                }
+                // 单个源最多 5 次尝试：1 次全新（或跨启动续传）+ 至多 4 次会话内续传重试
+                var attempts = 0
+                while attempts < 5 {
+                    attempts += 1
                     if Task.isCancelled { return }
-                    lastError = error
+                    do {
+                        let fileURL = try await downloader.download(from: candidate, to: destination, resumeData: resumeData)
+                        guard !Task.isCancelled else { return }
+                        IPAFileDownloader.clearResumeData(version: latest)
+                        self?.downloadState = .downloaded(fileURL: fileURL)
+                        return
+                    } catch {
+                        // 任务被取消时 URLSession 报的是 NSURLErrorCancelled（非 CancellationError），
+                        // 统一靠 Task.isCancelled 识别，避免取消后被当成普通失败换源续传。
+                        if Task.isCancelled { return }
+                        lastError = error
+                        // 有断点数据 → 落盘（下次启动也能续）并原地续传重试
+                        if let de = error as? IPAFileDownloader.DownloadError,
+                           let rd = de.resumeData, !rd.isEmpty {
+                            resumeData = rd
+                            IPAFileDownloader.saveResumeData(rd, sourceURL: candidate, version: latest)
+                            continue
+                        }
+                        // 无断点（HTTP 错误页 / 内容不合法）：清掉残留断点，换下一个源
+                        IPAFileDownloader.clearResumeData(version: latest)
+                        break
+                    }
                 }
             }
             guard !Task.isCancelled else { return }
