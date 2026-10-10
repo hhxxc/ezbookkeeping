@@ -1184,6 +1184,21 @@ private struct BillListPageView: View {
 
     private var grouped: [(date: Date, items: [Transaction])] {
         let cal = Calendar.current
+        // 搜索/筛选态（走 list.json）时后端可能返回相关性排序（如金额精确命中置顶），
+        // 采用「连续同一天保序分组」：只合并相邻同日行、不重排，保留后端顺序；
+        // 非搜索态（by_month 按月浏览）保持原按天倒序分组逻辑。
+        if vm.isFiltering {
+            var groups: [(date: Date, items: [Transaction])] = []
+            for tx in vm.transactions {
+                let day = cal.startOfDay(for: tx.date)
+                if let last = groups.last, last.date == day {
+                    groups[groups.count - 1].items.append(tx)
+                } else {
+                    groups.append((day, [tx]))
+                }
+            }
+            return groups
+        }
         let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
         return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
     }
@@ -1252,7 +1267,9 @@ private struct BillListPageView: View {
                     }
                 }
 
-                ForEach(grouped, id: \.date) { group in
+                // 保序分组下同一日期可能出现多个分组（相关性置顶组 + 时间倒序组），
+                // 不能用 \.date 作身份，改用索引
+                ForEach(Array(grouped.enumerated()), id: \.offset) { _, group in
                     Section(header: dayHeader(group.date, items: group.items)) {
                         ForEach(group.items) { tx in
                             TransactionRow(tx: tx, vm: vm)
