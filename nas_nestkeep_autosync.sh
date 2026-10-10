@@ -78,14 +78,35 @@ if [ -z "$LAST" ]; then
     exit 0
 fi
 
-# 2. 有新镜像：拉取并解包
+# 2. 有新镜像：拉取并解包。
+# 国内家宽直连 registry-1.docker.io 常超时（hub.docker.com 的 API 反而可达），
+# 与 deploy.sh 相同策略：直连失败依次回退镜像站，成功后改回标准 tag。
+PULL_MIRRORS="${NK_PULL_MIRRORS:-docker.m.daocloud.io dockerpull.org docker.1panel.live}"
+
+do_pull() {
+    if "$DOCKER_BIN" pull -q "$RELEASE_IMAGE:latest" >> "$LOG" 2>&1; then
+        return 0
+    fi
+    log "WARN: 直连拉取失败，尝试镜像站"
+    for mirror in $PULL_MIRRORS; do
+        if "$DOCKER_BIN" pull -q "$mirror/$RELEASE_IMAGE:latest" >> "$LOG" 2>&1; then
+            "$DOCKER_BIN" tag "$mirror/$RELEASE_IMAGE:latest" "$RELEASE_IMAGE:latest" >> "$LOG" 2>&1
+            "$DOCKER_BIN" rmi "$mirror/$RELEASE_IMAGE:latest" >/dev/null 2>&1
+            log "从镜像站 $mirror 拉取成功"
+            return 0
+        fi
+    done
+    return 1
+}
+
 log "发现新发版镜像 digest：$REMOTE（旧：$LAST），开始同步"
-if ! "$DOCKER_BIN" pull -q "$RELEASE_IMAGE:latest" >> "$LOG" 2>&1; then
-    log "ERROR: docker pull 失败，基线未更新，下轮重试"
+if ! do_pull; then
+    log "ERROR: 所有源拉取失败，基线未更新，下轮重试"
     exit 1
 fi
 
-CID=$("$DOCKER_BIN" create "$RELEASE_IMAGE:latest" 2>> "$LOG")
+# scratch 镜像无 CMD，create 需显式 entrypoint（仅创建容器不执行，任何值都可）
+CID=$("$DOCKER_BIN" create --entrypoint /bin/true "$RELEASE_IMAGE:latest" 2>> "$LOG")
 if [ -z "$CID" ]; then
     log "ERROR: docker create 失败，基线未更新，下轮重试"
     exit 1
@@ -94,6 +115,12 @@ fi
 mkdir -p "$DATA_DIR"
 "$DOCKER_BIN" cp "$CID":/data/. "$DATA_DIR/" >> "$LOG" 2>&1
 "$DOCKER_BIN" rm "$CID" >/dev/null 2>&1
+# docker cp 以 root 执行后文件属主变 root，会挡住以后 hhxxc 手动发版脚本的覆盖写；
+# 归还成发布目录原有的属主（失败不致命，忽略）
+DATA_OWNER=$(stat -c '%U:%G' "$DATA_DIR" 2>/dev/null)
+if [ -n "$DATA_OWNER" ]; then
+    chown -R "$DATA_OWNER" "$DATA_DIR" 2>/dev/null
+fi
 
 # 3. 校验：至少一份清单 + 最新 IPA 是 zip 头（防镜像/解包异常污染发布目录）
 if ! ls "$DATA_DIR"/latest-*.json >/dev/null 2>&1; then
