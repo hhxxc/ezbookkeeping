@@ -153,12 +153,12 @@ struct LoginView: View {
                 .font(.footnote)
                 .multilineTextAlignment(.leading)
         }
-        .foregroundColor(Theme.income)
+        .foregroundColor(.red)
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Theme.income.opacity(0.1))
+                .fill(Color.red.opacity(0.1))
         )
         .padding(.top, 14)
     }
@@ -273,7 +273,7 @@ struct LoginView: View {
                     }
 
                     if let message = forgetMessage {
-                        Section { Text(message).font(.footnote).foregroundColor(Theme.income) }
+                        Section { Text(message).font(.footnote).foregroundColor(.green) }
                     }
 
                     Section {

@@ -7,6 +7,12 @@ enum Theme {
     static let expense = Color(red: 0.90, green: 0.30, blue: 0.30)
     static let income = Color(red: 0.20, green: 0.70, blue: 0.42)
     static let pageBackground = Color(.systemGroupedBackground)
+
+    /// 登录页头部 Logo / 登录按钮渐变（青绿系，与品牌色同族）
+    static let aiGradient = LinearGradient(
+        colors: [Color(hex: "#26A69A"), Color(hex: "#4DB6AC")],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
 }
 
 /// 首页（Web `HomePage.vue`）专属调色板 —— 与 Web 的 `--hp-*` 设计令牌逐项对齐。
