@@ -592,6 +592,13 @@ struct TransactionsView: View {
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
+                        // 筛选态横幅：顶栏胶囊位于隐藏导航栏区域（iOS 15 push/pop 后
+                        // 该区域触摸偶发被吞、点不掉），这里在内容区首屏再给一个必可点按的清除入口
+                        if vm.isFiltering {
+                            filterBanner
+                                .padding(.top, 8)
+                                .padding(.bottom, 12)
+                        }
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
                             // 水平 17pt 沿用原 insetGrouped 的系统分组边距
@@ -635,8 +642,9 @@ struct TransactionsView: View {
                     }
                     .padding(.horizontal, 17)
                     // iOS 15：MainTabView 的 safeAreaInset 穿不透 NavigationView，
-                    // 内容末尾自行留出底栏高度 + 呼吸空间
-                    .padding(.bottom, tabBarInset + 16)
+                    // 内容末尾自行留出「底栏高度 + 底部安全区 + 呼吸空间」，
+                    // 否则最后一张卡（AI 识图/语音入口）会被底栏盖住
+                    .padding(.bottom, tabBarInset + ScreenMetrics.bottomSafeInset + 16)
                     // 隐藏右侧滚动指示条（iOS 15 上 UIScrollView.appearance 不生效，
                     // 通过 overlay 视图的响应链向上找到所属 UIScrollView 直接关闭）
                     // allowsHitTesting(false)：overlay 视图绝不能参与命中测试，否则页面点不动
@@ -835,6 +843,36 @@ struct TransactionsView: View {
                     Circle()
                         .fill(active ? Theme.brand.opacity(0.14) : Color.primary.opacity(0.05))
                 )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 筛选态横幅（内容区首屏、必可点按）：点击清除全部筛选与搜索关键词
+    private var filterBanner: some View {
+        Button {
+            vm.clearFilter()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                    .font(.system(size: 14))
+                Text("当前处于筛选状态")
+                    .font(.system(size: 13, weight: .medium))
+                Spacer()
+                HStack(spacing: 3) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("清除")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Theme.brand)
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

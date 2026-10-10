@@ -50,6 +50,19 @@ enum HomePalette {
     }
 }
 
+/// 屏幕度量辅助
+enum ScreenMetrics {
+    /// 底部安全区高度（Home 指示条区域；非全面屏设备为 0）。
+    /// iOS 15 上 MainTabView 的 safeAreaInset 穿不透 NavigationView，
+    /// 页面自行留底栏避让时除栏高外还须补上这段，否则末尾内容仍会被底栏盖住
+    static var bottomSafeInset: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let windows = scenes.flatMap { $0.windows }
+        let window = windows.first { $0.isKeyWindow } ?? windows.first
+        return window?.safeAreaInsets.bottom ?? 0
+    }
+}
+
 enum AmountFormat {
     /// 分 -> 本地化货币字符串
     static func format(_ cents: Int64, currency: String? = "CNY") -> String {

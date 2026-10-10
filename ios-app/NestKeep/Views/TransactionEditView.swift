@@ -356,6 +356,12 @@ struct TransactionEditView: View {
     @State private var showMoreSheet = false
     /// 当前展开「小类芯片行」的大类 id（nil=未展开）
     @State private var expandedPrimaryId: String?
+    /// 备注 / 分期名称输入框聚焦状态：任一聚焦即弹系统键盘，
+    /// 此时必须隐藏自绘数字键盘，否则两块键盘叠加占满整屏
+    @FocusState private var noteFieldFocused: Bool
+    @FocusState private var installmentFieldFocused: Bool
+    /// 系统键盘是否正在显示（备注或分期名称聚焦中）
+    private var systemKeyboardShown: Bool { noteFieldFocused || installmentFieldFocused }
     /// 「再记」成功后的轻提示
     @State private var flashText: String?
     /// 保存成功后的回调（识图页预填编辑场景：成功后从识别结果列表移除该条）
@@ -416,9 +422,11 @@ struct TransactionEditView: View {
                 .padding(.bottom, 14)
             }
 
-            keypad
+            keypadHiddenByKeyboard
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        // 键盘显隐切换平滑过渡（自绘键盘收起/恢复）
+        .animation(.easeInOut(duration: 0.18), value: systemKeyboardShown)
         .toolbar {
             // 备注输入的系统键盘加个「完成」
             ToolbarItemGroup(placement: .keyboard) {
@@ -797,6 +805,7 @@ struct TransactionEditView: View {
         VStack(alignment: .leading, spacing: 12) {
             TextField("分期名称（如：iPhone 分期）", text: $vm.installmentName)
                 .font(.system(size: 14))
+                .focused($installmentFieldFocused)
 
             HStack(spacing: 12) {
                 Text("期数")
@@ -888,6 +897,7 @@ struct TransactionEditView: View {
         HStack(spacing: 10) {
             TextField("点此输入备注...", text: $vm.comment)
                 .font(.system(size: 14))
+                .focused($noteFieldFocused)
             Spacer(minLength: 8)
             Text(displayAmount)
                 .font(.system(size: 26, weight: .semibold))
@@ -932,6 +942,16 @@ struct TransactionEditView: View {
     }
 
     // MARK: - 键盘
+
+    /// 备注等系统键盘弹出时隐藏自绘数字键盘（否则双键盘叠加占满整屏）；
+    /// 失焦后自绘键盘滑回。保持占位高度过渡平滑用 conditional + transition 即可
+    @ViewBuilder
+    private var keypadHiddenByKeyboard: some View {
+        if !systemKeyboardShown {
+            keypad
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
 
     private var keypad: some View {
         LazyVGrid(columns: keyColumns, spacing: 8) {
