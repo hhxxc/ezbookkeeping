@@ -550,6 +550,8 @@ struct TransactionsView: View {
     @State private var detail: Transaction?
     /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
     @State private var detailContext: RangeDetailContext?
+    /// 首页搜索入口：推入账单列表页时自动聚焦搜索框（消费后由 onChange 复位）
+    @State private var pushListWithSearch = false
     /// 账单列表独立页（点击汇总卡从右侧滑入）；筛选/搜索入口都在该页
     @State private var showListPage = false
     /// 列表 / 日历 两种浏览方式（对齐 Web 的 TransactionListPageType）
@@ -599,6 +601,29 @@ struct TransactionsView: View {
                             .padding(.top, 8)
                             .padding(.bottom, 12)
 
+                        // 检索框（首页入口）：样式与账单列表页搜索框一致，
+                        // 点击推入列表页并自动聚焦搜索框，不直接在首页输入
+                        Button {
+                            pushListWithSearch = true
+                            openListPage()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                                Text("搜索备注 / 金额")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(HomePalette.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 12)
+
                         periodCard
 
                         // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
@@ -617,6 +642,10 @@ struct TransactionsView: View {
                 .navigationBarHidden(true)
             }
             .refreshable { await vm.load() }
+            // 返回首页后复位搜索聚焦标记，下次普通点汇总卡不再弹键盘
+            .onChange(of: showListPage) { visible in
+                if !visible { pushListWithSearch = false }
+            }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             // 隐藏的编程式导航链接（iOS 15 手法）：三个二级页全部走系统 push
             .background(
@@ -638,7 +667,7 @@ struct TransactionsView: View {
                             editing = tx
                         }, onDetail: { tx in
                             detail = tx
-                        }),
+                        }, focusSearchOnAppear: pushListWithSearch),
                         isActive: $showListPage
                     ) { EmptyView() }
 
@@ -1074,7 +1103,10 @@ private struct BillListPageView: View {
     @ObservedObject var vm: TransactionsViewModel
     let onEdit: (Transaction) -> Void
     let onDetail: (Transaction) -> Void
+    /// 从首页搜索入口进入时自动聚焦搜索框并弹键盘
+    var focusSearchOnAppear: Bool = false
     @State private var showFilter = false
+    @FocusState private var searchFieldFocused: Bool
 
     private var grouped: [(date: Date, items: [Transaction])] {
         let cal = Calendar.current
@@ -1092,6 +1124,7 @@ private struct BillListPageView: View {
                         Image(systemName: "magnifyingglass").foregroundColor(.secondary)
                         TextField("搜索备注 / 金额", text: $vm.searchKeyword)
                             .textFieldStyle(.plain)
+                            .focused($searchFieldFocused)
                             .onChange(of: vm.searchKeyword) { _ in vm.scheduleSearch() }
                         if !vm.searchKeyword.isEmpty {
                             Button { vm.searchKeyword = ""; vm.scheduleSearch() } label: {
@@ -1107,6 +1140,12 @@ private struct BillListPageView: View {
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
+                    .onAppear {
+                        // 首页搜索入口进来时直接聚焦弹键盘
+                        if focusSearchOnAppear {
+                            searchFieldFocused = true
+                        }
+                    }
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
