@@ -155,7 +155,8 @@ final class AIReceiptViewModel: ObservableObject {
                     tagIds: item.tagIds ?? [],
                     pictureIds: [],
                     geoLocation: nil,
-                    clientSessionId: UUID().uuidString
+                    clientSessionId: UUID().uuidString,
+                    source: sourceKind
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
                     "/api/v1/transactions/add.json", method: .POST, body: req
@@ -259,6 +260,8 @@ struct AIReceiptView: View {
     var initialImages: [Data] = []
     /// 语音记账等入口预填的解析结果；非空时进页直接进确认/落库流程
     var initialResults: [ReceiptRecognizer.Recognized] = []
+    /// 来源标记（血缘）：识图=ai_image，语音=ai_speech，落库时随 add.json 上报
+    var sourceKind: String = "ai_image"
     @StateObject private var vm = AIReceiptViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showPicker = false

@@ -115,7 +115,7 @@ struct AIVoiceFlowModifier: ViewModifier {
                 AIVoiceView { results in flow.handleParsed(results) }
             }
             .sheet(isPresented: $flow.showResults, onDismiss: { onResultsDismiss?() }) {
-                AIReceiptView(initialResults: flow.parsedResults)
+                AIReceiptView(initialResults: flow.parsedResults, sourceKind: "ai_speech")
             }
     }
 }

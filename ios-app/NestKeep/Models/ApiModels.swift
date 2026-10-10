@@ -45,6 +45,8 @@ struct TransactionCreateRequest: Codable {
     let geoLocation: TransactionGeoLocation?
     /// 幂等去重用的客户端会话 id（后端 EnableDuplicateSubmissionsCheck 时生效）
     let clientSessionId: String
+    /// 交易来源（后端血缘标记，2026-10 起支持：ai_image / ai_speech，不传视为手动）
+    var source: String? = nil
 }
 
 /// 无返回体的成功响应占位
