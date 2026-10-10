@@ -11,7 +11,8 @@ final class AIVoiceViewModel: ObservableObject {
     /// 手动编辑后的文字（编辑时以手动为准，录音新结果只在编辑为空时覆盖）
     @Published var manualText: String?
     /// 识别准确时停顿即自动解析（说完就走）；关闭则停下确认/修改后手动解析
-    @Published var autoParse: Bool = UserDefaults.standard.bool(forKey: Self.autoParseKey)
+    /// 注意：存储属性默认值里不能引用 Self（covariant Self 限制，CI Xcode 26 编译报错），用类名显式引用
+    @Published var autoParse: Bool = UserDefaults.standard.bool(forKey: AIVoiceViewModel.autoParseKey)
 
     static let autoParseKey = "nestkeep.voiceAutoParse"
 
