@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -362,7 +363,22 @@ func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64,
 	sess = s.appendFilterTagIdsConditionToQuery(sess, uid, maxTransactionTime, minTransactionTime, tagFilters, noTags)
 
 	// Apply sorting
-	orderByClause := s.buildTransactionOrderByClause(sortBy, sortOrder)
+	// Keyword relevance: when the keyword can be parsed as an amount and the user
+	// has not chosen an explicit sort, put exact amount matches first, then keep
+	// time descending order inside each group.
+	orderByClause := ""
+	if sortBy == "" && keyword != "" {
+		if amountInCents, parseErr := utils.ParseAmount(keyword); parseErr == nil {
+			// amountInCents comes from a purely numeric parse, safe to inline
+			// (xorm OrderBy only accepts a plain string clause)
+			orderByClause = "CASE WHEN amount = " + strconv.FormatInt(amountInCents, 10) + " THEN 0 ELSE 1 END ASC, transaction_time DESC"
+		}
+	}
+
+	if orderByClause == "" {
+		orderByClause = s.buildTransactionOrderByClause(sortBy, sortOrder)
+	}
+
 	err = sess.Limit(int(actualCount), int(count*(page-1))).OrderBy(orderByClause).Find(&transactions)
 
 	return transactions, err
