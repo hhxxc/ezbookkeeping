@@ -625,14 +625,14 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
 
-    /// 压到长边 ≤1600px（像素）再编码 JPEG：识图模型对分辨率不敏感，截图原图 JPEG 有
-    /// 几百 KB，压缩后显著缩短弱网上行时间（超时的主要来源之一）
+    /// 压到长边 ≤1280px（像素）再编码 JPEG q0.75：识图模型对分辨率不敏感（小票文字
+    /// 在 1280 长边下仍清晰可读），相比 1600/q0.8 体积约减半，弱网上行时间同步减半
     private static func compressedData(_ image: UIImage) -> Data? {
         // image.size 是点，先换算成像素（@3x 截图 390×844pt 实为 1170×2532px）
         let pixelWidth = image.size.width * image.scale
         let pixelHeight = image.size.height * image.scale
         let longEdge = max(pixelWidth, pixelHeight)
-        let maxEdge: CGFloat = 1600
+        let maxEdge: CGFloat = 1280
         if longEdge > maxEdge {
             let ratio = maxEdge / longEdge
             let newSize = CGSize(width: pixelWidth * ratio, height: pixelHeight * ratio)
@@ -641,9 +641,9 @@ struct ReceiptPhotoPicker: UIViewControllerRepresentable {
             let scaled = UIGraphicsImageRenderer(size: newSize, format: format).image { _ in
                 image.draw(in: CGRect(origin: .zero, size: newSize))
             }
-            return scaled.jpegData(compressionQuality: 0.8)
+            return scaled.jpegData(compressionQuality: 0.75)
         }
-        return image.jpegData(compressionQuality: 0.8)
+        return image.jpegData(compressionQuality: 0.75)
     }
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
