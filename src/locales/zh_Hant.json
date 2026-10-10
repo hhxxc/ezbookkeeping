@@ -1985,6 +1985,8 @@
     "Duplicate (With Time)": "複製 (含時間)",
     "Duplicate (With Geographic Location)": "複製 (含地理位置)",
     "Duplicate (With Time and Geographic Location)": "複製 (含時間和地理位置)",
+    "Search by description or amount": "按描述或金額搜尋",
+    "Search Transactions": "搜尋帳單",
     "Snap a receipt, let AI record it": "拍張小票，AI 自動記帳",
     "AI Image Recognition": "AI識圖",
     "Unable to load image": "無法載入圖片",

@@ -230,6 +230,15 @@
             </f7-list-item>
         </f7-list>
 
+        <f7-link class="home-search-entry-card" href="/transaction/list?dateType=0">
+            <div class="home-ai-entry-icon home-search-entry-icon"><f7-icon f7="search"></f7-icon></div>
+            <div class="home-ai-entry-text">
+                <div class="home-ai-entry-title">{{ tt('Search Transactions') }}</div>
+                <div class="home-ai-entry-subtitle">{{ tt('Search by description or amount') }}</div>
+            </div>
+            <f7-icon class="home-ai-entry-chevron" f7="chevron_right"></f7-icon>
+        </f7-link>
+
         <div class="home-ai-entry-card" v-if="isTransactionFromAIImageRecognitionEnabled()"
              @click="pickAIImage">
             <div class="home-ai-entry-icon"><f7-icon f7="camera_fill"></f7-icon></div>
@@ -1038,6 +1047,29 @@ html.app-shell .tabbar.main-tabbar .toolbar-inner {
    钉在视口底部上方，任何滚动位置都悬在列表行上面（盖住"今年"一行）。
    让它随列表正常滚动，滚动到底的避让由上面 .page-content 的
    --f7-page-content-extra-padding-bottom 负责。 */
+/* 搜索入口卡：复用 AI 入口卡布局，链接样式需抵消 f7-link 默认（inline-flex/颜色） */
+.home-search-entry-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 16px 12px;
+    padding: 13px 14px;
+    background: var(--hp-card);
+    border-radius: var(--ebk-card-border-radius);
+    box-shadow: var(--hp-shadow);
+    cursor: pointer;
+    color: inherit;
+}
+
+.home-search-entry-card:active {
+    opacity: 0.75;
+}
+
+.home-search-entry-icon {
+    background: rgba(59, 130, 246, 0.13);
+    color: #3b82f6;
+}
+
 .home-ai-entry-card {
     display: flex;
     align-items: center;
