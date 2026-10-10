@@ -371,10 +371,12 @@ struct AccountsView: View {
         let liabilityColor: Color = hasBG ? .white : HomePalette.expense
 
         return VStack(alignment: .leading, spacing: 0) {
+            // 标题字阶/间距与主页汇总卡的月份标题一致（16 semibold + 底 6）
             Text("净资产")
-                .font(.system(size: 13))
-                .foregroundColor(labelColor)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(primaryText)
                 .modifier(HomeShadow(active: hasBG))
+                .padding(.bottom, 6)
 
             // 大金额 + 眼睛开关
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -395,35 +397,32 @@ struct AccountsView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.top, 3)
-            .padding(.bottom, 12)
+            .padding(.bottom, 10)
 
-            Rectangle()
-                .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
-                .frame(height: 1)
-                .padding(.bottom, 12)
-
-            HStack(spacing: 6) {
-                Text("总资产").font(.system(size: 13)).foregroundColor(labelColor)
-                    .modifier(HomeShadow(active: hasBG))
-                Text(masked(AmountFormat.format(vm.totalAssetsCents)))
-                    .font(.system(size: 15, weight: .semibold)).monospacedDigit()
-                    .foregroundColor(assetColor).lineLimit(1).minimumScaleFactor(0.6)
-                    .modifier(HomeShadow(active: hasBG))
+            // 总资产 / 总负债双列（对齐主页汇总卡的 metricCell 结构：
+            // 标签上、金额下，列间 1pt 竖分隔线），两页卡片高度/节奏完全一致
+            HStack(alignment: .top, spacing: 0) {
+                metricCell(label: "总资产",
+                           value: masked(AmountFormat.format(vm.totalAssetsCents)),
+                           valueColor: assetColor,
+                           labelColor: labelColor,
+                           shadow: hasBG)
                 Rectangle()
                     .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
-                    .frame(width: 1, height: 12)
-                Text("总负债").font(.system(size: 13)).foregroundColor(labelColor)
-                    .modifier(HomeShadow(active: hasBG))
-                Text(masked(AmountFormat.format(vm.totalLiabilitiesCents)))
-                    .font(.system(size: 15, weight: .semibold)).monospacedDigit()
-                    .foregroundColor(liabilityColor).lineLimit(1).minimumScaleFactor(0.6)
-                    .modifier(HomeShadow(active: hasBG))
+                    .frame(width: 1)
+                    .padding(.trailing, 16)
+                metricCell(label: "总负债",
+                           value: masked(AmountFormat.format(vm.totalLiabilitiesCents)),
+                           valueColor: liabilityColor,
+                           labelColor: labelColor,
+                           shadow: hasBG)
                 Spacer(minLength: 0)
             }
+            .padding(.top, 12)
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
@@ -442,9 +441,28 @@ struct AccountsView: View {
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
     }
 
-    /// 金额隐藏时显示 ****
+    /// 金额隐藏时显示 ＊＊＊＊（与主页汇总卡占位符同款全角星号）
     private func masked(_ text: String) -> String {
-        vm.hideAmounts ? "****" : text
+        vm.hideAmounts ? "＊＊＊＊" : text
+    }
+
+    /// 指标单元（标签上、金额下），与主页汇总卡 metricCell 同款
+    private func metricCell(label: String, value: String,
+                            valueColor: Color, labelColor: Color, shadow: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundColor(labelColor)
+                .modifier(HomeShadow(active: shadow))
+            Text(verbatim: value)
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(valueColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .modifier(HomeShadow(active: shadow))
+        }
+        .padding(.trailing, 16)
     }
 
     // MARK: - 账户行（含子账户嵌套）
