@@ -160,16 +160,6 @@ export function ofObject<T>(object: T): T {
     return object;
 }
 
-export function getNumberValue(value: unknown, defaultValue: number): number {
-    if (isString(value)) {
-        return parseInt(value, 10);
-    } else if (isNumber(value)) {
-        return value;
-    } else {
-        return defaultValue;
-    }
-}
-
 export function sortNumbersArray(array: number[]): number[] {
     return array.sort(function (num1, num2) {
         return num1 - num2;
