@@ -164,7 +164,9 @@ enum UpdateChecker {
         var req = URLRequest(url: url)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("NestKeep-iOS", forHTTPHeaderField: "User-Agent")
-        req.timeoutInterval = 15
+        // 无代理设备直连 api.github.com 常被墙：8s 内没回就放弃该来源（后端清单通常秒回，
+        // 检查不至于被 GitHub 拖满十几秒才出结果）
+        req.timeoutInterval = 8
 
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let releases = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
@@ -210,12 +212,14 @@ enum UpdateChecker {
 
     /// 构造按优先级排序的 IPA 下载候选地址：
     ///
-    /// 1. 自有域名（NAS 直链 / 后端中转）永远最优：国内可达、不经 GitHub；
-    /// 2. 给定的是 GitHub 直链时（清单滞后、GitHub 来源胜出的场景），在**前面**插入
-    ///    后端反代 `{serverURL}/api/proxy/github/download?url=<原始链接>`，
-    ///    由 NAS 服务端代下载，手机仍然不直连 github.com；
-    /// 3. 给定的是自有域名且文件是 .ipa 时（发布脚本按 GitHub 资产原名上传），
-    ///    在**后面**补反代 + GitHub 原链，作为 NAS 文件缺失时的兜底。
+    /// 手机（无代理）直连 github.com / objects.githubusercontent.com 大概率被墙：
+    /// 无进展 hang 满超时才报错，是「更新总是卡」的根因。故 GitHub 直链永远排最后兜底：
+    ///
+    /// 1. 给定的是自有域名直链 → 排第一（NAS 直下，国内秒下）；
+    /// 2. 给定的是 GitHub 直链（清单滞后、GitHub 来源胜出的场景）→ 依次尝试：
+    ///    a. NAS 同名直链（发布脚本按 GitHub 资产原名上传；该版本没上传过时 404 快速失败）；
+    ///    b. 后端反代 {serverURL}/api/proxy/github/download?url=…（服务端代下，路由未实现时快速失败）；
+    ///    c. GitHub 原链（有代理/能直连的设备才能走通，保底）。
     static func downloadCandidates(ipaURL: URL, version: String) -> [URL] {
         var candidates: [URL] = []
         func push(_ url: URL?) {
@@ -223,19 +227,33 @@ enum UpdateChecker {
             candidates.append(url)
         }
 
-        push(ipaURL)
         let host = ipaURL.host?.lowercased() ?? ""
         let ownHost = AppSettings.shared.serverURL.host?.lowercased() ?? ""
 
         if host == "github.com" || host == "objects.githubusercontent.com" {
+            push(nestKeepFileURL(fileName: ipaURL.lastPathComponent))
             push(gitHubProxyURL(ipaURL))
+            push(ipaURL)
         } else if !ownHost.isEmpty && host == ownHost,
                   ipaURL.lastPathComponent.lowercased().hasSuffix(".ipa"),
                   let gh = URL(string: "https://github.com/\(repo)/releases/download/v\(version)/\(ipaURL.lastPathComponent)") {
+            push(ipaURL)
             push(gitHubProxyURL(gh))
             push(gh)
+        } else {
+            push(ipaURL)
         }
         return candidates
+    }
+
+    /// NAS 上的同名静态文件直链（发布脚本按 GitHub 资产原名上传，经 /api/nestkeep/ 下发）；
+    /// 该版本尚未上传到 NAS 时服务端 404，调用方快速换下一个候选源
+    private static func nestKeepFileURL(fileName: String) -> URL? {
+        guard !fileName.isEmpty else { return nil }
+        var comp = URLComponents(url: AppSettings.shared.serverURL.appendingPathComponent("api/nestkeep/\(fileName)"),
+                                 resolvingAgainstBaseURL: false)
+        comp?.query = nil
+        return comp?.url
     }
 
     /// 把 GitHub 直链包一层后端反代（{serverURL}/api/proxy/github/download?url=…）。
@@ -348,6 +366,10 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         /// URLSession 提供的断点续传数据（仅网络中断类失败会有；HTTP 状态错误没有）。
         /// 供调用方在同一源上续传，而不是从头重下。
         var resumeData: Data? = nil
+        /// 无进展超时（NSURLErrorTimedOut）：说明该源当前根本连不上
+        /// （典型：无代理设备直连 GitHub 被墙），原地续传重试只会继续 hang，
+        /// 调用方应直接换下一个候选源。
+        var isTimeout: Bool = false
         var errorDescription: String? { message }
     }
 
@@ -439,7 +461,7 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         self.destination = destination
 
         let cfg = URLSessionConfiguration.ephemeral
-        cfg.timeoutIntervalForRequest = 60     // 无数据进展的最大间隔
+        cfg.timeoutIntervalForRequest = 20     // 无数据进展的最大间隔（被墙直连 hang 20s 就放弃换源）
         cfg.timeoutIntervalForResource = 300   // 单次尝试的整体上限（续传重试各自计时）
         let session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
         self.session = session
@@ -523,8 +545,11 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         // 网络中断类失败携带 resumeData（HTTP 状态错误等没有），供调用方续传；
         // 用户取消（NSURLErrorCancelled）也会走到这里，但调用方靠 Task.isCancelled 先行拦截
         let nsError = (task.error ?? error) as NSError
+        let isTimeout = nsError.code == NSURLErrorTimedOut
         let rd = nsError.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
-        resumeContinuation(with: .failure(DownloadError(message: error.localizedDescription, resumeData: rd)))
+        resumeContinuation(with: .failure(DownloadError(message: error.localizedDescription,
+                                                        resumeData: rd,
+                                                        isTimeout: isTimeout)))
     }
 
     private func resumeContinuation(with result: Result<URL, Error>) {
@@ -682,12 +707,19 @@ final class UpdateStore: ObservableObject {
                         // 统一靠 Task.isCancelled 识别，避免取消后被当成普通失败换源续传。
                         if Task.isCancelled { return }
                         lastError = error
-                        // 有断点数据 → 落盘（下次启动也能续）并原地续传重试
-                        if let de = error as? IPAFileDownloader.DownloadError,
-                           let rd = de.resumeData, !rd.isEmpty {
-                            resumeData = rd
-                            IPAFileDownloader.saveResumeData(rd, sourceURL: candidate, version: latest)
-                            continue
+                        if let de = error as? IPAFileDownloader.DownloadError {
+                            // 超时 = 该源当前连不上（典型：无代理直连 GitHub 被墙），
+                            // 原地续传只会继续 hang 满超时，直接换下一个源
+                            if de.isTimeout {
+                                IPAFileDownloader.clearResumeData(version: latest)
+                                break
+                            }
+                            // 有断点数据 → 落盘（下次启动也能续）并原地续传重试
+                            if let rd = de.resumeData, !rd.isEmpty {
+                                resumeData = rd
+                                IPAFileDownloader.saveResumeData(rd, sourceURL: candidate, version: latest)
+                                continue
+                            }
                         }
                         // 无断点（HTTP 错误页 / 内容不合法）：清掉残留断点，换下一个源
                         IPAFileDownloader.clearResumeData(version: latest)
