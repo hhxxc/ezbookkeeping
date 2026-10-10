@@ -412,7 +412,7 @@ final class IPAFileDownloader: NSObject, URLSessionDownloadDelegate {
         let payload: [String: Any] = ["url": sourceURL.absoluteString, "data": data]
         let url = resumeDataURL(version: version)
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        (payload as NSDictionary).write(to: url)
+        try? (payload as NSDictionary).write(to: url)
     }
 
     /// 读取断点数据（无或损坏返回 nil）。
