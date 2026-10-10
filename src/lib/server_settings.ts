@@ -4,25 +4,63 @@ function getServerSetting(key: string): string | number | boolean | Record<strin
 }
 
 export async function loadRemoteServerSettings(): Promise<void> {
-    const apiBaseUrl = window.EZBOOKKEEPING_SERVER_SETTINGS?.apiBaseUrl;
-    if (!apiBaseUrl) return;
+    const url = getRemoteServerSettingsUrl();
 
-    const baseUrl = (apiBaseUrl as string).replace(/\/+$/, '');
-    const url = baseUrl + '/mobile/server_settings.js';
+    if (!url) return;
 
+    // 失败重试 2 次（间隔 1s/2s）：iOS 壳冷启动时隧道/NAS 可能还没就绪，
+    // 静默失败会让 llmt 等开关整场缺失（AI 入口卡消失）
     return new Promise((resolve) => {
-        const script = document.createElement('script');
-        script.src = url;
-        script.onload = () => {
-            document.head.removeChild(script);
-            resolve();
+        const tryLoad = (attempt: number) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = () => {
+                document.head.removeChild(script);
+                resolve();
+            };
+            script.onerror = () => {
+                document.head.removeChild(script);
+                if (attempt < 2) {
+                    setTimeout(() => tryLoad(attempt + 1), 1000 * (attempt + 1));
+                } else {
+                    resolve();
+                }
+            };
+            document.head.appendChild(script);
         };
-        script.onerror = () => {
-            document.head.removeChild(script);
-            resolve();
-        };
-        document.head.appendChild(script);
+        tryLoad(0);
     });
+}
+
+/// 远程设置的地址：老版本依赖 window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl，
+/// 但后端从未在该脚本里下发过这个字段（只有 API Token 响应才有），
+/// 导致本函数永远静默跳过、llmt 永远缺失（AI 识图入口一直不出现的根因）。
+/// 实际页面与 API 同源，直接按当前路径推导即可。
+function getRemoteServerSettingsUrl(): string | null {
+    const apiBaseUrl = window.EZBOOKKEEPING_SERVER_SETTINGS?.apiBaseUrl;
+
+    if (apiBaseUrl) {
+        return (apiBaseUrl as string).replace(/\/+$/, '') + '/mobile/server_settings.js';
+    }
+
+    const path = window.location.pathname.replace(/\/+$/, '');
+
+    if (path.endsWith('/mobile') || path.endsWith('/desktop')) {
+        return path + '/server_settings.js';
+    }
+
+    if (path === '' || path === '/') {
+        return '/server_settings.js';
+    }
+
+    // 未知路径（如直接打开 /index.html）：按相对路径兜底
+    const lastSlashIndex = path.lastIndexOf('/');
+
+    if (lastSlashIndex < 0) {
+        return '/server_settings.js';
+    }
+
+    return path.substring(0, lastSlashIndex) + '/server_settings.js';
 }
 
 export function isInternalAuthEnabled(): boolean {
