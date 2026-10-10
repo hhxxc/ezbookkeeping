@@ -10,6 +10,15 @@ final class AIVoiceViewModel: ObservableObject {
     @Published var error: String?
     /// 手动编辑后的文字（编辑时以手动为准，录音新结果只在编辑为空时覆盖）
     @Published var manualText: String?
+    /// 识别准确时停顿即自动解析（说完就走）；关闭则停下确认/修改后手动解析
+    @Published var autoParse: Bool = UserDefaults.standard.bool(forKey: Self.autoParseKey)
+
+    static let autoParseKey = "nestkeep.voiceAutoParse"
+
+    func setAutoParse(_ on: Bool) {
+        autoParse = on
+        UserDefaults.standard.set(on, forKey: Self.autoParseKey)
+    }
 
     private var cancellables: Set<AnyCancellable> = []
 
@@ -41,9 +50,11 @@ final class AIVoiceViewModel: ObservableObject {
         }
     }
 
-    /// 停顿自动停止 → 只停止录音，文字上屏供确认/修改，点「解析成账单」按钮再解析
-    /// （识别结果可能不准，直接自动解析会来不及修正）
-    func handleAutoStop() {}
+    /// 停顿自动停止：开着自动解析就直接解析，否则只停录音、等确认按钮
+    func handleAutoStop() {
+        guard autoParse else { return }
+        Task { await parseIfNeeded() }
+    }
 
     func parseIfNeeded() async {
         guard hasText, !isParsing else { return }
@@ -139,6 +150,19 @@ struct AIVoiceView: View {
                 ))
                 .textFieldStyle(.roundedBorder)
                 .padding(.horizontal, 16)
+
+                // 自动解析开关：识别准就说完即走，不准就关掉留修改窗口
+                Toggle(isOn: Binding(get: { vm.autoParse }, set: { vm.setAutoParse($0) })) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("说完自动解析")
+                            .font(.subheadline)
+                        Text("开启后停顿即解析；关闭可先确认修改文字")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .tint(Theme.brand)
+                .padding(.horizontal, 24)
 
                 Spacer()
                 Spacer()
