@@ -17,7 +17,8 @@ enum ReceiptRecognizer {
         let time: Int64?
         /// 后端 `,string` 序列化为字符串
         let categoryId: String?
-        let sourceAccountId: String?
+        /// var 以支持确认页就地改支付账户（每条订单可单独选渠道）
+        var sourceAccountId: String?
         let destinationAccountId: String?
         /// 金额为 int64 分
         let sourceAmount: Int64?

@@ -187,6 +187,15 @@ final class AIReceiptViewModel: ObservableObject {
         return accounts.first { $0.id == id }?.name ?? "未匹配账户"
     }
 
+    /// 确认页每条订单就地切换支付账户时可选的账户（隐藏账户不出现）
+    var selectableAccounts: [Account] { accounts.filter { !($0.hidden ?? false) } }
+
+    /// 就地修改某条识别结果的支付账户（按 id 定位，不影响勾选状态）
+    func setSourceAccount(_ accountId: String, for item: ReceiptRecognizer.Recognized) {
+        guard let index = results.firstIndex(where: { $0.id == item.id }) else { return }
+        results[index].sourceAccountId = accountId
+    }
+
     func categoryName(_ id: String?) -> String {
         guard let id = id else { return "未识别" }
         for c in categories {
@@ -500,8 +509,29 @@ struct AIReceiptView: View {
                 }
                 Label(vm.categoryName(vm.displayCategoryId(item)), systemImage: "square.grid.2x2")
                     .font(.footnote).foregroundColor(.secondary)
-                Label(vm.accountName(vm.displayAccountId(item.sourceAccountId)), systemImage: "creditcard")
-                    .font(.footnote).foregroundColor(.secondary)
+                // 支付账户：点开菜单可就地切换（每条订单独立），落库按所选账户
+                Menu {
+                    ForEach(vm.selectableAccounts, id: \.id) { acc in
+                        Button {
+                            vm.setSourceAccount(acc.id, for: item)
+                        } label: {
+                            if acc.id == vm.displayAccountId(item.sourceAccountId) {
+                                Label(acc.name, systemImage: "checkmark")
+                            } else {
+                                Text(acc.name)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "creditcard")
+                        Text(vm.accountName(vm.displayAccountId(item.sourceAccountId)))
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                }
                 if let comment = item.comment, !comment.isEmpty {
                     Label(comment, systemImage: "text.alignleft")
                         .font(.footnote).foregroundColor(.secondary).lineLimit(2)
