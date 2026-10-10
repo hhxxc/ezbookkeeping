@@ -1108,7 +1108,7 @@ function init(): void {
         tagFilter: initQuery['tagFilter'],
         amountFilter: initQuery['amountFilter'],
         keyword: initQuery['keyword'],
-        sortBy: initQuery['sortBy'] || 'time',
+        sortBy: initQuery['sortBy'] || '',
         sortOrder: initQuery['sortOrder'] || 'desc'
     });
 

@@ -1133,7 +1133,7 @@ function init(initProps: TransactionListProps): void {
         tagFilter: initProps.initTagFilter,
         amountFilter: initProps.initAmountFilter || '',
         keyword: initProps.initKeyword || '',
-        sortBy: initProps.initSortBy || 'time',
+        sortBy: initProps.initSortBy || '',
         sortOrder: initProps.initSortOrder || 'desc'
     });
 

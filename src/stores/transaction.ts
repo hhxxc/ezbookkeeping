@@ -227,11 +227,18 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     continue;
                 }
 
-                for (let j = 0; j < transactions.value.length; j++) {
-                    if (transactions.value[j]!.year === transactionYear && transactions.value[j]!.month === transactionMonth) {
-                        currentMonthListIndex = j;
-                        currentMonthList = transactions.value[j] as TransactionMonthList;
-                        break;
+                // 关键字搜索时后端可能返回相关性排序（金额精确命中置顶），
+                // 分组需保序：仅合并相邻同月，不与前面已出现过的同月组合并，
+                // 避免把后端的排序顺序打散；非搜索态保持原合并逻辑（by_month 分页语义）
+                const keepBackendOrder = !!transactionsFilter.value.keyword;
+
+                if (!keepBackendOrder) {
+                    for (let j = 0; j < transactions.value.length; j++) {
+                        if (transactions.value[j]!.year === transactionYear && transactions.value[j]!.month === transactionMonth) {
+                            currentMonthListIndex = j;
+                            currentMonthList = transactions.value[j] as TransactionMonthList;
+                            break;
+                        }
                     }
                 }
 
