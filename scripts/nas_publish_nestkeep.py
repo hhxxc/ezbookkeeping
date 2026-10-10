@@ -157,8 +157,8 @@ def main():
     ap.add_argument("--notes", default="", help="更新说明")
     ap.add_argument("--cred", default=CRED_FILE, help="NAS 凭据文件")
     ap.add_argument("--host", default=DEFAULT_SSH_HOST, help="NAS SSH 地址")
-    ap.add_argument("--flavor", default="dev", choices=["dev", "stable"],
-                    help="变体：dev=巢记+ / stable=巢记+ 稳定版。各自写 latest-<flavor>.json，"
+    ap.add_argument("--flavor", default="dev", choices=["dev", "stable", "pro"],
+                    help="变体：dev=巢记+ / stable=巢记+ 稳定版 / pro=巢记Pro。各自写 latest-<flavor>.json，"
                          "App 按自身 Bundle ID 读取本变体清单，避免跨变体互相提示更新")
     ap.add_argument("--no-upload-ipa", action="store_true",
                     help="只更新清单，不上传 IPA 文件")
@@ -166,8 +166,8 @@ def main():
 
     version = args.version.lstrip("vV")
     flavor = args.flavor
-    # stable 变体的 Release tag 带 -stable 后缀（见 build-native-ios.yml）
-    tag = "v" + version + ("-stable" if flavor == "stable" else "")
+    # stable/pro 变体的 Release tag 带变体后缀（见 build-native-ios.yml）
+    tag = "v" + version + ("" if flavor == "dev" else f"-{flavor}")
 
     # 1) 准备本地 IPA
     ipa_path = args.ipa
@@ -228,7 +228,7 @@ def main():
                 continue
             # 变体号出现在文件名里（NestKeep-<flavor>-...）；无变体号的旧命名一律视为可清
             is_same_flavor = f"-{flavor}-" in name or not any(
-                f"-{f}-" in name for f in ("dev", "stable"))
+                f"-{f}-" in name for f in ("dev", "stable", "pro"))
             if is_same_flavor:
                 print(f"    清理本变体旧包 {name}")
                 ssh_exec(cli, f"rm -f '{REMOTE_DIR}/{name}'")

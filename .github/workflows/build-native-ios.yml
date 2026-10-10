@@ -12,9 +12,10 @@ name: Build NestKeep Native IPA (TrollStore)
 #     留空则同样按 patch+1 自动推进。
 #
 # 变体（flavor）：
-#   dev    → 巢记+        Bundle ID com.nestkeep.app.dev     （日常开发用）
-#   stable → 巢记+ 稳定版  Bundle ID com.nestkeep.app.stable （长期稳定用）
-#   两者 Bundle ID 不同，可同时安装、互不覆盖；更新清单也各自独立。
+#   dev    → 巢记+      Bundle ID com.nestkeep.app.dev     （日常开发用）
+#   stable → 巢记+ 稳定版 Bundle ID com.nestkeep.app.stable （长期稳定用）
+#   pro    → 巢记Pro    Bundle ID com.nestkeep.app.pro     （Pro 视觉线，native-ios-ui-pro 分支）
+#   三者 Bundle ID 不同，可同时安装、互不覆盖；更新清单也各自独立。
 #   注意：网页壳（Capacitor）是第三个 App，Bundle ID com.nestkeep.app，本工作流不涉及。
 #
 # 出包文件名：NestKeep-<flavor>-v<语义版本>.ipa（与 Release 版本号一致，如 NestKeep-dev-v1.6.22.ipa）
@@ -25,6 +26,7 @@ on:
     branches:
       - main
       - native-ios-app
+      - native-ios-ui-pro
     # 关键提示：packages 里写 'ios-app/**' 覆盖该目录下全部文件（含 Info.plist、
     # gen_pbxproj.py、Assets.xcassets）。若以后要新增其他关键文件，务必一并列入。
     paths:
@@ -43,12 +45,13 @@ on:
         type: string
         default: ''
       flavor:
-        description: '构建哪个变体：dev=巢记+（开发版，com.nestkeep.app.dev）/ stable=巢记+ 稳定版（com.nestkeep.app.stable）。两者可同时安装，互不覆盖'
+        description: '构建哪个变体：dev=巢记+ / stable=巢记+ 稳定版 / pro=巢记Pro。三者 Bundle ID 不同，可同时安装，互不覆盖'
         required: false
         type: choice
         options:
           - dev
           - stable
+          - pro
         default: dev
 
 permissions:
@@ -59,7 +62,8 @@ jobs:
   build:
     runs-on: macos-latest
     env:
-      FLAVOR: ${{ github.event.inputs.flavor || 'dev' }}
+      # push 到 native-ios-ui-pro（Pro 视觉线）时自动用 pro 变体，避免默认 dev 覆盖巢记+
+      FLAVOR: ${{ github.event.inputs.flavor || (github.ref_name == 'native-ios-ui-pro' && 'pro') || 'dev' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -76,6 +80,10 @@ jobs:
             stable)
               echo "bundle_id=com.nestkeep.app.stable" >> "$GITHUB_OUTPUT"
               echo "display_name=巢记+ 稳定版" >> "$GITHUB_OUTPUT"
+              ;;
+            pro)
+              echo "bundle_id=com.nestkeep.app.pro" >> "$GITHUB_OUTPUT"
+              echo "display_name=巢记Pro" >> "$GITHUB_OUTPUT"
               ;;
             *)
               echo "bundle_id=com.nestkeep.app.dev" >> "$GITHUB_OUTPUT"
@@ -127,6 +135,7 @@ jobs:
           # 导致永远提示有更新（历史教训）。
           SUFFIX=""
           if [ "$FLAVOR" = "stable" ]; then SUFFIX="-stable"; fi
+          if [ "$FLAVOR" = "pro" ]; then SUFFIX="-pro"; fi
 
           MANUAL="${{ github.event.inputs.app_version }}"
           if [ -n "$MANUAL" ]; then
@@ -266,7 +275,7 @@ jobs:
       - name: Publish semantic version release (for in-app update check)
         # push 到 native-ios-app（原生 App 主分支）或手动 dispatch 都发语义版本 Release，
         # 供 App 内「检查更新」识别。main 分支是 Web 后端，不改动原生 App，不发版。
-        if: github.event_name == 'workflow_dispatch' || github.ref_name == 'native-ios-app'
+        if: github.event_name == 'workflow_dispatch' || github.ref_name == 'native-ios-app' || github.ref_name == 'native-ios-ui-pro'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

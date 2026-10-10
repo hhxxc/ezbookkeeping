@@ -36,6 +36,7 @@ enum UpdateChecker {
     static var channel: String {
         let bid = Bundle.main.bundleIdentifier ?? ""
         if bid.hasSuffix(".stable") { return "stable" }
+        if bid.hasSuffix(".pro") { return "pro" }
         return "dev"
     }
 
@@ -280,22 +281,25 @@ enum UpdateChecker {
 
     /// 从 release tag 解析出「核心版本号 + 变体」。
     ///
-    /// 支持：`v1.6.5`（dev）、`1.6.5`（dev）、`v1.6.5-stable` / `1.6.5-stable`（stable）。
+    /// 支持：`v1.6.5`（dev）、`1.6.5`（dev）、`v1.6.5-stable`（stable）、`v1.6.5-pro`（pro）。
     /// 返回 nil 表示不是本 App 的语义版本 tag（环境 tag、旧四段 tag 等）。
     private struct ParsedTag {
         let version: String   // 纯 x.y.z
-        let variant: String   // "dev" / "stable"
+        let variant: String   // "dev" / "stable" / "pro"
     }
 
     private static func parseVersionTag(_ raw: String) -> ParsedTag? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.hasPrefix("v") || s.hasPrefix("V") { s.removeFirst() }
 
-        // 拆分变体后缀：-stable / -dev / 无后缀（缺省 dev）
+        // 拆分变体后缀：-stable / -pro / -dev / 无后缀（缺省 dev）
         var variant = "dev"
         if s.hasSuffix("-stable") {
             variant = "stable"
             s = String(s.dropLast("-stable".count))
+        } else if s.hasSuffix("-pro") {
+            variant = "pro"
+            s = String(s.dropLast("-pro".count))
         } else if s.hasSuffix("-dev") {
             variant = "dev"
             s = String(s.dropLast("-dev".count))
