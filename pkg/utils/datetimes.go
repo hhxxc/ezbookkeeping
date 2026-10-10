@@ -11,12 +11,9 @@ import (
 const (
 	longDateFormat                        = "2006-01-02"
 	longDateTimeFormat                    = "2006-01-02 15:04:05"
-	longDateTimeWithTimezoneFormat        = "2006-01-02 15:04:05Z07:00"
 	longDateTimeWithTimezoneFormat2       = "2006-01-02 15:04:05 Z0700"
 	longDateTimeWithTimezoneRFC3339Format = "2006-01-02T15:04:05Z07:00"
 	longDateTimeWithoutSecondFormat       = "2006-01-02 15:04"
-	shortDateTimeFormat                   = "2006-1-2 15:4:5"
-	yearMonthDateTimeFormat               = "2006-01"
 	westernmostTimezoneUtcOffset          = -720 // Etc/GMT+12 (UTC-12:00)
 	easternmostTimezoneUtcOffset          = 840  // Pacific/Kiritimati (UTC+14:00)
 )
@@ -64,17 +61,6 @@ func FormatUnixTimeToLongDateTime(unixTime int64, timezone *time.Location) strin
 	}
 
 	return t.Format(longDateTimeFormat)
-}
-
-// FormatUnixTimeToLongDateTimeWithTimezone returns a textual representation of the unix time formatted by long date time with timezone format
-func FormatUnixTimeToLongDateTimeWithTimezone(unixTime int64, timezone *time.Location) string {
-	t := parseFromUnixTime(unixTime)
-
-	if timezone != nil {
-		t = t.In(timezone)
-	}
-
-	return t.Format(longDateTimeWithTimezoneFormat)
 }
 
 // FormatUnixTimeToLongDateTimeWithTimezoneRFC3339Format returns a textual representation of the unix time formatted by long date time with timezone RFC 3339 format
@@ -131,17 +117,6 @@ func FormatUnixTimeToLongDateTimeWithoutSecond(unixTime int64, timezone *time.Lo
 	}
 
 	return t.Format(longDateTimeWithoutSecondFormat)
-}
-
-// FormatUnixTimeToYearMonth returns year and month of specified unix time
-func FormatUnixTimeToYearMonth(unixTime int64, timezone *time.Location) string {
-	t := parseFromUnixTime(unixTime)
-
-	if timezone != nil {
-		t = t.In(timezone)
-	}
-
-	return t.Format(yearMonthDateTimeFormat)
 }
 
 // FormatUnixTimeToNumericYearMonth returns numeric year and month of specified unix time
@@ -224,20 +199,9 @@ func ParseFromLongDateTimeToMaxUnixTime(t string) (time.Time, error) {
 	return time.ParseInLocation(longDateTimeFormat, t, timezone)
 }
 
-// ParseFromLongDateTimeInFixedUtcOffset parses a formatted string in long date time format
-func ParseFromLongDateTimeInFixedUtcOffset(t string, utcOffset int16) (time.Time, error) {
-	timezone := time.FixedZone("Timezone", int(utcOffset)*60)
-	return time.ParseInLocation(longDateTimeFormat, t, timezone)
-}
-
 // ParseFromLongDateTimeInTimeZone parses a formatted string in long date time format
 func ParseFromLongDateTimeInTimeZone(t string, timezone *time.Location) (time.Time, error) {
 	return time.ParseInLocation(longDateTimeFormat, t, timezone)
-}
-
-// ParseFromLongDateTimeWithTimezone parses a formatted string in long date time format
-func ParseFromLongDateTimeWithTimezone(t string) (time.Time, error) {
-	return time.Parse(longDateTimeWithTimezoneFormat, t)
 }
 
 // ParseFromLongDateTimeWithTimezone2 parses a formatted string in long date time format
@@ -248,18 +212,6 @@ func ParseFromLongDateTimeWithTimezone2(t string) (time.Time, error) {
 // ParseFromLongDateTimeWithTimezoneRFC3339Format parses a formatted string in long date time RFC 3378 format
 func ParseFromLongDateTimeWithTimezoneRFC3339Format(t string) (time.Time, error) {
 	return time.Parse(longDateTimeWithTimezoneRFC3339Format, t)
-}
-
-// ParseFromLongDateTimeWithoutSecondInFixedUtcOffset parses a formatted string in long date time format (no second) with fixed UTC offset
-func ParseFromLongDateTimeWithoutSecondInFixedUtcOffset(t string, utcOffset int16) (time.Time, error) {
-	timezone := time.FixedZone("Timezone", int(utcOffset)*60)
-	return time.ParseInLocation(longDateTimeWithoutSecondFormat, t, timezone)
-}
-
-// ParseFromShortDateTimeInFixedUtcOffset parses a formatted string in short date time format with fixed UTC offset
-func ParseFromShortDateTimeInFixedUtcOffset(t string, utcOffset int16) (time.Time, error) {
-	timezone := time.FixedZone("Timezone", int(utcOffset)*60)
-	return time.ParseInLocation(shortDateTimeFormat, t, timezone)
 }
 
 func ParseFromElapsedSeconds(elapsedSeconds int) (string, error) {

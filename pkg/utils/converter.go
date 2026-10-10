@@ -17,18 +17,6 @@ func StringToInt(str string) (int, error) {
 	return strconv.Atoi(str)
 }
 
-// StringTryToInt parses a textual representation of the number to int if str is valid,
-// or returns the default value
-func StringTryToInt(str string, defaultValue int) int {
-	num, err := StringToInt(str)
-
-	if err != nil {
-		return defaultValue
-	}
-
-	return num
-}
-
 // StringToInt32 parses a textual representation of the number to int32
 func StringToInt32(str string) (int32, error) {
 	val, err := strconv.ParseInt(str, 10, 32)
@@ -76,18 +64,6 @@ func StringArrayToInt64Array(strs []string) ([]int64, error) {
 	}
 
 	return ret, nil
-}
-
-// StringTryToInt64 parses a textual representation of the number to int64 if str is valid,
-// or returns the default value
-func StringTryToInt64(str string, defaultValue int64) int64 {
-	num, err := StringToInt64(str)
-
-	if err != nil {
-		return defaultValue
-	}
-
-	return num
 }
 
 // Float64ToString returns the textual representation of this number

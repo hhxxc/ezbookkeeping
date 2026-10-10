@@ -50,15 +50,6 @@ func TestStringToInt32_InvalidNumber(t *testing.T) {
 	assert.NotEqual(t, nil, err)
 }
 
-func TestStringTryToInt32_InvalidNumber(t *testing.T) {
-	expectedValue := -1
-	actualValue := StringTryToInt("", -1)
-	assert.Equal(t, expectedValue, actualValue)
-
-	actualValue = StringTryToInt("null", -1)
-	assert.Equal(t, expectedValue, actualValue)
-}
-
 func TestInt64ToString(t *testing.T) {
 	expectedValue := "-123456789012345"
 	actualValue := Int64ToString(-123456789012345)
@@ -99,15 +90,6 @@ func TestStringArrayToInt64Array_InvalidNumber(t *testing.T) {
 
 	_, err = StringArrayToInt64Array([]string{"0", "1", "null", "12345678", "1234567890123456"})
 	assert.NotEqual(t, nil, err)
-}
-
-func TestStringTryToInt64_InvalidNumber(t *testing.T) {
-	expectedValue := int64(-1)
-	actualValue := StringTryToInt64("", -1)
-	assert.Equal(t, expectedValue, actualValue)
-
-	actualValue = StringTryToInt64("null", -1)
-	assert.Equal(t, expectedValue, actualValue)
 }
 
 func TestFloat64ToString(t *testing.T) {
