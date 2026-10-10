@@ -120,7 +120,8 @@ final class AIReceiptViewModel: ObservableObject {
 
     /// 批量添加勾选的结果。成功条数返回给调用方；
     /// 成功的条目从列表移除，失败条目保留（可点 ✎ 修正）并汇总错误信息。
-    func addSelected() async -> Int {
+    /// source：交易来源标记（ai_image/ai_speech），随 add.json 上报后端做血缘记录
+    func addSelected(source: String? = nil) async -> Int {
         let targets = results.filter { selectedIds.contains($0.id) }
         guard !targets.isEmpty else { return 0 }
 
@@ -156,7 +157,7 @@ final class AIReceiptViewModel: ObservableObject {
                     pictureIds: [],
                     geoLocation: nil,
                     clientSessionId: UUID().uuidString,
-                    source: sourceKind
+                    source: source
                 )
                 let _: EmptyResult = try await APIClient.shared.request(
                     "/api/v1/transactions/add.json", method: .POST, body: req
@@ -445,7 +446,7 @@ struct AIReceiptView: View {
         VStack(spacing: 8) {
             Button {
                 Task {
-                    let added = await vm.addSelected()
+                    let added = await vm.addSelected(source: sourceKind)
                     if added > 0 && vm.results.isEmpty {
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         dismiss()
