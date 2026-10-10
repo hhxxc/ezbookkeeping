@@ -69,7 +69,7 @@ enum OverviewPeriod: String, CaseIterable, Identifiable {
     /// 图标徽章配色（取自 Web 的低饱和图表色板）
     var color: Color {
         switch self {
-        case .today: return Color(hex: "#26A69A")
+        case .today: return Theme.brand
         case .yesterday: return Color(hex: "#8E7CC3")
         case .thisWeek: return Color(hex: "#5B8DB8")
         case .thisMonth: return Color(hex: "#DD9437")
@@ -823,10 +823,13 @@ struct TransactionsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 19))
-                    .foregroundColor(Theme.brand)
+                    .foregroundColor(.white)
                     .frame(width: 38, height: 38)
-                    .background(Theme.brand.opacity(0.13))
-                    .cornerRadius(11)
+                    .background(
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(Theme.aiGradient)
+                            .shadow(color: Theme.brand.opacity(0.28), radius: 4, x: 0, y: 2)
+                    )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 15, weight: .semibold))

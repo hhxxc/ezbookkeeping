@@ -251,11 +251,11 @@ struct MainTabBar: View {
                 .frame(width: 42, height: 42)
                 .background(
                     Circle()
-                        .fill(
-                            LinearGradient(colors: [Theme.brand, Theme.brand.opacity(0.82)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
-                        .shadow(color: Theme.brand.opacity(0.32), radius: 5, x: 0, y: 3)
+                        .fill(Theme.aiGradient)
+                        .shadow(color: Theme.brand.opacity(0.35), radius: 5, x: 0, y: 3)
+                )
+                .overlay(
+                    Circle().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5)
                 )
                 .contentShape(Circle())
         }

@@ -1,30 +1,38 @@
 import SwiftUI
 import UIKit
 
-/// 主题色与金额格式化（沿用 Web 端设计令牌：主色 #26A69A，支出浅红、收入绿）
+/// 主题色与金额格式化（NestKeep Pro 设计方案：系统蓝 #2F7CF6 主色，
+/// 中国市场惯例「红收绿支」语义色 —— 收入红 #E0342C、支出绿 #1D9E62）
 enum Theme {
-    static let brand = Color(red: 38/255, green: 166/255, blue: 154/255)   // #26A69A
-    static let expense = Color(red: 0.90, green: 0.30, blue: 0.30)
-    static let income = Color(red: 0.20, green: 0.70, blue: 0.42)
+    static let brand = Color(hex: "#2F7CF6")                                // 系统蓝
+    static let income = Color(hex: "#E0342C")                               // 收入红
+    static let expense = Color(hex: "#1D9E62")                              // 支出绿
+    static let warn = Color(hex: "#F59E0B")
     static let pageBackground = Color(.systemGroupedBackground)
+
+    /// AI 功能渐变（蓝→紫，识图/语音入口与中央加号共用）
+    static let aiGradient = LinearGradient(
+        colors: [Color(hex: "#2F7CF6"), Color(hex: "#6A5CF0")],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
 }
 
 /// 首页（Web `HomePage.vue`）专属调色板 —— 与 Web 的 `--hp-*` 设计令牌逐项对齐。
 /// 注意：这里刻意不复用 `Theme.expense/income`，因为 Web 首页用的是低饱和的
 /// `#D0443F` / `#1E9F6F`，而非全局的鲜红/鲜绿，差异肉眼可见。
 enum HomePalette {
-    // 亮色
+    // 亮色（红收绿支：收入红、支出绿）
     static let cardLight = Color(hex: "#FFFFFF")
-    static let inkLight = Color(hex: "#1F2937")
-    static let expenseLight = Color(hex: "#D0443F")
-    static let expenseBgLight = Color(hex: "#FCEBEA")
-    static let incomeLight = Color(hex: "#1E9F6F")
+    static let inkLight = Color(hex: "#1C1C1E")
+    static let expenseLight = Color(hex: "#1D9E62")
+    static let expenseBgLight = Color(hex: "#E7F5EE")
+    static let incomeLight = Color(hex: "#E0342C")
     // 深色
     static let cardDark = Color(hex: "#252530")
     static let inkDark = Color(hex: "#E8EAED")
-    static let expenseDark = Color(hex: "#F87171")
-    static let expenseBgDark = Color(hex: "#3A2426")
-    static let incomeDark = Color(hex: "#34D399")
+    static let expenseDark = Color(hex: "#34D399")
+    static let expenseBgDark = Color(hex: "#22352B")
+    static let incomeDark = Color(hex: "#FF6B62")
 
     static var card: Color { adaptive(cardLight, cardDark) }
     static var ink: Color { adaptive(inkLight, inkDark) }
