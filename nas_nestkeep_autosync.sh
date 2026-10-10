@@ -116,10 +116,10 @@ mkdir -p "$DATA_DIR"
 "$DOCKER_BIN" cp "$CID":/data/. "$DATA_DIR/" >> "$LOG" 2>&1
 "$DOCKER_BIN" rm "$CID" >/dev/null 2>&1
 # docker cp 以 root 执行后文件属主变 root，会挡住以后 hhxxc 手动发版脚本的覆盖写；
-# 归还成发布目录原有的属主（失败不致命，忽略）
+# 只归还第一层文件（清单/IPA），不动 proxy-cache 子目录——容器（uid 1000）对它有写权限
 DATA_OWNER=$(stat -c '%U:%G' "$DATA_DIR" 2>/dev/null)
 if [ -n "$DATA_OWNER" ]; then
-    chown -R "$DATA_OWNER" "$DATA_DIR" 2>/dev/null
+    find "$DATA_DIR" -maxdepth 1 ! -name "$(basename "$DATA_DIR")" -exec chown "$DATA_OWNER" {} + 2>/dev/null
 fi
 
 # 3. 校验：至少一份清单 + 最新 IPA 是 zip 头（防镜像/解包异常污染发布目录）
