@@ -298,10 +298,8 @@ struct LoginView: View {
                 }
             }
         }
-    }
 
-    private var twoFAInputIsEmpty: Bool {
-        twoFAVerifyType == .passcode ? passcode.isEmpty : backupCode.isEmpty
+    private var twoFAInputIsEmpty: Bool {        twoFAVerifyType == .passcode ? passcode.isEmpty : backupCode.isEmpty
     }
 
     private func doLogin() {
