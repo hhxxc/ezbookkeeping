@@ -130,10 +130,10 @@ struct MainTabView: View {
         .confirmationDialog("快捷记账", isPresented: $showAddMenu, titleVisibility: .visible) {
             Button("记一笔") { showAdd = true }
             Button("模板与计划账单") { showTemplates = true }
-            if serverSettings.enableImageRecognition {
-                Button("AI 识图记账") { aiFlow.start() }
-                Button("语音记账") { voiceFlow.start() }
-            }
+            // 入口常驻（不再按 server_settings 门控）：开关拉取失败会让菜单项消失难排查；
+            // 后端未开启对应能力时进去会收到明确报错
+            Button("AI 识图记账") { aiFlow.start() }
+            Button("语音记账") { voiceFlow.start() }
             Button("取消", role: .cancel) {}
         } message: {
             Text("选择记账方式")

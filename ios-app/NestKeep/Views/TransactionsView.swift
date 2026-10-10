@@ -595,12 +595,13 @@ struct TransactionsView: View {
 
                         periodCard
 
-                        if serverSettings.enableImageRecognition {
-                            aiEntryCard
-                                .padding(.top, 12)
-                            voiceEntryCard
-                                .padding(.top, 12)
-                        }
+                        // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
+                        // 开关拉取失败（隧道未就绪等）会导致入口整场消失，反复修不好；
+                        // 后端未开启时点进去会收到明确报错，比入口凭空消失更可理解
+                        aiEntryCard
+                            .padding(.top, 12)
+                        voiceEntryCard
+                            .padding(.top, 12)
                     }
                     .padding(.horizontal, 17)
                 }
