@@ -500,8 +500,6 @@ final class UpdateStore: ObservableObject {
     private var downloader: IPAFileDownloader?
     private var downloadTaskRef: Task<Void, Never>?
 
-    /// 闲时自动下载任务（延迟触发后与手动下载共用同一状态机）
-    private var autoDownloadTask: Task<Void, Never>?
     /// 当前下载对应的目标版本（取消记忆用）
     private var currentDownloadVersion: String?
 
@@ -523,22 +521,22 @@ final class UpdateStore: ObservableObject {
         isChecking = false
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastAutoCheckKey)
 
-        // 手动检查发现新版也安排闲时下载：用户不开弹层、不点下载，包也会提前下好
+        // 手动检查发现新版也立即自动下载：用户不开弹层、不点下载，包也会提前下好
         if case .updateAvailable(_, let latest, _, let ipaURL) = appResult, let url = ipaURL {
-            scheduleIdleDownload(latest: latest, ipaURL: url)
+            scheduleAutoDownload(latest: latest, ipaURL: url)
         }
     }
 
     /// 启动时检查：每次启动都查（有新版才提示，失败静默）。
-    /// 加一层 1 小时的最小间隔兜底，避免用户疯狂切前后台时反复打 GitHub API。
+    /// 加一层 5 分钟的最小间隔兜底，避免用户疯狂切前后台时反复打 GitHub API；
+    /// IPA 仅 ~2MB 且下载无感，检测本身够便宜，不必再用长节流。
     ///
-    /// 发现新版本后自动安排「闲时下载」：延迟一段时间避开首屏抢网，
-    /// 后台静默把 IPA 下到 Caches（自动换源，NAS 优先）；本地已有完整包则
-    /// 直接标记为已下载。用户下次打开更新弹层，看到的直接是「点此安装」。
+    /// 发现新版本后立即自动下载：后台静默把 IPA 下到 Caches（自动换源，NAS 优先）；
+    /// 本地已有完整包则直接标记为已下载。用户下次打开更新弹层，看到的直接是「点此安装」。
     func autoCheckIfNeeded(force: Bool = false) async {
         let last = UserDefaults.standard.double(forKey: lastAutoCheckKey)
         let now = Date().timeIntervalSince1970
-        if !force && now - last < 60 * 60 { return }
+        if !force && now - last < 5 * 60 { return }
         UserDefaults.standard.set(now, forKey: lastAutoCheckKey)
         // 静默刷新后端版本
         self.serverVersion = await UpdateChecker.fetchServerVersion()
@@ -547,20 +545,20 @@ final class UpdateStore: ObservableObject {
         if case .updateAvailable(let current, let latest, let releaseURL, let ipaURL) = r {
             self.result = r
             if let url = ipaURL {
-                scheduleIdleDownload(latest: latest, ipaURL: url)
+                scheduleAutoDownload(latest: latest, ipaURL: url)
             }
         }
     }
 
-    // MARK: - 闲时自动下载
+    // MARK: - 自动下载
 
-    /// 发现新版本后安排闲时自动下载：
+    /// 发现新版本后立即自动下载（后台静默，IPA 仅 ~2MB，不抢首屏带宽，
+    /// 无需再做闲时延迟）：
     ///
-    /// 1. 本地已有完整安装包（上次会话闲时下好的）→ 直接进入「点此安装」，零等待；
+    /// 1. 本地已有完整安装包（上次会话下好的）→ 直接进入「点此安装」，零等待；
     /// 2. 用户明确取消过该版本的下载 → 不再自动下载（尊重用户意图）；
-    /// 3. 否则延迟数秒（等首屏/启动网络请求跑完）后后台静默下载。
-    ///    期间用户手动点「下载并安装」的话，延迟任务会因状态非 idle 自动让位。
-    func scheduleIdleDownload(latest: String, ipaURL: URL) {
+    /// 3. 否则立刻后台静默下载（自动换源，NAS 优先）。
+    func scheduleAutoDownload(latest: String, ipaURL: URL) {
         // 1. 本地已有完整包：直接复用，免重新下载
         if let existing = IPAFileDownloader.existingDownload(version: latest) {
             currentDownloadVersion = latest
@@ -575,16 +573,7 @@ final class UpdateStore: ObservableObject {
         if case .downloading = downloadState { return }
         if case .downloaded = downloadState { return }
 
-        autoDownloadTask?.cancel()
-        autoDownloadTask = Task { [weak self] in
-            // 闲时延迟：等启动首屏的网络请求跑完再开始，不跟登录/首页加载抢带宽
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
-            guard !Task.isCancelled, let self = self else { return }
-            // 期间用户手动开过下载（非 idle）则让位
-            if case .idle = self.downloadState {
-                self.startDownload(latest: latest, ipaURL: ipaURL)
-            }
-        }
+        startDownload(latest: latest, ipaURL: ipaURL)
     }
 
     // MARK: - IPA 下载（App 内下载 → 系统面板交给 TrollStore）
@@ -639,11 +628,9 @@ final class UpdateStore: ObservableObject {
     /// 取消下载（下载完成后调用即回到待下载状态）。
     ///
     /// 若取消的是进行中的下载且 rememberCancel 为真，会记住版本号：
-    /// 闲时自动下载不再对该版本重启，直到用户下次手动点「下载并安装」才清除。
+    /// 自动下载不再对该版本重启，直到用户下次手动点「下载并安装」才清除。
     /// 内部重置（检查更新 / 重新下载前的清理）传 false，避免误记用户意图。
     func cancelDownload(rememberCancel: Bool = true) {
-        autoDownloadTask?.cancel()
-        autoDownloadTask = nil
         downloadTaskRef?.cancel()
         downloadTaskRef = nil
         downloader?.cancel()
