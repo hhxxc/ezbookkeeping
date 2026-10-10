@@ -16,8 +16,14 @@
 #
 set -u
 
-TAG_URL="https://hub.docker.com/v2/repositories/hhxxc/ezbookkeeping/tags/latest-snapshot"
-STATE_DIR="/volume2/docker/ezbk"
+# 个人覆盖：同目录放 nas.local.sh（已 gitignore）定义 IMAGE_REPO / DATA_DIR 等
+LOCAL_OVERRIDE="$(cd "$(dirname "$0")" && pwd)/nas.local.sh"
+[ -f "$LOCAL_OVERRIDE" ] && . "$LOCAL_OVERRIDE"
+
+# 镜像仓库：自己 fork 的请改成你的 Docker Hub 仓库名
+IMAGE_REPO="${IMAGE_REPO:-hhxxc/ezbookkeeping}"
+TAG_URL="${TAG_URL:-https://hub.docker.com/v2/repositories/${IMAGE_REPO}/tags/latest-snapshot}"
+STATE_DIR="${STATE_DIR:-/volume2/docker/ezbk}"
 DEPLOY="$STATE_DIR/deploy.sh"
 DIGEST_FILE="$STATE_DIR/.autodeploy_last_digest"
 LOG="$STATE_DIR/autodeploy.log"

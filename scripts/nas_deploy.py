@@ -1,19 +1,24 @@
-"""SSH 到 NAS 重建 ezBookkeeping 容器（跑 /volume2/docker/ezbk/deploy.sh）。
+"""SSH 到 NAS 重建 ezBookkeeping 容器（跑 NAS 部署目录下的 deploy.sh）。
 
 用法：python scripts/nas_deploy.py [凭据文件路径] [--host <IP>]
-凭据文件默认取用户桌面的「REDACTED nas hhs.txt」，格式：IP 端口 用户 密码。
-凭据不入库；本机无 sshpass，用 paramiko（已装）做非交互 SSH。
+凭据文件格式：IP 端口 用户 密码（一行，空格分隔）。
+凭据不入库；本机无 sshpass，用 paramiko（需 pip install paramiko）做非交互 SSH。
 
-NAS 的局域网地址会变（历史用过 REDACTED / REDACTED），所以按顺序探测：
-命令行 --host > 环境变量 NESTKEEP_NAS_HOST > 凭据文件里的 IP > 内置候选地址。
+配置方式（任选其一，详见 scripts/nas_config.py 头部说明）：
+  - 命令行参数 / 环境变量 NAS_CRED_FILE / scripts/nas_config.local.py
+  - 候选地址：命令行 --host > 环境变量 NAS_HOSTS > 凭据文件里的 IP > 本地覆盖配置
 """
-import os, sys, time
+
+import os
+import sys
+import time
+
 import paramiko
 
-CRED_FILE = r"REDACTED"
-DEPLOY_CMD = "bash /volume2/docker/ezbk/deploy.sh 2>&1; echo EXIT_CODE=$?"
-# 历史出现过的 NAS 局域网地址，凭据文件里的 IP 连不上时依次尝试
-HOST_CANDIDATES = ['REDACTED', 'REDACTED', 'REDACTED', 'REDACTED']
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import nas_config  # noqa: E402
+
+DEPLOY_CMD = f"bash {nas_config.DEPLOY_DIR}/deploy.sh 2>&1; echo EXIT_CODE=$?"
 
 args = sys.argv[1:]
 explicit_host = None
@@ -23,18 +28,14 @@ if '--host' in args:
         explicit_host = args[i + 1]
         del args[i:i + 2]
 
-cred_path = args[0] if args else CRED_FILE
-with open(cred_path, encoding="utf-8") as f:
-    parts = f.read().split()
-cred_ip, port, user, password = parts[0], int(parts[1]), parts[2], parts[3]
+cred_path = nas_config.resolve_creds(args)
+cred_ip, port, user, password = nas_config.parse_creds(cred_path)
 
 hosts = []
 if explicit_host:
     hosts.append(explicit_host)
-if os.environ.get('NESTKEEP_NAS_HOST'):
-    hosts.append(os.environ['NESTKEEP_NAS_HOST'])
+hosts.extend(nas_config.NAS_HOSTS)
 hosts.append(cred_ip)
-hosts.extend(HOST_CANDIDATES)
 
 client = None
 for host in dict.fromkeys(hosts):  # 去重保序
@@ -59,14 +60,13 @@ buf = []
 while True:
     while chan.recv_ready():
         buf.append(chan.recv(4096).decode("utf-8", "replace"))
-        sys.stdout.flush()
     if chan.exit_status_ready() and not chan.recv_ready():
         break
     time.sleep(0.3)
 while chan.recv_ready():
     buf.append(chan.recv(4096).decode("utf-8", "replace"))
-out = "".join(buf)
-print(out[-4000:] if len(out) > 4000 else out)
+text = "".join(buf)
+print(text[-6000:] if len(text) > 6000 else text)
 print("---")
 print("exit code:", chan.recv_exit_status())
 client.close()

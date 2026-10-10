@@ -169,3 +169,8 @@ conf/api_key.txt
 # Privacy / local-only files
 .workbuddy/
 c
+
+# NAS 部署个人配置（本地覆盖，勿提交）
+scripts/nas_config_local.py
+scripts/deploy.local.sh
+nas.local.sh

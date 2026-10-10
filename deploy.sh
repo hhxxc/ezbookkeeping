@@ -11,18 +11,41 @@
 #     它每次启动都会从本容器加载前端，所以**前端有任何更新，只需要在本机重跑本脚本**，
 #     IPA 不用重新打包、也不用重装。
 #   - 本脚本是幂等的：重复执行只会重建同名容器，不会产生重复容器或丢数据
-#     （数据在宿主机目录 /volume2/docker/ezbk 里，容器只是挂载它）。
+#     （数据在宿主机数据目录里，容器只是挂载它）。
+#
+# ⚠️ 部署你自己的实例前，请先完成两件事（默认值是作者的私人环境，勿直接照搬）：
+#   1. LLM API Key（AI 识图/语音记账用）：到硅基流动 https://siliconflow.cn
+#      等平台注册并申请，存成一个只读文件，然后用环境变量或 deploy.local.sh
+#      指定 KEY_FILE=<你的 key 文件路径>
+#   2. 个人覆盖配置：把本脚本同目录放一个 deploy.local.sh（已 gitignore），
+#      内容是普通 shell 变量赋值，会覆盖下方所有默认值。例如：
+#        DATA_DIR="/volume1/docker/ezbookkeeping"
+#        KEY_FILE="/volume1/docker/my_llm_key.txt"
+#        SHELL_BASE_URL="https://your-domain.example.com"
+#      没有外网域名的话 SHELL_BASE_URL 留空即可（只显示局域网地址）。
 #
 set -u
 
+# 同目录的个人覆盖配置（可选）：deploy.local.sh
+LOCAL_OVERRIDE="$(cd "$(dirname "$0")" && pwd)/deploy.local.sh"
+if [ -f "$LOCAL_OVERRIDE" ]; then
+    # shellcheck disable=SC1090
+    . "$LOCAL_OVERRIDE"
+    echo "==> 已加载个人覆盖配置：$LOCAL_OVERRIDE"
+fi
+
+# 镜像：默认拉作者的快照镜像；自己 fork 的仓库请改成你自己的镜像名
+# （或用仓库根的 Dockerfile 自行构建后本地导入）
 IMAGE_NAME="${IMAGE_NAME:-hhxxc/ezbookkeeping:latest-snapshot}"
 CONTAINER_NAME="${CONTAINER_NAME:-ezbookkeeping}"
 HOST_PORT="${HOST_PORT:-9180}"
 CONTAINER_PORT="${CONTAINER_PORT:-15080}"
 DATA_DIR="${DATA_DIR:-/volume2/docker/ezbk}"
-KEY_FILE="${KEY_FILE:-/volume2/docker/giliconcloude_key.txt}"
+# LLM API Key 文件（纯文本，内容是 key 本身）。必须自行提供，见文件头说明
+KEY_FILE="${KEY_FILE:-}"
 RESTART_POLICY="${RESTART_POLICY:-no}"
-SHELL_BASE_URL="${SHELL_BASE_URL:-https://example-server.invalid}"
+# 外网入口（反代/隧道域名），留空则只输出局域网地址
+SHELL_BASE_URL="${SHELL_BASE_URL:-}"
 
 # 识图大模型：主模型 + 备用模型（按轮询顺序自动故障切换）
 LLM_PROVIDER="${LLM_PROVIDER:-openai_compatible}"
@@ -86,6 +109,15 @@ fi
 echo "使用 docker: $DOCKER_BIN"
 
 # ------------------------------------------------------------------ 前置检查
+if [ -z "$KEY_FILE" ]; then
+    echo "ERROR: 未配置 LLM API Key 文件（KEY_FILE）"
+    echo "  AI 识图/语音记账需要一个大模型 API Key，请自行申请（如硅基流动 https://siliconflow.cn），"
+    echo "  把 key 存成只读文本文件后设置：KEY_FILE=/path/to/your_key.txt ./deploy.sh"
+    echo "  （推荐写入同目录 deploy.local.sh，避免每次输入；不需要 AI 功能可临时"
+    echo "   创建一个空文件占位，之后在 NAS 的管理后台关闭 AI 功能）"
+    exit 1
+fi
+
 if [ ! -f "$KEY_FILE" ]; then
     echo "ERROR: 找不到 API Key 文件 $KEY_FILE"
     exit 1
@@ -211,9 +243,9 @@ if echo "$HEALTH" | grep -q '"status":"ok"'; then
         echo "  - 局域网   http://${LAN_IP}:${HOST_PORT}/"
     fi
 
-    echo "  - 外网     ${SHELL_BASE_URL}/"
-    echo
-    echo "iOS 上的「巢记」IPA 是启动壳，直接下拉刷新 / 重开 App 即可看到本次更新，无需重新安装。"
+    if [ -n "$SHELL_BASE_URL" ]; then
+        echo "  - 外网     ${SHELL_BASE_URL}/"
+    fi
 else
     echo
     echo "WARNING: 服务在 30 秒内没有就绪，最近日志："

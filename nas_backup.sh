@@ -20,8 +20,13 @@
 #
 set -u
 
-DB="/volume2/docker/ezbk/ezbookkeeping.db"
-BACKUP_DIR="/volume2/docker/ezbk/backups"
+# 个人覆盖：同目录放 nas.local.sh（已 gitignore）定义 DATA_DIR 等
+LOCAL_OVERRIDE="$(cd "$(dirname "$0")" && pwd)/nas.local.sh"
+[ -f "$LOCAL_OVERRIDE" ] && . "$LOCAL_OVERRIDE"
+
+DATA_DIR="${DATA_DIR:-/volume2/docker/ezbk}"
+DB="${DB:-$DATA_DIR/ezbookkeeping.db}"
+BACKUP_DIR="${BACKUP_DIR:-$DATA_DIR/backups}"
 KEEP_DAYS=30
 MIN_KEEP=3
 LOG="$BACKUP_DIR/backup.log"
@@ -76,12 +81,12 @@ log "OK: $GZ ($SIZE)"
 ln -sf "$(basename "$GZ")" "$BACKUP_DIR/latest.db.gz"
 
 # 4. storage 目录快照（交易图片/头像等；量小，跟库一起备恢复才完整）
-STORAGE_DIR="/volume2/docker/ezbk/storage"
+STORAGE_DIR="$DATA_DIR/storage"
 
 if [ -d "$STORAGE_DIR" ]; then
     STORAGE_TAR="$BACKUP_DIR/storage-$STAMP.tar.gz"
 
-    if tar -czf "$STORAGE_TAR" -C /volume2/docker/ezbk storage 2>/dev/null; then
+    if tar -czf "$STORAGE_TAR" -C "$DATA_DIR" storage 2>/dev/null; then
         SSIZE=$(du -h "$STORAGE_TAR" | cut -f1)
         log "OK: $STORAGE_TAR ($SSIZE)"
     else
