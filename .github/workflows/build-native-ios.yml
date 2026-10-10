@@ -280,3 +280,67 @@ jobs:
           gh release create "v$V$SUFFIX" "ios-app/${{ env.IPA_NAME }}" \
             --title "NestKeep ${FLAVOR} v$V" \
             --notes "原生 iOS App（$FLAVOR 变体）v$V（${{ env.IPA_NAME }}）。显示名「${{ steps.flavor.outputs.display_name }}」，Bundle ID ${{ steps.flavor.outputs.bundle_id }}，与另一变体可同时安装。用 TrollStore 打开 IPA 覆盖安装（同变体才会覆盖）。"
+
+  # 发版镜像：把 IPA + 更新清单打进极小镜像推 Docker Hub。NAS 家宽直连 GitHub
+  # 被墙（实测反代直连 ~11s 失败），但拉 Docker Hub 镜像常年可用（ezbk_autodeploy
+  # 已验证），故 NAS 侧自动跟版走此通道：cron 轮询 digest → pull → 解包 IPA/清单
+  # → App 内更新即走自有域名秒下。清单 ipaUrl 指向自有域名（NAS 静态文件路由）。
+  publish-release-image:
+    name: Publish release image to Docker Hub (for NAS autosync)
+    needs: build
+    # 与语义版本发版同条件：push native-ios-app 或手动 dispatch（main 只出 Web 后端）
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == 'native-ios-app'
+    runs-on: ubuntu-latest
+    env:
+      FLAVOR: ${{ github.event.inputs.flavor || 'dev' }}
+    steps:
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: NestKeep-ipa-${{ github.event.inputs.flavor || 'dev' }}
+
+      - name: Prepare release files (IPA + manifests)
+        env:
+          PUBLIC_BASE: ${{ vars.IOS_API_BASE_URL }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          IPA_FILE=$(ls NestKeep-${FLAVOR}-v*.ipa | head -1)
+          V=$(echo "$IPA_FILE" | sed -E "s/NestKeep-${FLAVOR}-v([0-9.]+)\.ipa/\1/")
+          SUFFIX=""
+          if [ "$FLAVOR" = "stable" ]; then SUFFIX="-stable"; fi
+          RELEASE_URL="https://github.com/${REPO}/releases/tag/v${V}${SUFFIX}"
+          # ipaUrl 指向 NAS 静态文件路由（nas_nestkeep_autosync.sh 会把 IPA 解包到该目录）
+          IPA_URL=""
+          if [ -n "$PUBLIC_BASE" ]; then IPA_URL="${PUBLIC_BASE%/}/api/nestkeep/${IPA_FILE}"; fi
+
+          mkdir -p data
+          cp "$IPA_FILE" data/
+          JSON=$(printf '{"version":"%s","variant":"%s","releaseUrl":"%s","ipaUrl":"%s"}' \
+            "$V" "$FLAVOR" "$RELEASE_URL" "$IPA_URL")
+          echo "$JSON" > "data/latest-${FLAVOR}.json"
+          # dev 同时更新通用清单，兼容只读 latest.json 的旧客户端
+          if [ "$FLAVOR" = "dev" ]; then echo "$JSON" > "data/latest.json"; fi
+          echo "==> 镜像内容："
+          ls -la data/
+          cat data/*.json
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push release image
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          V=$(ls NestKeep-${FLAVOR}-v*.ipa | sed -E "s/.*-v([0-9.]+)\.ipa/\1/")
+          docker build -t hhxxc/nestkeep-release:latest -t hhxxc/nestkeep-release:v${V} -f- . <<'DOCKERFILE'
+          FROM scratch
+          COPY data/ /data/
+          DOCKERFILE
+          docker push hhxxc/nestkeep-release:latest
+          docker push hhxxc/nestkeep-release:v${V}
+          echo "==> 已推送 hhxxc/nestkeep-release:latest (v${V})"
