@@ -637,6 +637,9 @@ struct TransactionsView: View {
                     // iOS 15：MainTabView 的 safeAreaInset 穿不透 NavigationView，
                     // 内容末尾自行留出底栏高度 + 呼吸空间
                     .padding(.bottom, tabBarInset + 16)
+                    // 隐藏右侧滚动指示条（iOS 15 上 UIScrollView.appearance 不生效，
+                    // 通过 overlay 视图的响应链向上找到所属 UIScrollView 直接关闭）
+                    .overlay(ScrollIndicatorHider())
                 }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
@@ -1095,6 +1098,38 @@ struct TransactionsView: View {
     }
 }
 
+// MARK: - 滚动指示条隐藏（iOS 15 兼容）
+/// iOS 15 上 `UIScrollView.appearance().shows*ScrollIndicator = false` 对 SwiftUI 的
+/// ScrollView 不生效（系统在创建时未走 appearance 代理），且 `.scrollIndicators(.hidden)`
+/// 要 iOS 16+。这里把一个透明 UIView 放进滚动内容内部，经响应链向上找到所属
+/// UIScrollView 直接关掉指示条——该属性一旦置 false 即持续生效，无需反复刷新。
+/// 注意必须放在滚动内容**内部**（overlay 在内容上而非 ScrollView 外层），
+/// 否则响应链不经过 UIScrollView。
+private struct ScrollIndicatorHider: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async { Self.hideIndicators(from: uiView) }
+    }
+
+    static func hideIndicators(from view: UIView) {
+        var responder: UIResponder? = view
+        while let next = responder?.next {
+            if let scrollView = next as? UIScrollView {
+                scrollView.showsVerticalScrollIndicator = false
+                scrollView.showsHorizontalScrollIndicator = false
+                return
+            }
+            responder = next
+        }
+    }
+}
+
 // MARK: - 账单列表独立页（点击首页汇总卡从右侧滑入）
 /// 承载原首页的交易列表：搜索 / 加载与空态 / 日分组 / 左滑编辑删除；
 /// 筛选面板与搜索框也收在该页（首页只留总览卡片）。
@@ -1146,6 +1181,8 @@ private struct BillListPageView: View {
                             searchFieldFocused = true
                         }
                     }
+                    // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
+                    .overlay(ScrollIndicatorHider())
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
