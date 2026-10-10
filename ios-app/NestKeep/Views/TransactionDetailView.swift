@@ -8,6 +8,7 @@ struct TransactionDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showEdit = false
     @State private var showDuplicate = false
+    @State private var tagNamesById: [String: String] = [:]
 
     private var amountText: String {
         switch transaction.transactionType {
@@ -66,6 +67,7 @@ struct TransactionDetailView: View {
                         }
                     }
                     detailRow("时间", Self.fullDateTime(transaction.date))
+                    detailRow("标签", tagsDisplay)
                     if transaction.installmentPlanId != nil {
                         detailRow("分期", transaction.installmentLabel ?? "—")
                     }
@@ -96,6 +98,7 @@ struct TransactionDetailView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("交易详情")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await loadTagNames() }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
@@ -116,6 +119,22 @@ struct TransactionDetailView: View {
             Spacer()
             Text(value).foregroundColor(.secondary)
         }
+    }
+
+    /// 标签展示：无标签显示「无」；标签名加载完成前显示「…」
+    private var tagsDisplay: String {
+        let ids = transaction.tagIds ?? []
+        if ids.isEmpty { return "无" }
+        let names = ids.compactMap { tagNamesById[$0] }
+        return names.isEmpty ? "…" : names.joined(separator: "、")
+    }
+
+    private func loadTagNames() async {
+        guard let ids = transaction.tagIds, !ids.isEmpty else { return }
+        guard let result = try? await AppDataStore.shared.getTags() else { return }
+        var map: [String: String] = [:]
+        for t in result.tags { map[t.id] = t.name }
+        tagNamesById = map
     }
 
     static func fullDateTime(_ d: Date) -> String {
