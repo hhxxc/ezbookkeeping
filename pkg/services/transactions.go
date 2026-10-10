@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -86,10 +87,17 @@ func (s *TransactionService) GetAllSpecifiedTransactions(c core.Context, uid int
 		maxTransactionTime = utils.GetMaxTransactionTimeFromUnixTime(time.Now().Unix())
 	}
 
+	// Keyword relevance ordering is incompatible with the time-cursor pagination
+	// loop below: each page re-applies "exact amount first" inside its narrowed
+	// time window, so older exact hits land after newer noise (and ordering across
+	// pages is broken). Query pages in plain time-desc order, then apply the
+	// relevance ordering once over the full result set in memory.
+	relevanceAmount, hasRelevance := s.keywordAmountRelevance(keyword, "")
+
 	var allTransactions []*models.Transaction
 
 	for maxTransactionTime > 0 {
-		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, 1, pageCount, false, noDuplicated, "", "desc")
+		transactions, err := s.GetTransactionsByMaxTime(c, uid, maxTransactionTime, minTransactionTime, transactionType, categoryIds, accountIds, tagFilters, noTags, amountFilter, keyword, 1, pageCount, false, noDuplicated, "time", "desc")
 
 		if err != nil {
 			return nil, err
@@ -103,6 +111,17 @@ func (s *TransactionService) GetAllSpecifiedTransactions(c core.Context, uid int
 		}
 
 		maxTransactionTime = transactions[len(transactions)-1].TransactionTime - 1
+	}
+
+	if hasRelevance {
+		sort.SliceStable(allTransactions, func(i, j int) bool {
+			hitI := allTransactions[i].Amount == relevanceAmount
+			hitJ := allTransactions[j].Amount == relevanceAmount
+			if hitI != hitJ {
+				return hitI
+			}
+			return allTransactions[i].TransactionTime > allTransactions[j].TransactionTime
+		})
 	}
 
 	return allTransactions, nil
@@ -324,6 +343,20 @@ func (s *TransactionService) GetAllAccountsDailyOpeningAndClosingBalance(c core.
 }
 
 // GetTransactionsByMaxTime returns transactions before given time
+// keywordAmountRelevance reports whether the keyword search should apply
+// "exact amount match first" relevance ordering: only when the user has not
+// chosen an explicit sort and the keyword parses as a pure amount.
+func (s *TransactionService) keywordAmountRelevance(keyword string, sortBy string) (int64, bool) {
+	if sortBy != "" || keyword == "" {
+		return 0, false
+	}
+	amountInCents, err := utils.ParseAmount(keyword)
+	if err != nil {
+		return 0, false
+	}
+	return amountInCents, true
+}
+
 func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64, maxTransactionTime int64, minTransactionTime int64, transactionType models.TransactionType, categoryIds []int64, accountIds []int64, tagFilters []*models.TransactionTagFilter, noTags bool, amountFilter string, keyword string, page int32, count int32, needOneMoreItem bool, noDuplicated bool, sortBy string, sortOrder string) ([]*models.Transaction, error) {
 	if uid <= 0 {
 		return nil, errs.ErrUserIdInvalid
@@ -367,12 +400,10 @@ func (s *TransactionService) GetTransactionsByMaxTime(c core.Context, uid int64,
 	// has not chosen an explicit sort, put exact amount matches first, then keep
 	// time descending order inside each group.
 	orderByClause := ""
-	if sortBy == "" && keyword != "" {
-		if amountInCents, parseErr := utils.ParseAmount(keyword); parseErr == nil {
-			// amountInCents comes from a purely numeric parse, safe to inline
-			// (xorm OrderBy only accepts a plain string clause)
-			orderByClause = "CASE WHEN amount = " + strconv.FormatInt(amountInCents, 10) + " THEN 0 ELSE 1 END ASC, transaction_time DESC"
-		}
+	if relevanceAmount, ok := s.keywordAmountRelevance(keyword, sortBy); ok {
+		// amountInCents comes from a purely numeric parse, safe to inline
+		// (xorm OrderBy only accepts a plain string clause)
+		orderByClause = "CASE WHEN amount = " + strconv.FormatInt(relevanceAmount, 10) + " THEN 0 ELSE 1 END ASC, transaction_time DESC"
 	}
 
 	if orderByClause == "" {
