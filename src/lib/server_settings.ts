@@ -3,6 +3,23 @@ function getServerSetting(key: string): string | number | boolean | Record<strin
     return settings[key];
 }
 
+// 加载终态追踪（P0-1）：所有重试均失败时置为 true，用于 AI 入口"配置未加载"占位态
+let serverSettingsLoadFailed: boolean = false;
+let serverSettingsLoaded: boolean = false;
+let serverSettingsLoadRetryCount: number = 0;
+
+export function wasServerSettingsLoadFailed(): boolean {
+    return serverSettingsLoadFailed;
+}
+
+export function isServerSettingsLoaded(): boolean {
+    return serverSettingsLoaded;
+}
+
+export function getServerSettingsLoadRetryCount(): number {
+    return serverSettingsLoadRetryCount;
+}
+
 export async function loadRemoteServerSettings(): Promise<void> {
     const url = getRemoteServerSettingsUrl();
 
@@ -16,6 +33,8 @@ export async function loadRemoteServerSettings(): Promise<void> {
             script.src = url;
             script.onload = () => {
                 document.head.removeChild(script);
+                serverSettingsLoaded = true;
+                serverSettingsLoadFailed = false;
                 resolve();
             };
             script.onerror = () => {
@@ -23,6 +42,8 @@ export async function loadRemoteServerSettings(): Promise<void> {
                 if (attempt < 2) {
                     setTimeout(() => tryLoad(attempt + 1), 1000 * (attempt + 1));
                 } else {
+                    // 重试全失败的终态：供 AI 入口渲染"配置未加载"占位卡片
+                    serverSettingsLoadFailed = true;
                     resolve();
                 }
             };
@@ -30,6 +51,16 @@ export async function loadRemoteServerSettings(): Promise<void> {
         };
         tryLoad(0);
     });
+}
+
+/// 手动重试拉取远程设置（AI 入口占位卡片上的 [重试] 按钮），返回是否加载成功
+export async function retryLoadServerSettings(): Promise<boolean> {
+    serverSettingsLoadFailed = false;
+    serverSettingsLoadRetryCount++;
+
+    await loadRemoteServerSettings();
+
+    return serverSettingsLoaded;
 }
 
 /// 远程设置的地址：老版本依赖 window.EZBOOKKEEPING_SERVER_SETTINGS.apiBaseUrl，
@@ -117,6 +148,10 @@ export function isMCPServerEnabled(): boolean {
 
 export function isTransactionFromAIImageRecognitionEnabled(): boolean {
     return getServerSetting('llmt') === 1;
+}
+
+export function isTransactionFromVoiceInputEnabled(): boolean {
+    return getServerSetting('llmv') === 1;
 }
 
 export function getLoginPageTips(): Record<string, string>{

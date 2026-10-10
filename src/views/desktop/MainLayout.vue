@@ -134,10 +134,16 @@
                             <v-icon :icon="(currentTheme === 'light' ? mdiWeatherSunny : (currentTheme === 'dark' ? mdiWeatherNight : mdiThemeLightDark))" size="24" />
                         </v-btn>
                         <v-btn color="primary" variant="text" class="me-2" :icon="true"
-                               v-if="isTransactionFromAIImageRecognitionEnabled()"
+                               v-if="aiEntryState === 'ok'"
                                @click="openAIImageRecognition">
                             <v-icon :icon="mdiCamera" size="24" />
                             <v-tooltip activator="parent">{{ tt('AI Image Recognition') }}</v-tooltip>
+                        </v-btn>
+                        <v-btn color="warning" variant="text" class="me-2" :icon="true"
+                               v-else-if="aiEntryState === 'load-failed'"
+                               @click="openAIEntryDiagnosticDialog">
+                            <v-icon :icon="mdiAlertCircleOutline" size="24" />
+                            <v-tooltip activator="parent">{{ tt('AI service settings not loaded') }}</v-tooltip>
                         </v-btn>
                         <v-avatar class="cursor-pointer" variant="tonal"
                                   :color="currentUserAvatar ? 'rgba(0,0,0,0)' : 'primary'">
@@ -203,6 +209,40 @@
         <switch-to-mobile-dialog v-model:show="showMobileQrCode" />
         <a-i-image-recognition-dialog ref="aiImageRecognitionDialog" />
 
+        <v-dialog v-model="showAIEntryDiagnosticDialog" max-width="520">
+            <v-card>
+                <v-card-title>{{ tt('AI Entry Diagnostics') }}</v-card-title>
+                <v-card-text>
+                    <v-list density="compact" class="py-0">
+                        <v-list-item :title="tt('Settings Loaded')">
+                            <template #append>{{ aiEntryDiagnosticSnapshot.settingsLoaded ? tt('Yes') : tt('No') }}</template>
+                        </v-list-item>
+                        <v-list-item :title="tt('Settings Load Failed')">
+                            <template #append>{{ aiEntryDiagnosticSnapshot.loadFailed ? tt('Yes') : tt('No') }}</template>
+                        </v-list-item>
+                        <v-list-item :title="tt('Load Retry Count')">
+                            <template #append>{{ aiEntryDiagnosticSnapshot.loadRetryCount }}</template>
+                        </v-list-item>
+                        <v-list-item :title="tt('AI Recognition Enabled (llmt)')">
+                            <template #append>{{ aiEntryDiagnosticSnapshot.textRecognitionEnabled ? tt('Yes') : tt('No') }}</template>
+                        </v-list-item>
+                        <v-list-item :title="tt('Voice Input Enabled (llmv)')">
+                            <template #append>{{ aiEntryDiagnosticSnapshot.voiceInputEnabled ? tt('Yes') : tt('No') }}</template>
+                        </v-list-item>
+                        <v-list-item :title="tt('Page URL')">
+                            <template #append>
+                                <span class="ai-entry-diagnostic-url">{{ aiEntryDiagnosticSnapshot.pageUrl }}</span>
+                            </template>
+                        </v-list-item>
+                    </v-list>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer />
+                    <v-btn color="default" variant="text" @click="showAIEntryDiagnosticDialog = false">{{ tt('Close') }}</v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <div class="layout-overlay" :class="{ 'visible': showVerticalOverlayMenu }" @click="showVerticalOverlayMenu = false"></div>
 
         <v-overlay class="justify-center align-center" :persistent="true" v-model="showLoading">
@@ -217,7 +257,7 @@
 import SnackBar from '@/components/desktop/SnackBar.vue';
 import AIImageRecognitionDialog from '@/views/desktop/transactions/list/dialogs/AIImageRecognitionDialog.vue';
 
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, onMounted, useTemplateRef } from 'vue';
 
 import { useDisplay, useTheme } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
@@ -233,7 +273,14 @@ import { APPLICATION_LOGO_PATH } from '@/consts/asset.ts';
 import { ThemeType } from '@/core/theme.ts';
 
 import { getShareCacheImageBlob } from '@/lib/cache.ts';
-import { isUserScheduledTransactionEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { isUserScheduledTransactionEnabled } from '@/lib/server_settings.ts';
+import {
+    aiEntryState,
+    aiEntryDiagnosticSnapshot,
+    refreshAIEntryState,
+    retryAIEntry,
+    updateAIEntryDiagnosticSnapshot
+} from '@/lib/ai_entry_state.ts';
 import { getSystemTheme, setExpenseAndIncomeAmountColor } from '@/lib/ui/common.ts';
 import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 import { getClientDisplayVersion } from '@/lib/version.ts';
@@ -262,7 +309,8 @@ import {
     mdiAccountCogOutline,
     mdiLockOutline,
     mdiLogout,
-    mdiCamera
+    mdiCamera,
+    mdiAlertCircleOutline
 } from '@mdi/js';
 
 type SnackBarType = InstanceType<typeof SnackBar>;
@@ -288,6 +336,8 @@ const isVerticalNavScrolled = ref<boolean>(false);
 const showVerticalOverlayMenu = ref<boolean>(false);
 const showLoading = ref<boolean>(false);
 const showMobileQrCode = ref<boolean>(false);
+const showAIEntryDiagnosticDialog = ref<boolean>(false);
+const retryingAIEntry = ref<boolean>(false);
 
 const mdAndDown = computed<boolean>(() => display.mdAndDown.value);
 const currentRoutePath = computed<string>(() => route.path);
@@ -363,6 +413,32 @@ function showAddDialogInTransactionListPage(): void {
     desktopPageStore.setShowAddTransactionDialogInTransactionList();
 }
 
+function openAIEntryDiagnosticDialog(): void {
+    updateAIEntryDiagnosticSnapshot();
+    showAIEntryDiagnosticDialog.value = true;
+}
+
+function retryAIEntryLoad(): void {
+    if (retryingAIEntry.value) {
+        return;
+    }
+
+    retryingAIEntry.value = true;
+
+    retryAIEntry().then(success => {
+        retryingAIEntry.value = false;
+
+        if (!success) {
+            openAIEntryDiagnosticDialog();
+        }
+    });
+}
+
+onMounted(() => {
+    refreshAIEntryState();
+    retryAIEntryLoad();
+});
+
 function openAIImageRecognition(): void {
     aiImageRecognitionDialog.value?.open().then((results: RecognizedReceiptImageResponses) => {
         if (!results || results.length === 0) {
@@ -432,5 +508,11 @@ clearShareImageCache();
 
 .nav-link.home-link > a:not(.router-link-exact-active):hover::before {
     opacity: calc(var(--v-hover-opacity)* var(--v-theme-overlay-multiplier));
+}
+
+.ai-entry-diagnostic-url {
+    word-break: break-all;
+    font-size: 12px;
+    opacity: 0.75;
 }
 </style>

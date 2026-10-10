@@ -607,11 +607,17 @@
                                      @recognition:change="onReceiptRecognitionChanged"/>
 
         <template #fixed>
-            <f7-fab v-if="isTransactionFromAIImageRecognitionEnabled()"
+            <f7-fab v-if="aiEntryState === 'ok'"
                     position="right-bottom"
                     class="ai-image-recognition-fab"
                     @click="pickAIImage">
                 <f7-icon f7="camera"></f7-icon>
+            </f7-fab>
+            <f7-fab v-else-if="aiEntryState === 'load-failed'"
+                    position="right-bottom"
+                    class="ai-image-recognition-fab ai-image-recognition-fab-failed"
+                    @click="openAIEntryDiagnostic">
+                <f7-icon f7="exclamationmark_triangle"></f7-icon>
             </f7-fab>
         </template>
     </f7-page>
@@ -661,7 +667,12 @@ import { type Transaction, TransactionTagFilter } from '@/models/transaction.ts'
 
 import type { RecognizedReceiptImageResponses } from '@/models/large_language_model.ts';
 
-import { isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import {
+    aiEntryState,
+    aiEntryDiagnosticSnapshot,
+    refreshAIEntryState,
+    updateAIEntryDiagnosticSnapshot
+} from '@/lib/ai_entry_state.ts';
 import { isNativePhotoLibraryPickerAvailable, pickImagesFromPhotoLibrary } from '@/lib/native_photo_picker.ts';
 
 import {
@@ -782,9 +793,23 @@ const showAIReceiptImageRecognitionSheet = ref<boolean>(false);
 const aiImageRecognitionSheet = useTemplateRef<AIImageRecognitionSheetType>('aiImageRecognitionSheet');
 const aiImageInput = useTemplateRef<HTMLInputElement>('aiImageInput');
 
+function openAIEntryDiagnostic(): void {
+    updateAIEntryDiagnosticSnapshot();
+
+    const lines: string[] = [
+        `${tt('Settings Loaded')}: ${aiEntryDiagnosticSnapshot.settingsLoaded ? tt('Yes') : tt('No')}`,
+        `${tt('Settings Load Failed')}: ${aiEntryDiagnosticSnapshot.loadFailed ? tt('Yes') : tt('No')}`,
+        `${tt('Load Retry Count')}: ${aiEntryDiagnosticSnapshot.loadRetryCount}`,
+        `${tt('AI Recognition Enabled (llmt)')}: ${aiEntryDiagnosticSnapshot.textRecognitionEnabled ? tt('Yes') : tt('No')}`,
+        `${tt('Voice Input Enabled (llmv)')}: ${aiEntryDiagnosticSnapshot.voiceInputEnabled ? tt('Yes') : tt('No')}`,
+        `${tt('Page URL')}: ${aiEntryDiagnosticSnapshot.pageUrl}`
+    ];
+
+    showAlert(lines.join('<br/>'));
+}
+
 async function pickAIImage(): Promise<void> {
-    if (isNativePhotoLibraryPickerAvailable()) {
-        try {
+    if (isNativePhotoLibraryPickerAvailable()) {        try {
             const images = await pickImagesFromPhotoLibrary();
 
             if (!images) {
@@ -1722,6 +1747,7 @@ function onTransactionMonthListCollapseStateChanged(): void {
 onMounted(() => {
     window.addEventListener('resize', onResize);
     onInfiniteScrolling(onScroll);
+    refreshAIEntryState();
 });
 
 onUnmounted(() => {
@@ -2010,5 +2036,11 @@ html[dir="rtl"] .list.transaction-info-list li.transaction-info .transaction-foo
 
 .ai-image-recognition-fab {
     bottom: calc(var(--f7-toolbar-height) + var(--f7-safe-area-bottom) + 16px) !important;
+}
+
+.ai-image-recognition-fab-failed {
+    --f7-fab-bg-color: #ef984a;
+    --f7-fab-hover-bg-color: #eeb056;
+    --f7-fab-text-color: #fff;
 }
 </style>

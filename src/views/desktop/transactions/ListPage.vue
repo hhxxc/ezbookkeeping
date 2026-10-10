@@ -69,13 +69,18 @@
                                             <v-btn class="ms-3" color="default" variant="outlined"
                                                    :disabled="loading || !canAddTransaction" @click="add()">
                                                 {{ tt('Add') }}
-                                                <v-menu activator="parent" max-height="500" :open-on-hover="true" v-if="isTransactionFromAIImageRecognitionEnabled() || (allTransactionTemplates && allTransactionTemplates.length)">
+                                                <v-menu activator="parent" max-height="500" :open-on-hover="true" v-if="aiEntryState !== 'disabled' || (allTransactionTemplates && allTransactionTemplates.length)">
                                                     <v-list>
                                                         <v-list-item key="AIImageRecognition"
                                                                      :title="tt('AI Image Recognition')"
                                                                      :prepend-icon="mdiMagicStaff"
-                                                                     v-if="isTransactionFromAIImageRecognitionEnabled()"
+                                                                     v-if="aiEntryState === 'ok'"
                                                                      @click="addByRecognizingImage"></v-list-item>
+                                                        <v-list-item key="AIEntryLoadFailed"
+                                                                     :title="tt('AI service settings not loaded')"
+                                                                     :prepend-icon="mdiAlertCircleOutline"
+                                                                     disabled
+                                                                     v-else-if="aiEntryState === 'load-failed'"></v-list-item>
                                                         <v-list-item :key="template.id"
                                                                      :title="template.name"
                                                                      :prepend-icon="mdiTextBoxOutline"
@@ -633,7 +638,7 @@ import CategoryFilterSettingsCard from '@/views/desktop/common/cards/CategoryFil
 import TransactionTagFilterSettingsCard from '@/views/desktop/common/cards/TransactionTagFilterSettingsCard.vue';
 import { TransactionEditPageType } from '@/views/base/transactions/TransactionEditPageBase.ts';
 
-import { ref, computed, useTemplateRef, watch, nextTick, onUnmounted } from 'vue';
+import { ref, computed, useTemplateRef, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRouter, onBeforeRouteUpdate } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 
@@ -694,7 +699,8 @@ import {
     categoryTypeToTransactionType,
     transactionTypeToCategoryType
 } from '@/lib/category.ts';
-import { isDataExportingEnabled, isDataImportingEnabled, isTransactionFromAIImageRecognitionEnabled } from '@/lib/server_settings.ts';
+import { isDataExportingEnabled, isDataImportingEnabled } from '@/lib/server_settings.ts';
+import { aiEntryState, refreshAIEntryState } from '@/lib/ai_entry_state.ts';
 import { scrollToSelectedItem, startDownloadFile } from '@/lib/ui/common.ts';
 import { hasCustomTransactionTagIcon } from '@/lib/tag.ts';
 
@@ -716,7 +722,8 @@ import {
     mdiPound,
     mdiMagicStaff,
     mdiTextBoxOutline,
-    mdiFileExportOutline
+    mdiFileExportOutline,
+    mdiAlertCircleOutline
 } from '@mdi/js';
 
 interface TransactionListProps {
@@ -1723,6 +1730,10 @@ function scrollMenuToSelectedItem(menu: VMenu | null): void {
 function onShowDateRangeError(message: string): void {
     snackbar.value?.showError(message);
 }
+
+onMounted(() => {
+    refreshAIEntryState();
+});
 
 onUnmounted(() => {
     if (autoReloadTimeout) {
