@@ -6,6 +6,10 @@ struct RootView: View {
     @EnvironmentObject var auth: AuthManager
     @ObservedObject private var lock = AppLockManager.shared
 
+    init() {
+        StartupMetrics.shared.markOnce("root-init")
+    }
+
     var body: some View {
         Group {
             if !auth.isLoggedIn {

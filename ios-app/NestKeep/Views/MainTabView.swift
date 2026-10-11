@@ -158,8 +158,10 @@ struct MainTabView: View {
             }
         }
         // 启动时静默检查更新（有间隔节流，失败不打扰）
+        .onAppear { StartupMetrics.shared.markOnce("main-first-frame") }
         .task {
             await ServerSettings.shared.loadIfNeeded()
+            StartupMetrics.shared.markOnce("server-settings")
             await UpdateStore.shared.autoCheckIfNeeded()
         }
         // 回前台补拉服务端设置：冷启动拉取失败（隧道未就绪等）会导致

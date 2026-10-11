@@ -11,6 +11,8 @@ struct NestKeepApp: App {
         // 对之后创建的所有 UIScrollView（List/ScrollView/Form）生效。
         UIScrollView.appearance().showsVerticalScrollIndicator = false
         UIScrollView.appearance().showsHorizontalScrollIndicator = false
+        // 冷启动打点：此刻已包含 @StateObject 属性初始化（AuthManager Keychain 恢复等）
+        StartupMetrics.shared.markOnce("app-init")
     }
 
     var body: some Scene {

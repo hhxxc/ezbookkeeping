@@ -804,6 +804,8 @@ struct TransactionsView: View {
             // 与云端同步背景图（Web 端设置的背景图原生共用）
             await HomeBackground.syncFromCloud()
             await vm.load()
+            // 首屏账单数据就绪（用户体验意义上的「可用」时刻）
+            StartupMetrics.shared.markOnce("home-data")
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
             // 切背景图后刷新汇总卡底图

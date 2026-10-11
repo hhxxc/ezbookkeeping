@@ -4,6 +4,7 @@ import UIKit
 /// 关于页：版本、构建时间、官网/反馈入口、开源许可证（对齐 Web 的关于页）
 struct AboutView: View {
     @ObservedObject private var updateStore = UpdateStore.shared
+    @ObservedObject private var startupMetrics = StartupMetrics.shared
     @State private var showLicenses = false
 
     private let repoURL = URL(string: "https://github.com/hhxxc/ezbookkeeping")!
@@ -50,6 +51,24 @@ struct AboutView: View {
                         Spacer()
                         Text(buildTime).foregroundColor(.secondary).font(.footnote)
                     }
+                }
+            }
+
+            Section(header: Text("启动耗时（冷启动实测）")) {
+                if startupMetrics.stages.isEmpty {
+                    Text("暂无数据（本页在启动后才记录）")
+                        .font(.footnote).foregroundColor(.secondary)
+                } else {
+                    ForEach(startupMetrics.stages) { stage in
+                        HStack {
+                            Text(stage.name)
+                            Spacer()
+                            Text(String(format: "+%.0f ms", stage.ms))
+                                .font(.footnote).monospacedDigit().foregroundColor(.secondary)
+                        }
+                    }
+                    Text("t0 = 进程创建时刻；「home-data」即首屏数据就绪")
+                        .font(.caption2).foregroundColor(.secondary)
                 }
             }
 
