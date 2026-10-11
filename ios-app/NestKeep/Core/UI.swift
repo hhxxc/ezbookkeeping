@@ -100,3 +100,66 @@ struct LoadingHint: View {
         .padding(.vertical, 28)
     }
 }
+
+/// 金额数字滚动动画：数值变化时从当前值平滑滚到目标值（easeOut ~0.55s）。
+/// iOS 15 无 `contentTransition(.numericText())`（iOS 16+），用 Animatable View
+/// 让 SwiftUI 逐帧插值重算文本实现同款效果。隐藏金额时直接显示掩码不滚动。
+struct TweenAmountText: View {
+    var cents: Int64
+    var currency: String? = "CNY"
+    /// 隐藏金额（眼睛开关）：显示掩码
+    var hidden: Bool = false
+    var mask: String = "＊＊＊"
+    var duration: Double = 0.55
+
+    @State private var shown: Double = 0
+
+    var body: some View {
+        if hidden {
+            Text(verbatim: mask)
+        } else {
+            AmountTweenLabel(value: shown, currency: currency)
+                .onAppear {
+                    // 首次挂载（骨架接替真实卡片时）也从 0 滚到目标值
+                    withAnimation(.easeOut(duration: duration)) { shown = Double(cents) }
+                }
+                .onChange(of: cents) { target in
+                    withAnimation(.easeOut(duration: duration)) { shown = Double(target) }
+                }
+        }
+    }
+}
+
+/// 可动画金额文本：Animatable 使 SwiftUI 在 value 插值期间逐帧重算 body
+struct AmountTweenLabel: View, Animatable {
+    var value: Double
+    var currency: String?
+
+    var animatableData: Double {
+        get { value }
+        set { value = newValue }
+    }
+
+    var body: some View {
+        Text(verbatim: AmountFormat.format(Int64(value), currency: currency))
+    }
+}
+
+/// 首拉骨架占位卡（首页用）：圆角灰卡 + 呼吸脉冲，数据到达后被真实卡片淡入接替
+struct PulsingSkeletonCard: View {
+    var height: CGFloat
+    var cornerRadius: CGFloat = 16
+
+    @State private var pulsing = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color.primary.opacity(pulsing ? 0.05 : 0.09))
+            .frame(height: height)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                    pulsing = true
+                }
+            }
+    }
+}

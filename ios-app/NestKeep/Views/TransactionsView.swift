@@ -154,7 +154,7 @@ final class TransactionsViewModel: ObservableObject {
     @Published var year: Int
     @Published var month: Int
     @Published var isLoading = false
-    /// 是否完成过一次成功加载：控制首次加载动画（LoadingHint）只出现一次，
+    /// 是否完成过一次成功加载：控制首拉骨架占位（PulsingSkeletonCard）只出现一次，
     /// 后续下拉刷新不再显示（保持已渲染内容，避免闪烁）
     @Published private(set) var hasLoadedOnce = false
     @Published var error: String?
@@ -701,6 +701,15 @@ struct TransactionsView: View {
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
+                        // 首拉骨架占位：数据到达后真实卡片淡入上浮接替（下拉刷新走 else 保持不动）
+                        if vm.isLoading && !vm.hasLoadedOnce {
+                            VStack(spacing: 12) {
+                                PulsingSkeletonCard(height: 156)
+                                PulsingSkeletonCard(height: 340)
+                            }
+                            .padding(.top, 8)
+                            .transition(.opacity)
+                        } else {
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
                             // 水平 17pt 沿用原 insetGrouped 的系统分组边距
@@ -709,6 +718,7 @@ struct TransactionsView: View {
                             .onTapGesture { openListPage() }
                             .padding(.top, 8)
                             .padding(.bottom, 12)
+                            .transition(.opacity.combined(with: .offset(y: 14)))
 
                         // 检索框（首页入口）：样式与账单列表页搜索框一致，
                         // 点击推入列表页并自动聚焦搜索框，不直接在首页输入
@@ -732,12 +742,10 @@ struct TransactionsView: View {
                         }
                         .buttonStyle(.plain)
                         .padding(.bottom, 12)
+                        .transition(.opacity)
 
                         periodCard
-
-                        // 首次进入的加载动画（仅冷启动首拉；下拉刷新 hasLoadedOnce 已置位不显示）
-                        if vm.isLoading && !vm.hasLoadedOnce {
-                            LoadingHint()
+                            .transition(.opacity.combined(with: .offset(y: 14)))
                         }
 
                         // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
@@ -747,6 +755,8 @@ struct TransactionsView: View {
                         aiEntryRow
                             .padding(.top, 12)
                     }
+                    // 骨架 ↔ 真实卡片的接替动画（仅首拉 hasLoadedOnce 翻转时触发一次）
+                    .animation(.easeOut(duration: 0.35), value: vm.hasLoadedOnce)
                     .padding(.horizontal, 17)
                     // iOS 15：MainTabView 的 safeAreaInset 穿不透 NavigationView，
                     // 内容末尾自行留出「底栏高度 + 底部安全区 + 呼吸空间」，
@@ -1070,9 +1080,10 @@ struct TransactionsView: View {
             .padding(.trailing, 32)
             .padding(.bottom, 6)
 
-            // 大支出金额
+            // 大支出金额（数字滚动动画：首拉/切月时从旧值平滑滚到新值）
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(vm.hideAmounts ? "＊＊＊＊" : AmountFormat.format(vm.monthExpenseCents))
+                TweenAmountText(cents: vm.monthExpenseCents,
+                                hidden: vm.hideAmounts, mask: "＊＊＊＊")
                     .font(.system(size: 30, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(primaryText)
@@ -1086,7 +1097,7 @@ struct TransactionsView: View {
             HStack(alignment: .top, spacing: 0) {
                 metricCell(
                     label: "当月收入",
-                    value: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.monthIncomeCents),
+                    cents: vm.monthIncomeCents,
                     valueColor: hasBG ? .white : HomePalette.income,
                     labelColor: secondaryText,
                     shadow: hasBG
@@ -1097,7 +1108,7 @@ struct TransactionsView: View {
                     .padding(.trailing, 16)
                 metricCell(
                     label: "月结余",
-                    value: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(balance),
+                    cents: balance,
                     valueColor: hasBG ? .white : (balance >= 0 ? HomePalette.income : HomePalette.expense),
                     labelColor: secondaryText,
                     shadow: hasBG
@@ -1142,15 +1153,16 @@ struct TransactionsView: View {
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
     }
 
-    /// 汇总卡底部指标单元（13pt 标签 / 15pt semibold 数值，与区间行金额同规格）
-    private func metricCell(label: String, value: String,
+    /// 汇总卡底部指标单元（13pt 标签 / 15pt semibold 数值，与区间行金额同规格）；
+    /// 数值走 TweenAmountText 数字滚动，隐藏金额时显示掩码
+    private func metricCell(label: String, cents: Int64,
                             valueColor: Color, labelColor: Color, shadow: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.system(size: 13))
                 .foregroundColor(labelColor)
                 .modifier(HomeShadow(active: shadow))
-            Text(verbatim: value)
+            TweenAmountText(cents: cents, hidden: vm.hideAmounts)
                 .font(.system(size: 15, weight: .semibold))
                 .monospacedDigit()
                 .foregroundColor(valueColor)
@@ -1207,14 +1219,14 @@ struct TransactionsView: View {
 
             Spacer(minLength: 8)
 
-            // 右侧收支双金额：与汇总卡指标同规格（15 semibold 等宽数字）
+            // 右侧收支双金额：与汇总卡指标同规格（15 semibold 等宽数字），数字滚动动画
             VStack(alignment: .trailing, spacing: 3) {
-                Text(verbatim: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.income(for: period)))
+                TweenAmountText(cents: vm.income(for: period), hidden: vm.hideAmounts)
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(HomePalette.income)
                     .lineLimit(1)
-                Text(verbatim: vm.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expense(for: period)))
+                TweenAmountText(cents: vm.expense(for: period), hidden: vm.hideAmounts)
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
                     .foregroundColor(HomePalette.expense)

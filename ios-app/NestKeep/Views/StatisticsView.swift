@@ -486,10 +486,13 @@ struct StatisticsView: View {
                 }
                 if !stats.isEmpty {
                     pieCard
+                        .transition(.opacity.combined(with: .offset(y: 14)))
                     rankCard
+                        .transition(.opacity.combined(with: .offset(y: 14)))
                 }
                 if hasDailyData {
                     dailyChartCard
+                        .transition(.opacity.combined(with: .offset(y: 14)))
                 }
                 dailyReportCard
                 viewDetailsLink
@@ -497,6 +500,8 @@ struct StatisticsView: View {
                     Text(error).font(.footnote).foregroundColor(.red)
                 }
             }
+            // 首拉数据到达后饼图/排行/日曲线卡片淡入上浮（仅 hasLoadedOnce 翻转时触发）
+            .animation(.easeOut(duration: 0.35), value: vm.hasLoadedOnce)
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 24)
@@ -672,7 +677,7 @@ struct StatisticsView: View {
     private func overviewCell(_ title: String, _ cents: Int64, _ color: Color, action: (() -> Void)? = nil) -> some View {
         let cell = VStack(spacing: 4) {
             Text(title).font(.system(size: 14)).foregroundColor(HomePalette.secondary)
-            Text(AmountFormat.format(cents))
+            TweenAmountText(cents: cents)
                 .font(.system(size: 21, weight: .bold))
                 .monospacedDigit()
                 .foregroundColor(color)
