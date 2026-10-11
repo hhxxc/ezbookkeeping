@@ -145,6 +145,14 @@ struct AIVoiceView: View {
                 .textFieldStyle(.roundedBorder)
                 .padding(.horizontal, 16)
 
+                // 系统语音识别对长数字容易转错（「六千六百零六」可能转成「666￥0」）：
+                // 引导用户手改文字 / 逐位念数字，落库前确认页金额也可点击修改
+                Text("金额念「零」易被吞掉？可逐位念（如「六六零六」），或直接改上屏文字；确认页里点金额也能改")
+                    .font(.caption2)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .multilineTextAlignment(.leading)
+                    .padding(.horizontal, 20)
+
                 Spacer()
                 Spacer()
 

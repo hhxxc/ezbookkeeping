@@ -20,9 +20,9 @@ enum ReceiptRecognizer {
         /// var 以支持确认页就地改支付账户（每条订单可单独选渠道）
         var sourceAccountId: String?
         let destinationAccountId: String?
-        /// 金额为 int64 分
-        let sourceAmount: Int64?
-        let destinationAmount: Int64?
+        /// var 以支持确认页就地改金额（语音识别对长数字可能转写错，如「六千六百零六」→「666￥0」）
+        var sourceAmount: Int64?
+        var destinationAmount: Int64?
         let tagIds: [String]?
         let comment: String?
 

@@ -196,6 +196,15 @@ final class AIReceiptViewModel: ObservableObject {
         results[index].sourceAccountId = accountId
     }
 
+    /// 就地修改某条识别结果的金额（int64 分）；转账且两端金额一致时同步另一端
+    func setAmount(_ cents: Int64, for item: ReceiptRecognizer.Recognized) {
+        guard let index = results.firstIndex(where: { $0.id == item.id }) else { return }
+        results[index].sourceAmount = cents
+        if results[index].transactionType == .transfer, results[index].destinationAmount != nil {
+            results[index].destinationAmount = cents
+        }
+    }
+
     func categoryName(_ id: String?) -> String {
         guard let id = id else { return "未识别" }
         for c in categories {
@@ -275,6 +284,8 @@ struct AIReceiptView: View {
     @State private var editing: ReceiptRecognizer.Recognized?
     /// 编辑页保存成功后要移除的结果项（onDismiss 时清除）
     @State private var editRemoveTarget: ReceiptRecognizer.Recognized?
+    /// 点金额 → 就地改金额（语音识别对长数字可能转写错的最后兜底）
+    @State private var amountEditing: AmountEditingTarget?
 
     var body: some View {
         NavigationView {
@@ -432,6 +443,11 @@ struct AIReceiptView: View {
                     }
                 )
             }
+            .sheet(item: $amountEditing) { target in
+                AmountEditSheet(initialCents: target.item.sourceAmount ?? 0) { cents in
+                    vm.setAmount(cents, for: target.item)
+                }
+            }
             .task {
                 await vm.loadRefData()
                 // 入口已带图进来（先选完图再进本页）：直接开始识别，不再拉起相册。
@@ -499,9 +515,20 @@ struct AIReceiptView: View {
                         .background(color(for: item.transactionType))
                         .cornerRadius(6)
                     Spacer()
-                    Text(AmountFormat.format(item.sourceAmount ?? 0))
-                        .font(.system(.body, design: .rounded).weight(.semibold))
-                        .foregroundColor(color(for: item.transactionType))
+                    // 金额可点击就地修改（语音转写把「六千六百零六」错转成「666￥0」这类场景的最后兜底）
+                    Button {
+                        amountEditing = AmountEditingTarget(item: item)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(AmountFormat.format(item.sourceAmount ?? 0))
+                                .font(.system(.body, design: .rounded).weight(.semibold))
+                                .foregroundColor(color(for: item.transactionType))
+                            Image(systemName: "pencil")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(Color(.tertiaryLabel))
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
                 if let time = item.time {
                     Label(timeText(time), systemImage: "clock")
@@ -741,5 +768,82 @@ extension ReceiptRecognizer.Recognized {
             editable: nil,
             geoLocation: nil
         )
+    }
+}
+
+/// 金额就地编辑的 sheet 目标（Identifiable 供 sheet(item:) 使用）
+struct AmountEditingTarget: Identifiable {
+    let id = UUID()
+    let item: ReceiptRecognizer.Recognized
+}
+
+/// 金额修改弹层：数字键盘输入「元」，保存时转成 int64 分回写识别结果。
+/// 场景：系统语音识别对长数字可能转写错（如「六千六百零六」→「666￥0」），
+/// 确认页点金额直接改，不必整条删掉重说。
+struct AmountEditSheet: View {
+    let initialCents: Int64
+    let onSave: (Int64) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 14) {
+                Text("识别金额可能不准，请核对修改")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 20)
+
+                TextField("0.00", text: $text)
+                    .keyboardType(.decimalPad)
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal, 28)
+
+                Text("单位：元，最多两位小数")
+                    .font(.caption)
+                    .foregroundColor(Color(.tertiaryLabel))
+
+                Spacer()
+            }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("修改金额")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("确定") {
+                        if let cents = parsedCents {
+                            onSave(cents)
+                            dismiss()
+                        }
+                    }
+                    .disabled(parsedCents == nil || (parsedCents ?? 0) <= 0)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .onAppear { text = Self.yuanString(initialCents) }
+    }
+
+    /// 输入的「元」→ 分（四舍五入到 0 位小数）；解析失败返回 nil（确定按钮禁用）
+    private var parsedCents: Int64? {
+        let cleaned = text.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty, let yuan = Decimal(string: cleaned) else { return nil }
+        let handler = NSDecimalNumberHandler(roundingMode: .plain, scale: 0,
+                                             raiseOnExactness: false, raiseOnOverflow: false,
+                                             raiseOnUnderflow: false, raiseOnDivideByZero: false)
+        return NSDecimalNumber(decimal: yuan * 100)
+            .rounding(accordingToBehavior: handler)
+            .int64Value
+    }
+
+    /// 分 → 去尾零的「元」字符串（660600→"6606"，660650→"6606.5"）
+    private static func yuanString(_ cents: Int64) -> String {
+        let yuan = NSDecimalNumber(value: cents).dividing(by: 100)
+        return yuan.stringValue
     }
 }
