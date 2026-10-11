@@ -118,8 +118,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 统一在此决定本次构建的语义版本号：
-          #   - workflow_dispatch 传了 app_version -> 用它（支持手动跳大版本，如 1.7.0）
-          #   - 否则（push 到 native-ios-app / main）-> 自动取「本变体现有最大语义版本」的 patch+1，
+          #   - workflow_dispatch 传了 app_version -> 用它（支持手动跳大版本，如 1.8.0）
+          #   - 否则（push 到 native-ios-app / main）-> 自动取「本变体现有最大语义版本」
+          #     推进一位：patch 满 9 进位到 minor（1.7.9 -> 1.8.0），第三段永远一位数——
+          #     无上限的 patch 会长出「1.6.100」这种视觉歧义版本（1.6.80 曾被读成 1.68.0）。
           #     这样每次 push 都会产出一个比上一版更大的新版本，App 内「检查更新」就能查到。
           #
           # 版本号只写进 CFBundleShortVersionString（纯三段 x.y.z），构建号（CFBundleVersion）
@@ -142,7 +144,7 @@ jobs:
             if [ -z "$LATEST" ]; then
               LATEST="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' ios-app/NestKeep/Info.plist)"
             fi
-            V="$(echo "$LATEST" | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')"
+            V="$(echo "$LATEST" | awk -F. '{ if ($3 >= 9) printf "%d.%d.0", $1, $2+1; else printf "%d.%d.%d", $1, $2, $3+1 }')"
             echo "==> 自动推进版本：$LATEST -> $V"
           fi
           # 健壮性：极端情况下 V 仍为空则回退基线
