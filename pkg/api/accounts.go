@@ -157,7 +157,7 @@ func (a *AccountsApi) AccountCreateHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	if accountCreateReq.Category < models.ACCOUNT_CATEGORY_CASH || accountCreateReq.Category > models.ACCOUNT_CATEGORY_CERTIFICATE_OF_DEPOSIT {
+	if accountCreateReq.Category < models.ACCOUNT_CATEGORY_CASH || accountCreateReq.Category > models.ACCOUNT_CATEGORY_SALARY {
 		log.Warnf(c, "[accounts.AccountCreateHandler] account category invalid, category is %d", accountCreateReq.Category)
 		return nil, errs.ErrAccountCategoryInvalid
 	}
@@ -322,7 +322,7 @@ func (a *AccountsApi) AccountModifyHandler(c *core.WebContext) (any, *errs.Error
 		return nil, errs.ErrClientTimezoneOffsetInvalid
 	}
 
-	if accountModifyReq.Category < models.ACCOUNT_CATEGORY_CASH || accountModifyReq.Category > models.ACCOUNT_CATEGORY_CERTIFICATE_OF_DEPOSIT {
+	if accountModifyReq.Category < models.ACCOUNT_CATEGORY_CASH || accountModifyReq.Category > models.ACCOUNT_CATEGORY_SALARY {
 		log.Warnf(c, "[accounts.AccountModifyHandler] account category invalid, category is %d", accountModifyReq.Category)
 		return nil, errs.ErrAccountCategoryInvalid
 	}

@@ -19,6 +19,7 @@ const (
 	ACCOUNT_CATEGORY_INVESTMENT             AccountCategory = 7
 	ACCOUNT_CATEGORY_SAVINGS_ACCOUNT        AccountCategory = 8
 	ACCOUNT_CATEGORY_CERTIFICATE_OF_DEPOSIT AccountCategory = 9
+	ACCOUNT_CATEGORY_SALARY                 AccountCategory = 10
 )
 
 var assetAccountCategory = map[AccountCategory]bool{
@@ -31,6 +32,7 @@ var assetAccountCategory = map[AccountCategory]bool{
 	ACCOUNT_CATEGORY_INVESTMENT:             true,
 	ACCOUNT_CATEGORY_SAVINGS_ACCOUNT:        true,
 	ACCOUNT_CATEGORY_CERTIFICATE_OF_DEPOSIT: true,
+	ACCOUNT_CATEGORY_SALARY:                 true,
 }
 
 var liabilityAccountCategory = map[AccountCategory]bool{
@@ -43,6 +45,7 @@ var liabilityAccountCategory = map[AccountCategory]bool{
 	ACCOUNT_CATEGORY_INVESTMENT:             false,
 	ACCOUNT_CATEGORY_SAVINGS_ACCOUNT:        false,
 	ACCOUNT_CATEGORY_CERTIFICATE_OF_DEPOSIT: false,
+	ACCOUNT_CATEGORY_SALARY:                 false,
 }
 
 // IsAsset returns whether the account category is an asset category

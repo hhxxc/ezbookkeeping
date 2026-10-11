@@ -34,6 +34,7 @@ export class AccountCategory implements TypeAndName {
     public static readonly Receivables = new AccountCategory(6, 7, 'Receivables', true, false, '700');
     public static readonly CertificateOfDeposit = new AccountCategory(9, 8, 'Certificate of Deposit', true, false, '110');
     public static readonly InvestmentAccount = new AccountCategory(7, 9, 'Investment Account', true, false, '800');
+    public static readonly Salary = new AccountCategory(10, 10, 'Salary', true, false, '30');
 
     public static readonly Default = AccountCategory.Cash;
 

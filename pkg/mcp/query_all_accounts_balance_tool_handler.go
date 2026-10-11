@@ -22,6 +22,7 @@ type MCPQueryAllAccountsBalanceResponse struct {
 	ReceivableAccounts           []*MCPAccountBalanceInfo `json:"receivableAccounts,omitempty" jsonschema_description:"List of receivable account balances"`
 	CertificateOfDepositAccounts []*MCPAccountBalanceInfo `json:"certificateOfDepositAccounts,omitempty" jsonschema_description:"List of certificate of deposit account balances"`
 	InvestmentAccounts           []*MCPAccountBalanceInfo `json:"investmentAccounts,omitempty" jsonschema_description:"List of investment account balances"`
+	SalaryAccounts               []*MCPAccountBalanceInfo `json:"salaryAccounts,omitempty" jsonschema_description:"List of salary account balances"`
 }
 
 // MCPAccountBalanceInfo defines the structure of account balance information
@@ -140,6 +141,12 @@ func (h *mcpQueryAllAccountsBalanceToolHandler) createNewMCPQueryAllAccountsBala
 			}
 
 			response.InvestmentAccounts = append(response.InvestmentAccounts, h.createNewMCPAccountBalanceInfo(account))
+		} else if account.Category == models.ACCOUNT_CATEGORY_SALARY {
+			if response.SalaryAccounts == nil {
+				response.SalaryAccounts = make([]*MCPAccountBalanceInfo, 0)
+			}
+
+			response.SalaryAccounts = append(response.SalaryAccounts, h.createNewMCPAccountBalanceInfo(account))
 		}
 	}
 
