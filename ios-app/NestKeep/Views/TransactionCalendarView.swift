@@ -136,6 +136,7 @@ struct CalendarPageView: View {
         .navigationTitle("账单日历")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
+        .chineseBackButton()
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 }

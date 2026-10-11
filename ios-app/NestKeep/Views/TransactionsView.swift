@@ -96,6 +96,49 @@ struct OverviewDateRange {
     let end: Int
 }
 
+/// 统一中文返回按钮：隐藏系统返回键（设备语言非中文时显示英文 "Back"），
+/// 左上角自绘「‹ 返回」。仅用于 NavigationView 内系统 push 的二级页。
+struct ChineseBackButtonModifier: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("返回")
+                                .font(.system(size: 16))
+                        }
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    /// 二级页统一中文返回（见 ChineseBackButtonModifier）
+    func chineseBackButton() -> some View { modifier(ChineseBackButtonModifier()) }
+}
+
+/// 隐藏系统返回键后 SwiftUI 会一并禁用边缘左滑返回手势，这里全局恢复：
+/// 代理 interactivePopGestureRecognizer，仅在栈深 >1 时允许手势（官方常见做法）。
+extension UINavigationController: UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
+    }
+}
+
 /// 区间详情页上下文（fullScreenCover(item:) 需要 Identifiable）
 struct RangeDetailContext: Identifiable {
     let period: OverviewPeriod
@@ -1346,6 +1389,7 @@ private struct BillListPageView: View {
         .navigationTitle(vm.isFiltering ? "已筛选账单" : "账单明细")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
+        .chineseBackButton()
         // 顶部不放常驻按钮：清除筛选只在空态出现，筛选入口收进搜索框右侧漏斗
         .sheet(isPresented: $showFilter) {
             TransactionFilterSheet(
@@ -1522,6 +1566,7 @@ struct RangeDetailView: View {
         .navigationTitle(vm.context.period.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
+        .chineseBackButton()
         .task { await vm.load() }
         .sheet(item: $editing, onDismiss: {
             // 编辑保存后同步刷新详情列表 + 主页面的列表与区间汇总
