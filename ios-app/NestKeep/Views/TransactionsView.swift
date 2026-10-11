@@ -154,6 +154,9 @@ final class TransactionsViewModel: ObservableObject {
     @Published var year: Int
     @Published var month: Int
     @Published var isLoading = false
+    /// 是否完成过一次成功加载：控制首次加载动画（LoadingHint）只出现一次，
+    /// 后续下拉刷新不再显示（保持已渲染内容，避免闪烁）
+    @Published private(set) var hasLoadedOnce = false
     @Published var error: String?
 
     /// 汇总数据（原首页：总资产 + 本月收支）
@@ -269,6 +272,7 @@ final class TransactionsViewModel: ObservableObject {
             transactions = try await txs
             await amounts
             rebuildGrouping()
+            hasLoadedOnce = true
             isLoading = false
         } catch {
             isLoading = false
@@ -730,6 +734,11 @@ struct TransactionsView: View {
                         .padding(.bottom, 12)
 
                         periodCard
+
+                        // 首次进入的加载动画（仅冷启动首拉；下拉刷新 hasLoadedOnce 已置位不显示）
+                        if vm.isLoading && !vm.hasLoadedOnce {
+                            LoadingHint()
+                        }
 
                         // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
                         // 开关拉取失败（隧道未就绪等）会导致入口整场消失，反复修不好；

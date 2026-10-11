@@ -80,3 +80,23 @@ enum AmountFormat {
         return (decimal as NSDecimalNumber).stringValue
     }
 }
+
+/// 首次进入页面的数据加载指示（首页 / 统计页共用）：
+/// 居中小 spinner + 说明文案。只在「从未加载成功过」时显示（配合 VM 的 hasLoadedOnce），
+/// 下拉刷新 / 切月等后续刷新不再出现，避免已展示内容闪烁。
+struct LoadingHint: View {
+    var text: String = "正在加载数据…"
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .tint(Theme.brand)
+                .scaleEffect(1.1)
+            Text(text)
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+    }
+}

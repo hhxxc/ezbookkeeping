@@ -480,6 +480,10 @@ struct StatisticsView: View {
                 periodModePicker
                 overviewCard
                 modePicker
+                // 首次进入的加载动画（仅首拉；切月/切年等后续刷新保持旧内容不闪烁）
+                if vm.isLoading && !vm.hasLoadedOnce {
+                    LoadingHint()
+                }
                 if !stats.isEmpty {
                     pieCard
                     rankCard
