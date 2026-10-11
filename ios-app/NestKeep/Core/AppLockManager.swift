@@ -88,16 +88,16 @@ final class AppLockManager: ObservableObject {
         UserDefaults.standard.set(true, forKey: enabledKey)
         KeychainStore.save(pin, account: pinKeychainAccount)   // 供生物识别解锁使用
         // 持久层只保留密文；明文 token 仅留在内存（下次启动需先解锁）
-        AuthManager.shared.removePlaintextTokenFromStorage()
+        AuthManager.shared.removePersistedToken()
         isEnabled = true
         isUnlocked = true
     }
 
-    /// 关闭应用锁（清掉密文与 PIN 副本，把明文 token 写回持久层）
+    /// 关闭应用锁（清掉密文与 PIN 副本，把明文 token 写回 Keychain）
     func disable() {
         // 先把明文 token 写回，避免关闭后重启直接掉登录态
         if let token = AuthManager.shared.token, !token.isEmpty {
-            AuthManager.shared.persistPlaintextTokenToStorage(token)
+            AuthManager.shared.persistTokenToStorage(token)
         }
         UserDefaults.standard.removeObject(forKey: encryptedTokenKey)
         UserDefaults.standard.removeObject(forKey: saltKey)
@@ -224,8 +224,9 @@ enum AppLockError: LocalizedError {
     }
 }
 
-/// 最小化的 Keychain 封装：只在需要「生物识别保护」的 PIN 副本上使用。
-/// 普通场景（token）继续走 UserDefaults，避免影响既有逻辑。
+/// 最小化的 Keychain 封装：PIN 副本（生物识别保护）与登录 token 都走这里。
+/// token 使用 kSecAttrAccessibleWhenUnlockedThisDeviceOnly：设备解锁才可读、
+/// 不进 iCloud 备份、不跨设备迁移。
 enum KeychainStore {
     private static let service = "com.hhxxc.nestkeep.applock"
 

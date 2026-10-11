@@ -33,6 +33,33 @@ struct APIClient {
 
     private var baseURL: URL { AppSettings.shared.serverURL }
 
+    /// HTTP 状态码守卫：非 2xx 时优先解析响应信封保留业务错误码（2FA 登录流依赖），
+    /// 解不出信封（隧道/反代的 HTML 错误页、纯文本 500 等）则抛 http(status)。
+    /// token 失效类 401（202001~202003）广播会话过期，由 AuthManager 统一登出。
+    private func handleHTTPStatus(_ response: URLResponse, data: Data) throws {
+        guard let http = response as? HTTPURLResponse else { return }
+        guard !(200..<300).contains(http.statusCode) else { return }
+
+        let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let errorCode = (root?["errorCode"] as? NSNumber)?.intValue
+
+        if http.statusCode == 401 {
+            switch errorCode {
+            case 202001, 202002, 202003: // unauthorized access / invalid token / expired token
+                NotificationCenter.default.post(name: .sessionExpired, object: nil)
+                throw APIError.http(status: 401)
+            case .some(let code): // 其他 401（如 2FA 验证失败），保留业务错误码交给调用方
+                throw APIError.server(
+                    code: code,
+                    message: root?["errorMessage"] as? String ?? "请求失败"
+                )
+            case nil:
+                throw APIError.http(status: 401)
+            }
+        }
+        throw APIError.http(status: http.statusCode)
+    }
+
     func request<T: Decodable>(
         _ path: String,
         method: HTTPMethod = .GET,
@@ -64,7 +91,8 @@ struct APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, _) = try await session.data(for: req)
+        let (data, response) = try await session.data(for: req)
+        try handleHTTPStatus(response, data: data)
 
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .useDefaultKeys
@@ -110,7 +138,8 @@ struct APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, _) = try await session.data(for: req)
+        let (data, response) = try await session.data(for: req)
+        try handleHTTPStatus(response, data: data)
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw APIError.invalidResponse
         }
