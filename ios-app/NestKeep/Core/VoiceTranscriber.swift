@@ -3,47 +3,31 @@ import Speech
 import AVFoundation
 
 /// 语音转文字（iOS 自带 Speech 框架，zh-CN，免费、隐私好）。
-/// 实时上屏中间结果；用户停顿 ~1.2s 自动停止（口述记账是短句，无需手动点停）。
+/// 按住说话、松开结束（用户完全掌控起止）；多次按住的识别结果累计拼接。
 /// 权限：麦克风 + 语音识别两项，任一被拒给出可读提示（引导去设置）。
 @MainActor
 final class VoiceTranscriber: NSObject, ObservableObject {
     /// 是否正在录音识别
     @Published private(set) var isRecording = false
-    /// 实时转写文本（含中间结果）
+    /// 实时转写文本（跨多次按住累计：base + 本次识别）
     @Published var transcript = ""
     /// 不可恢复的错误（权限被拒/不可用/引擎失败）
     @Published var error: String?
-
-    /// 停顿自动停止后回调（视图侧触发「开始解析」）
-    var onAutoStop: (() -> Void)?
 
     private var audioEngine = AVAudioEngine()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var recognizer: SFSpeechRecognizer?
-    /// 口述停顿检测：每次有新结果就重置，1.2s 没有新结果即认为说完
-    private var silenceTimer: Timer?
+    /// 本次按住前已有的文字（新识别结果追加其后）
+    private var baseTranscript = ""
     /// 最长录音 60s 兜底（系统单次识别本身也有限制）
     private var maxDurationTimer: Timer?
-    /// 是否已经说出过内容（未说话停顿不算说完）
-    private var hasSpoken = false
 
-    private static let silenceInterval: TimeInterval = 1.2
-
-    /// 点按开始/停止
-    func toggle() {
-        if isRecording {
-            stop()
-        } else {
-            start()
-        }
-    }
-
-    func start() {
+    func start(base: String = "") {
         guard !isRecording else { return }
         error = nil
-        transcript = ""
-        hasSpoken = false
+        baseTranscript = base
+        transcript = base
 
         SFSpeechRecognizer.requestAuthorization { [weak self] _ in
             Task { @MainActor in
@@ -119,9 +103,8 @@ final class VoiceTranscriber: NSObject, ObservableObject {
                 if let result = result {
                     let text = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !text.isEmpty {
-                        self.transcript = text
-                        self.hasSpoken = true
-                        self.resetSilenceTimer()
+                        // 中间结果会整体刷新，拼在本次按住前的已有文字后面
+                        self.transcript = self.baseTranscript + text
                     }
                 }
 
@@ -147,17 +130,6 @@ final class VoiceTranscriber: NSObject, ObservableObject {
         }
     }
 
-    private func resetSilenceTimer() {
-        silenceTimer?.invalidate()
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: Self.silenceInterval, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.isRecording, self.hasSpoken else { return }
-                self.stop()
-                self.onAutoStop?()
-            }
-        }
-    }
-
     func stop() {
         guard isRecording else { return }
         recognitionRequest?.endAudio()
@@ -165,8 +137,6 @@ final class VoiceTranscriber: NSObject, ObservableObject {
     }
 
     private func stopEngine() {
-        silenceTimer?.invalidate()
-        silenceTimer = nil
         maxDurationTimer?.invalidate()
         maxDurationTimer = nil
         if audioEngine.isRunning {

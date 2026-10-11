@@ -1,14 +1,14 @@
 import SwiftUI
 import Combine
 
-/// 语音记账：按一下说话（停顿自动停）→ 实时上屏文字（可手改）→「解析成账单」
+/// 语音记账：按住麦克风说话、松开结束 → 实时上屏文字（松开后可手改）→ 点「解析成账单」提交
 /// 调后端 parse_text.json；解析成功关本页，结果交给 AIReceiptView 的确认/落库流程。
 @MainActor
 final class AIVoiceViewModel: ObservableObject {
     @ObservedObject var transcriber = VoiceTranscriber()
     @Published var isParsing = false
     @Published var error: String?
-    /// 手动编辑后的文字（编辑时以手动为准，录音新结果只在编辑为空时覆盖）
+    /// 手动编辑后的文字（编辑时以手动为准；再次按住说话时会把已编辑文字作为基底追加）
     @Published var manualText: String?
 
     private var cancellables: Set<AnyCancellable> = []
@@ -20,35 +20,38 @@ final class AIVoiceViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    /// 录音中实时上屏转写；松开后以手动编辑为优先
     var displayText: String {
+        if transcriber.isRecording { return transcriber.transcript }
         if let manual = manualText, !manual.isEmpty { return manual }
         return transcriber.transcript
     }
 
     var hasText: Bool { !displayText.isEmpty }
 
-    func start() {
+    /// 按住麦克风开始录音（已编辑/已识别的文字作为本次追加的基底）
+    func beginHold() {
         error = nil
-        transcriber.start()
+        transcriber.start(base: displayText)
+        // 转写期间以 transcriber.transcript 为准（含基底），避免编辑框与实时上屏互相打架
+        manualText = nil
     }
 
-    func toggleRecord() {
-        if transcriber.isRecording {
-            transcriber.stop()
-        } else {
-            error = nil
-            transcriber.start()
-        }
+    /// 松开麦克风结束录音（不自动解析，等用户确认/修改后手动提交）
+    func endHold() {
+        transcriber.stop()
     }
 
-    /// 停顿自动停止 → 直接解析（口述记账「说完就走」，无需再点按钮）
-    func handleAutoStop() {
-        Task { await parseIfNeeded() }
+    /// 清空重说
+    func clearText() {
+        transcriber.transcript = ""
+        manualText = nil
+        error = nil
     }
 
+    /// 提交解析（提交按钮触发）
     func parseIfNeeded() async {
-        guard hasText, !isParsing else { return }
-        if transcriber.isRecording { transcriber.stop() }
+        guard hasText, !isParsing, !transcriber.isRecording else { return }
         isParsing = true
         error = nil
         do {
@@ -121,58 +124,33 @@ struct AIVoiceView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                Spacer()
-
-                // 实时转写文本（可手改）
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(vm.displayText.isEmpty ? "说一句话，例如「午餐花了 32 块，微信付的」" : vm.displayText)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(vm.displayText.isEmpty ? Color(.placeholderText) : HomePalette.ink)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-                }
-                .padding(16)
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(16)
-                .padding(.horizontal, 16)
-
-                // 编辑入口：转写不准时手动修正
-                TextField("或者直接输入文字记账", text: Binding(
-                    get: { vm.manualText ?? "" },
-                    set: { vm.manualText = $0 }
-                ))
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, 16)
+            VStack(spacing: 16) {
+                // 转写文本区：录音中只读实时上屏；松开后变可编辑（识别不准直接改）
+                transcriptEditor
+                    .padding(.horizontal, 16)
 
                 // 系统语音识别对长数字容易转错（「六千六百零六」可能转成「666￥0」）：
                 // 引导用户手改文字 / 逐位念数字，落库前确认页金额也可点击修改
-                Text("金额念「零」易被吞掉？可逐位念（如「六六零六」），或直接改上屏文字；确认页里点金额也能改")
+                Text("金额念「零」易被吞掉？可逐位念（如「六六零六」）；识别不准直接改上屏文字，确认页里点金额也能改")
                     .font(.caption2)
                     .foregroundColor(Color(.tertiaryLabel))
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 20)
 
-                Spacer()
+                if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
+                    Button("清空重说") { vm.clearText() }
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+
                 Spacer()
 
                 micButton
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
 
-                // 手动解析 / 超时重试入口（自动停顿解析失败时从这里重试）
-                if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
-                    Button {
-                        Task { await vm.parseIfNeeded() }
-                    } label: {
-                        Text("解析成账单")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 28)
-                            .padding(.vertical, 10)
-                            .background(Capsule().fill(Theme.brand))
-                    }
-                    .padding(.top, -4)
-                }
+                // 提交按钮：文字确认/修改好后手动提交（不再停顿自动解析）
+                submitButton
+                    .padding(.horizontal, 24)
 
                 Text(statusText)
                     .font(.footnote)
@@ -186,7 +164,8 @@ struct AIVoiceView: View {
                         .padding(.horizontal, 24)
                 }
             }
-            .padding(.vertical, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("语音记账")
             .navigationBarTitleDisplayMode(.inline)
@@ -199,40 +178,102 @@ struct AIVoiceView: View {
         }
         .onAppear {
             vm.onParsed = onParsed
-            vm.transcriber.onAutoStop = { vm.handleAutoStop() }
-            // 进页自动开始听（少一次点按）
-            vm.start()
         }
         .onDisappear {
             vm.transcriber.stop()
         }
     }
 
-    private var statusText: String {
-        if vm.isParsing { return "正在解析…" }
-        if vm.transcriber.isRecording { return "正在听…说完停顿一下即可" }
-        if vm.hasText { return "说完啦？点麦克风继续补充，或直接解析" }
-        return "点击麦克风开始说话"
-    }
-
-    private var micButton: some View {
-        Button {
-            vm.toggleRecord()
-        } label: {
-            ZStack {
-                // 录音中的发散光圈：三圈错峰从按钮向外扩散并淡出（雷达式）
-                ForEach(0..<3, id: \.self) { index in
-                    RippleRing(isActive: vm.transcriber.isRecording, delay: Double(index) * 0.66)
+    /// 录音中：只读实时转写；空闲：可编辑（绑定手动编辑，空时显示占位提示）
+    private var transcriptEditor: some View {
+        ZStack(alignment: .topLeading) {
+            if vm.transcriber.isRecording {
+                Text(vm.displayText.isEmpty ? "正在听…" : vm.displayText)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(HomePalette.ink)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+                    .padding(.horizontal, 4)
+                    .padding(.top, 8)
+            } else {
+                if !vm.hasText {
+                    Text("按住下方麦克风说话；识别不准可直接在此修改")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Color(.placeholderText))
+                        .padding(.horizontal, 4)
+                        .padding(.top, 8)
+                        .allowsHitTesting(false)
                 }
-                Circle()
-                    .fill(vm.transcriber.isRecording ? Theme.expense : Theme.brand)
-                    .frame(width: 72, height: 72)
-                Image(systemName: vm.transcriber.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(.white)
+                TextEditor(text: Binding(
+                    get: { vm.manualText ?? vm.transcriber.transcript },
+                    set: { vm.manualText = $0 }
+                ))
+                .font(.system(size: 20, weight: .medium))
+                .foregroundColor(HomePalette.ink)
+                .frame(minHeight: 120)
             }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(.secondarySystemGroupedBackground))
+        .cornerRadius(16)
+    }
+
+    private var statusText: String {
+        if vm.isParsing { return "正在解析…" }
+        if vm.transcriber.isRecording { return "正在听…松开结束" }
+        if vm.hasText { return "确认或修改文字后点上方按钮提交；按住麦克风可继续补充" }
+        return "按住麦克风说话，松开结束"
+    }
+
+    /// 按住说话的麦克风按钮：按下开始录音、松开停止（不自动解析）
+    private var micButton: some View {
+        ZStack {
+            // 录音中的发散光圈：三圈错峰从按钮向外扩散并淡出（雷达式）
+            ForEach(0..<3, id: \.self) { index in
+                RippleRing(isActive: vm.transcriber.isRecording, delay: Double(index) * 0.66)
+            }
+            Circle()
+                .fill(vm.transcriber.isRecording ? Theme.expense : Theme.brand)
+                .frame(width: 72, height: 72)
+            Image(systemName: vm.transcriber.isRecording ? "waveform" : "mic.fill")
+                .font(.system(size: 28))
+                .foregroundColor(.white)
+        }
+        .contentShape(Circle())
+        // 按住式录音：pressing true=按下开始，false=松开结束；
+        // minimumDuration .infinity 让 perform 永不触发（纯按压状态检测）
+        .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+            if pressing {
+                vm.beginHold()
+            } else {
+                vm.endHold()
+            }
+        }, perform: {})
         .disabled(vm.isParsing)
+    }
+
+    private var submitButton: some View {
+        Button {
+            Task { await vm.parseIfNeeded() }
+        } label: {
+            HStack(spacing: 8) {
+                if vm.isParsing {
+                    ProgressView()
+                        .tint(.white)
+                }
+                Text(vm.isParsing ? "解析中…" : "解析成账单")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 13)
+            .background(
+                Capsule().fill(vm.hasText && !vm.transcriber.isRecording
+                               ? Theme.brand
+                               : Color(.systemFill))
+            )
+        }
+        .foregroundColor(vm.hasText && !vm.transcriber.isRecording ? .white : Color(.placeholderText))
+        .disabled(!vm.hasText || vm.isParsing || vm.transcriber.isRecording)
     }
 }
 
