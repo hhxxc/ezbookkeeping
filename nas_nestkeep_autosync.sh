@@ -2,7 +2,7 @@
 #
 # NestKeep 原生 App 自动跟版脚本（NAS 上运行）
 #
-# 原理：每 10 分钟（crontab）查询 Docker Hub 上 hhxxc/nestkeep-release:latest
+# 原理：每 2 分钟（crontab）查询 Docker Hub 上 hhxxc/nestkeep-release:latest
 # 的 manifest digest，与本地基线对比；有变化就 docker pull 该镜像并解包出
 # IPA 与更新清单（latest-<flavor>.json）到 data/nestkeep 发布目录。
 #
@@ -33,12 +33,53 @@ DIGEST_FILE="$STATE_DIR/.nk_autosync_last_digest"
 LOG="$STATE_DIR/nk_autosync.log"
 LOCK="$STATE_DIR/.nk_autosync.lock"
 
+# 告警：走 NAS 本机 Apprise API（渠道配置在容器 data 里，脚本零凭据）。
+# 仅在「连续失败达阈值」与「恢复」时发送，通知本身失败静默（不影响主流程）。
+APPRISE_URL="${NK_APPRISE_URL:-http://localhost:8082/notify/8b}"
+FAIL_FILE="$STATE_DIR/.nk_autosync_failcount"
+
 # docker 路径：群晖 cron 环境下 PATH 不含 /usr/local/bin，逐个探测
 DOCKER_BIN="docker"
 command -v docker >/dev/null 2>&1 || DOCKER_BIN="/usr/local/bin/docker"
 
 ts() { date +"%Y-%m-%d %H:%M:%S"; }
 log() { echo "[$(ts)] $1" >> "$LOG"; }
+
+# $1=标题 $2=正文 $3=类型(warning|info)；payload 用临时文件避开 SSH/JSON 转义坑
+notify() {
+    [ -n "$APPRISE_URL" ] || return 0
+    local tmp
+    tmp=$(mktemp)
+    printf '{"title":"%s","body":"%s","type":"%s","format":"text"}' "$1" "$2" "${3:-warning}" > "$tmp"
+    curl -s -m 30 -X POST "$APPRISE_URL" -H "Content-Type: application/json" -d @"$tmp" >/dev/null 2>&1
+    rm -f "$tmp"
+}
+
+# 连续失败计数：第 3 次与之后每满 30 次发一次告警，恢复时发通知
+mark_fail() { # $1=固定措辞的失败原因（不含引号/反斜杠，保证 JSON 安全）
+    local count=0
+    [ -f "$FAIL_FILE" ] && count=$(cat "$FAIL_FILE" 2>/dev/null)
+    case "$count" in ''|*[!0-9]*) count=0 ;; esac
+    count=$((count + 1))
+    echo "$count" > "$FAIL_FILE"
+    if [ "$count" -eq 3 ] || [ $((count % 30)) -eq 0 ]; then
+        notify "巢记自动跟版失败" "NestKeep 发版同步已连续失败 $count 次（每 2 分钟自动重试）。原因：$1"
+        log "WARN: 已发送告警（连续失败 $count 次）"
+    fi
+}
+
+mark_ok() {
+    if [ -f "$FAIL_FILE" ]; then
+        local count
+        count=$(cat "$FAIL_FILE" 2>/dev/null)
+        rm -f "$FAIL_FILE"
+        case "$count" in ''|*[!0-9]*) count=0 ;; esac
+        if [ "$count" -ge 3 ]; then
+            notify "巢记自动跟版恢复" "此前连续失败 $count 次，现已恢复正常。" info
+            log "已发送恢复通知（此前失败 $count 次）"
+        fi
+    fi
+}
 
 if ! mkdir "$LOCK" 2>/dev/null; then
     # 锁目录残留（断电/被杀）超过 30 分钟视为陈旧，清掉重试
@@ -60,14 +101,16 @@ trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 REMOTE=$(curl -sf --max-time 20 "$TAG_URL" | grep -o '"digest":"sha256:[a-f0-9]*"' | head -1 | cut -d'"' -f4)
 if [ -z "$REMOTE" ]; then
     log "WARN: 查询 Docker Hub 失败，跳过本次"
+    mark_fail "查询 Docker Hub digest 失败"
     exit 0
 fi
 
 LAST=""
 [ -f "$DIGEST_FILE" ] && LAST=$(cat "$DIGEST_FILE")
 
-# 无更新：静默退出
+# 无更新：静默退出（有历史失败则顺手清零/发恢复通知——无待同步任务即视为健康）
 if [ "$REMOTE" = "$LAST" ]; then
+    mark_ok
     exit 0
 fi
 
@@ -102,6 +145,7 @@ do_pull() {
 log "发现新发版镜像 digest：$REMOTE（旧：$LAST），开始同步"
 if ! do_pull; then
     log "ERROR: 所有源拉取失败，基线未更新，下轮重试"
+    mark_fail "镜像拉取失败（直连与全部镜像站均不可达）"
     exit 1
 fi
 
@@ -109,6 +153,7 @@ fi
 CID=$("$DOCKER_BIN" create --entrypoint /bin/true "$RELEASE_IMAGE:latest" 2>> "$LOG")
 if [ -z "$CID" ]; then
     log "ERROR: docker create 失败，基线未更新，下轮重试"
+    mark_fail "docker create 失败"
     exit 1
 fi
 
@@ -125,6 +170,7 @@ fi
 # 3. 校验：至少一份清单 + 最新 IPA 是 zip 头（防镜像/解包异常污染发布目录）
 if ! ls "$DATA_DIR"/latest-*.json >/dev/null 2>&1; then
     log "ERROR: 解包后找不到 latest-*.json，基线未更新，下轮重试"
+    mark_fail "解包后找不到更新清单"
     exit 1
 fi
 
@@ -132,6 +178,7 @@ NEWEST_IPA=$(ls -t "$DATA_DIR"/*.ipa 2>/dev/null | head -1)
 if [ -n "$NEWEST_IPA" ]; then
     if ! head -c 2 "$NEWEST_IPA" | grep -q "PK"; then
         log "ERROR: IPA 文件头校验失败（$NEWEST_IPA），基线未更新，下轮重试"
+        mark_fail "IPA 文件头校验失败"
         exit 1
     fi
 fi
@@ -139,6 +186,7 @@ fi
 # 4. 清理旧 IPA：按修改时间只保留最近 5 个（每个 ~2-5MB）
 ls -t "$DATA_DIR"/*.ipa 2>/dev/null | tail -n +6 | xargs -r rm -f
 
+mark_ok
 echo "$REMOTE" > "$DIGEST_FILE"
 VERSIONS=$(grep -h -o '"version": *"[^"]*"' "$DATA_DIR"/latest-*.json 2>/dev/null | tr '\n' ' ')
 log "同步完成，已更新基线。当前清单版本：$VERSIONS"

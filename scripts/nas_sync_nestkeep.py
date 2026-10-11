@@ -26,7 +26,7 @@ REMOTE_SCRIPT = f"{nas_config.DEPLOY_DIR}/nestkeep_autosync.sh"
 CRONTAB_PATH = "/etc/crontab"
 CRON_MARK = "nestkeep_autosync"
 # 与 /etc/crontab 现有格式一致（六段 + user + cmd，tab 分隔）
-CRON_LINE = "*/10\t*\t*\t*\t*\troot\t/bin/sh /volume2/docker/ezbk/nestkeep_autosync.sh > /dev/null 2>&1"
+CRON_LINE = "*/2\t*\t*\t*\t*\troot\t/bin/sh /volume2/docker/ezbk/nestkeep_autosync.sh > /dev/null 2>&1"
 
 if not os.path.isfile(LOCAL_SCRIPT):
     print(f"==> 找不到 {LOCAL_SCRIPT}")
@@ -59,18 +59,29 @@ print("==> 语法检查通过")
 
 out, err = nas_config.ssh_exec(cli, f"chmod +x '{REMOTE_SCRIPT}'")
 
-# crontab 幂等安装（/etc/crontab，DSM 无用户 crontab 命令）
-out, _ = nas_config.ssh_exec(cli, f"sudo grep -qF '{CRON_MARK}' {CRONTAB_PATH} && echo EXISTS || echo ABSENT")
-if "EXISTS" in out:
-    print("==> /etc/crontab 已有该任务，跳过安装")
+# crontab 安装/迁移（/etc/crontab，DSM 无用户 crontab 命令）：
+# 读全文 → 去掉旧的 nestkeep_autosync 行 → 写入最新行 → 写回。支持行内
+# 排期变更（如 */10 → */2）的幂等迁移。
+out, _ = nas_config.ssh_exec(cli, f"sudo grep -n '{CRON_MARK}' {CRONTAB_PATH} || true")
+if CRON_LINE in out:
+    print("==> /etc/crontab 已是最新任务行，跳过")
 else:
-    cmd = ("sudo sh -c 'printf \"%s\\n\" \"" + CRON_LINE.replace('"', '\\"') + "\" >> " + CRONTAB_PATH + "'")
-    out, err = nas_config.ssh_exec(cli, cmd)
-    if err.strip():
-        print("==> crontab 安装失败：", err[:300])
+    cur, _ = nas_config.ssh_exec(cli, f"sudo cat {CRONTAB_PATH}")
+    lines = [l for l in cur.splitlines() if CRON_MARK not in l and l.strip() != ""]
+    # 保留文件末尾原有的非空行结构：把任务行插到原有任务行位置（末尾）
+    lines.append(CRON_LINE)
+    new_tab = "\n".join(lines) + "\n"
+    import base64 as _b64
+    payload = _b64.b64encode(new_tab.encode("utf-8")).decode("ascii")
+    out, err = nas_config.ssh_exec(
+        cli, f"echo {payload} | base64 -d | sudo tee {CRONTAB_PATH} > /dev/null && echo WRITTEN")
+    if "WRITTEN" not in out:
+        print("==> crontab 写回失败：", err[:300])
         sys.exit(1)
-    out, _ = nas_config.ssh_exec(cli, "sudo systemctl restart crond 2>/dev/null && echo RESTARTED || sudo /usr/syno/bin/synoservicectl --restart crond")
+    out, _ = nas_config.ssh_exec(
+        cli, "sudo systemctl restart crond 2>/dev/null && echo RESTARTED || sudo /usr/syno/bin/synoservicectl --restart crond")
     print("==> crond:", out.strip())
+    print("==> 已写入任务行:", CRON_LINE)
 
 out, _ = nas_config.ssh_exec(cli, f"sudo grep -c '{CRON_MARK}' {CRONTAB_PATH}")
 print(f"==> /etc/crontab 中任务数: {out.strip()}")
