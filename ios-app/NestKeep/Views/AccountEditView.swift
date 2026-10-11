@@ -23,6 +23,21 @@ struct AccountEditView: View {
 
     private var isEdit: Bool { account != nil }
 
+    /// 预填直接在 init 里初始化 @State，不走 onAppear：
+    /// iOS 15.1 实测 sheet 内 NavigationView 根部的 onAppear 可能不触发，
+    /// 导致编辑页全空（名称/类别/图标都是默认值），保存被「请输入账户名称」拦下
+    init(account: Account?) {
+        self.account = account
+        _name = State(initialValue: account?.name ?? "")
+        _category = State(initialValue: account?.category ?? 1)
+        _icon = State(initialValue: Int(account?.icon ?? "1") ?? 1)
+        _color = State(initialValue: account?.color ?? "26A69A")
+        _currency = State(initialValue: account?.currency ?? "CNY")
+        _comment = State(initialValue: account?.comment ?? "")
+        _statementDate = State(initialValue: account?.creditCardStatementDate ?? 0)
+        _hidden = State(initialValue: account?.hidden ?? false)
+    }
+
     var body: some View {
         NavigationView {
             Form {
@@ -98,20 +113,7 @@ struct AccountEditView: View {
                     .disabled(isSaving)
                 }
             }
-            .onAppear(perform: fillFromAccount)
         }
-    }
-
-    private func fillFromAccount() {
-        guard let acc = account else { return }
-        name = acc.name
-        category = acc.category ?? 1
-        icon = Int(acc.icon ?? "1") ?? 1
-        color = acc.color ?? "26A69A"
-        currency = acc.currency ?? "CNY"
-        comment = acc.comment ?? ""
-        statementDate = acc.creditCardStatementDate ?? 0
-        hidden = acc.hidden ?? false
     }
 
     private func save() async {
