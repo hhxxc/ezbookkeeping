@@ -596,8 +596,12 @@ struct StatisticsView: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12),
                                 GridItem(.flexible(), spacing: 12)],
                       spacing: 18) {
-                overviewCell("支出", vm.totalExpenseCents, HomePalette.expense)
-                overviewCell("收入", vm.totalIncomeCents, HomePalette.income)
+                overviewCell("支出", vm.totalExpenseCents, HomePalette.expense) {
+                    routeToDetail(type: 3)
+                }
+                overviewCell("收入", vm.totalIncomeCents, HomePalette.income) {
+                    routeToDetail(type: 2)
+                }
                 overviewCell("结余", vm.netCents,
                              vm.netCents >= 0 ? HomePalette.income : HomePalette.expense)
                 overviewCell("日均支出", vm.dailyAverageExpenseCents, HomePalette.ink)
@@ -610,9 +614,10 @@ struct StatisticsView: View {
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 10, x: 0, y: 4)
     }
 
-    /// 概览网格单元：标签 14px 次要色 / 数值 21px-700 指定色（对齐 Web `.statistics-overview-*`）
-    private func overviewCell(_ title: String, _ cents: Int64, _ color: Color) -> some View {
-        VStack(spacing: 4) {
+    /// 概览网格单元：标签 14px 次要色 / 数值 21px-700 指定色（对齐 Web `.statistics-overview-*`）；
+    /// 传入 action 时整格可点（点击跳账单 Tab 查看该类型明细）
+    private func overviewCell(_ title: String, _ cents: Int64, _ color: Color, action: (() -> Void)? = nil) -> some View {
+        let cell = VStack(spacing: 4) {
             Text(title).font(.system(size: 14)).foregroundColor(HomePalette.secondary)
             Text(AmountFormat.format(cents))
                 .font(.system(size: 21, weight: .bold))
@@ -622,6 +627,26 @@ struct StatisticsView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
+        if let action {
+            return AnyView(Button(action: action) { cell }.buttonStyle(.plain))
+        }
+        return AnyView(cell)
+    }
+
+    /// 点击统计数字/分类行 → 跳账单 Tab 查看明细（复用「查看账单明细」的跨 Tab 筛选链路）。
+    /// type 对齐 TransactionFilter：0=全部 2=收入 3=支出；不传 categoryId 时保留当前分类筛选。
+    private func routeToDetail(type: Int, categoryId: String? = nil) {
+        // periodEnd 是开区间（下月 1 日 / 次年 1 日 00:00），
+        // 账单列表的筛选是闭区间（当日 23:59:59），需回退 1 秒避免多算一天
+        let closedEnd = vm.periodEnd.addingTimeInterval(-1)
+        router.routeToTransactionList(TransactionFilterRequest(
+            type: type,
+            categoryIds: categoryId.map { [$0] } ?? Array(vm.filterCategoryIds),
+            accountIds: Array(vm.filterAccountIds),
+            startDate: vm.periodStart,
+            endDate: closedEnd,
+            keyword: vm.filterKeyword
+        ))
     }
 
     private var modePicker: some View {
@@ -670,23 +695,32 @@ struct StatisticsView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("\(mode.rawValue)排行").font(.headline).padding(.bottom, 12)
             ForEach(Array(stats.prefix(10).enumerated()), id: \.element.id) { idx, s in
-                HStack(spacing: 12) {
-                    Text("\(idx + 1)")
-                        .font(.footnote.monospacedDigit())
-                        .foregroundColor(.secondary)
-                        .frame(width: 18, alignment: .leading)
-                    // 分类图标徽章（色底白图标）
-                    Image(systemName: CategoryIconCatalog.symbol(s.icon))
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 24, height: 24)
-                        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(s.color))
-                    Text(s.name).font(.subheadline).lineLimit(1)
-                    Spacer()
-                    Text(AmountFormat.format(s.amount))
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundColor(accent)
+                Button {
+                    // 点分类行 → 跳账单 Tab 查看该分类在当前周期的明细
+                    routeToDetail(type: mode == .expense ? 3 : 2, categoryId: s.id)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("\(idx + 1)")
+                            .font(.footnote.monospacedDigit())
+                            .foregroundColor(.secondary)
+                            .frame(width: 18, alignment: .leading)
+                        // 分类图标徽章（色底白图标）
+                        Image(systemName: CategoryIconCatalog.symbol(s.icon))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 24, height: 24)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(s.color))
+                        Text(s.name).font(.subheadline).lineLimit(1)
+                        Spacer()
+                        Text(AmountFormat.format(s.amount))
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(accent)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(HomePalette.secondary.opacity(0.6))
+                    }
                 }
+                .buttonStyle(.plain)
                 .padding(.vertical, 7)
                 if idx < min(stats.count, 10) - 1 {
                     Divider().padding(.leading, 66)
