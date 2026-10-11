@@ -252,6 +252,10 @@ export default defineConfig(() => {
                             // 仅桌面端 ExportDialog 引用（Excel 导出）。独立成块，
                             // 不进导出对话框就永不加载；jszip 是 exceljs 的依赖，一并处理。
                             return 'vendor-export';
+                        } else if (/[\\/]node_modules[\\/]@vuepic[\\/]vue-datepicker[\\/]/i.test(id)) {
+                            // 日期选择器独立按需块：仅 DateTimePicker/MonthPicker（异步注册组件）
+                            // 静态引用它。若走 vendor-common 兜底规则，首屏会被迫加载 ~45KB gzip
+                            return null;
                         } else if (/[\\/]node_modules[\\/]chardet[\\/]/i.test(id)) {
                             // 仅桌面端 ImportDialog 经 src/lib/file.ts 的 detectFileEncoding 动态 import
                             // 使用。若归入 vendor-common（兜底规则）会被移动端首屏强制加载，故脱离之，
@@ -271,7 +275,11 @@ export default defineConfig(() => {
                         } else if (/[\\/]src[\\/]components[\\/](base|common)[\\/]/i.test(id)) {
                             return 'common';
                         } else if (/[\\/]src[\\/]views[\\/]base[\\/]/i.test(id)) {
-                            return 'common';
+                            // 两端共享的页面基座（约 200KB 源码）不进首屏必载的 common：
+                            // 返回 null 让 rollup 按引用关系拆成按需异步 chunk（移动端路由
+                            // 本就懒加载页面，首屏不再拉这些基座；移动/桌面共用部分自动去重）
+                            // 8Mbps 外网链路下 common 原始体量从 816KB 显著下降
+                            return null;
                         } else if (/[\\/]src[\\/]locales[\\/]helpers\.(js|ts)/i.test(id)) {
                             return 'common';
                         } else {
