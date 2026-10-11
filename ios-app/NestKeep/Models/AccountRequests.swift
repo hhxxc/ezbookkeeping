@@ -93,7 +93,7 @@ enum AccountType: Int {
     case multiSubAccounts = 2    // 多子账户
 }
 
-/// 账户类别常量（对应 Go AccountCategory，1~9）
+/// 账户类别常量（对应 Go AccountCategory，1~10）
 enum AccountCategoryConst {
     static let all: [(Int, String)] = [
         (1, "现金"),
@@ -104,12 +104,13 @@ enum AccountCategoryConst {
         (6, "应收款"),
         (7, "投资"),
         (8, "储蓄"),
-        (9, "定期存单")
+        (9, "定期存单"),
+        (10, "工资")
     ]
 
     /// 该类别是否计入资产（用于净资产汇总，对应后端 IsAsset）
     static func isAsset(_ category: Int) -> Bool {
-        [1, 2, 4, 6, 7, 8, 9].contains(category)
+        [1, 2, 4, 6, 7, 8, 9, 10].contains(category)
     }
 
     /// 该类别是否计入负债

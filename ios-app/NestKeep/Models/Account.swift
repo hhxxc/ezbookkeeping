@@ -11,6 +11,7 @@ enum AccountCategory: Int, Codable {
     case investment = 7
     case savings = 8
     case certOfDeposit = 9
+    case salary = 10
 }
 
 /// 账户（对应 Go AccountInfoResponse）。金额 balance 为 Int64 分
