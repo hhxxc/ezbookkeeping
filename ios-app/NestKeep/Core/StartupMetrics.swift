@@ -37,7 +37,8 @@ final class StartupMetrics: ObservableObject {
         var size = MemoryLayout<kinfo_proc>.stride
         var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
         guard sysctl(&mib, 4, &kinfo, &size, nil, 0) == 0 else { return 0 }
-        return (Double(kinfo.kp_proc.tv_sec) + Double(kinfo.kp_proc.tv_usec) / 1_000_000) * 1000
+        let t = kinfo.kp_proc.p_starttime
+        return (Double(t.tv_sec) + Double(t.tv_usec) / 1_000_000) * 1000
     }()
 
     /// 记录一个启动阶段（同名只记第一次）
@@ -45,7 +46,7 @@ final class StartupMetrics: ObservableObject {
         guard !stages.contains(where: { $0.name == name }) else { return }
         let ms = Self.msSinceProcessStart
         stages.append(Stage(name: name, ms: ms))
-        signposter.emitEvent("startup.\(name, privacy: .public)", "\(Int(ms))ms")
+        signposter.emitEvent("startup", "\(name, privacy: .public) +\(Int(ms))ms")
         logger.notice("[StartupMetrics] \(name, privacy: .public) +\(Int(ms))ms since process start")
     }
 }
