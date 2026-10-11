@@ -547,6 +547,7 @@ struct TransactionsView: View {
     /// 跨 Tab 路由（统计页跳转时应用筛选）
     @EnvironmentObject private var router: TabRouter
     @State private var editing: Transaction?
+    @State private var duplicating: Transaction?
     @State private var detail: Transaction?
     /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
     @State private var detailContext: RangeDetailContext?
@@ -677,6 +678,8 @@ struct TransactionsView: View {
                     NavigationLink(
                         destination: BillListPageView(vm: vm, onEdit: { tx in
                             editing = tx
+                        }, onDuplicate: { tx in
+                            duplicating = tx
                         }, onDetail: { tx in
                             detail = tx
                         }, focusSearchOnAppear: pushListWithSearch),
@@ -706,11 +709,25 @@ struct TransactionsView: View {
                     }
             }
         }
-        .sheet(item: $editing) { tx in
+        .sheet(item: $editing, onDismiss: {
+            // 编辑保存后刷新首页列表与区间汇总
+            Task { await vm.load() }
+        }) { tx in
             TransactionEditView(transaction: tx, mode: .edit)
         }
-        .sheet(item: $detail) { tx in
-            TransactionDetailView(transaction: tx)
+        .sheet(item: $duplicating, onDismiss: {
+            // 复制落库后刷新首页列表与区间汇总
+            Task { await vm.load() }
+        }) { tx in
+            TransactionEditView(transaction: tx, mode: .duplicate)
+        }
+        .sheet(item: $detail, onDismiss: {
+            // 从详情页内部编辑/复制后，关闭详情时刷新
+            Task { await vm.load() }
+        }) { tx in
+            TransactionDetailView(transaction: tx, onChanged: {
+                Task { await vm.load() }
+            })
         }
         .task {
             await ServerSettings.shared.loadIfNeeded()
@@ -1189,6 +1206,7 @@ struct ScrollRefreshAttacher: UIViewRepresentable {
 private struct BillListPageView: View {
     @ObservedObject var vm: TransactionsViewModel
     let onEdit: (Transaction) -> Void
+    let onDuplicate: (Transaction) -> Void
     let onDetail: (Transaction) -> Void
     /// 从首页搜索入口进入时自动聚焦搜索框并弹键盘
     var focusSearchOnAppear: Bool = false
@@ -1310,6 +1328,12 @@ private struct BillListPageView: View {
                                         Label("编辑", systemImage: "pencil")
                                     }
                                     .tint(Theme.brand)
+                                    Button {
+                                        onDuplicate(tx)
+                                    } label: {
+                                        Label("复制", systemImage: "doc.on.doc")
+                                    }
+                                    .tint(.indigo)
                                 }
                         }
                     }
@@ -1426,6 +1450,7 @@ struct RangeDetailView: View {
     @ObservedObject private var mainVM: TransactionsViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var editing: Transaction?
+    @State private var duplicating: Transaction?
     @State private var detail: Transaction?
 
     init(context: RangeDetailContext, mainVM: TransactionsViewModel) {
@@ -1507,8 +1532,28 @@ struct RangeDetailView: View {
         }) { tx in
             TransactionEditView(transaction: tx, mode: .edit)
         }
-        .sheet(item: $detail) { tx in
-            TransactionDetailView(transaction: tx)
+        .sheet(item: $duplicating, onDismiss: {
+            // 复制为新交易落库后同样刷新两个层级
+            Task {
+                await vm.load()
+                await mainVM.load()
+            }
+        }) { tx in
+            TransactionEditView(transaction: tx, mode: .duplicate)
+        }
+        .sheet(item: $detail, onDismiss: {
+            // 从详情页内部编辑/复制后，关闭详情时刷新（详情页自身无法就地更新）
+            Task {
+                await vm.load()
+                await mainVM.load()
+            }
+        }) { tx in
+            TransactionDetailView(transaction: tx, onChanged: {
+                Task {
+                    await vm.load()
+                    await mainVM.load()
+                }
+            })
         }
     }
 
@@ -1576,6 +1621,12 @@ struct RangeDetailView: View {
                                     Label("编辑", systemImage: "pencil")
                                 }
                                 .tint(Theme.brand)
+                                Button {
+                                    duplicating = tx
+                                } label: {
+                                    Label("复制", systemImage: "doc.on.doc")
+                                }
+                                .tint(.indigo)
                             }
                     }
                 }

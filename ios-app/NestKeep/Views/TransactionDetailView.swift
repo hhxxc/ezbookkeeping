@@ -4,10 +4,13 @@ import SwiftUI
 /// 并提供「复制」与「编辑」入口。
 struct TransactionDetailView: View {
     let transaction: Transaction
+    /// 编辑/复制落库后通知上级刷新（上级列表自行 reload）
+    var onChanged: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var showEdit = false
     @State private var showDuplicate = false
+    @State private var didEdit = false
     @State private var tagNamesById: [String: String] = [:]
 
     private var amountText: String {
@@ -104,11 +107,18 @@ struct TransactionDetailView: View {
                     Button("完成") { dismiss() }
                 }
             }
-            .sheet(isPresented: $showEdit) {
-                TransactionEditView(transaction: transaction, mode: .edit)
+            // 编辑保存成功 → 通知上级刷新并关闭详情（详情页持有的是不可变快照，无法就地更新）
+            .sheet(isPresented: $showEdit, onDismiss: {
+                if didEdit {
+                    didEdit = false
+                    onChanged?()
+                    dismiss()
+                }
+            }) {
+                TransactionEditView(transaction: transaction, mode: .edit, onSaved: { didEdit = true })
             }
-            .sheet(isPresented: $showDuplicate) {
-                TransactionEditView(transaction: transaction, mode: .duplicate)
+            .sheet(isPresented: $showDuplicate, onDismiss: { onChanged?() }) {
+                TransactionEditView(transaction: transaction, mode: .duplicate, onSaved: { onChanged?() })
             }
         }
     }
