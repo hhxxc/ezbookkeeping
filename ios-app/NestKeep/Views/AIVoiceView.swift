@@ -137,12 +137,6 @@ struct AIVoiceView: View {
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 20)
 
-                if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
-                    Button("清空重说") { vm.clearText() }
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-
                 Spacer()
 
                 micButton
@@ -192,15 +186,17 @@ struct AIVoiceView: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(HomePalette.ink)
                     .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
-                    .padding(.horizontal, 4)
+                    .padding(.leading, 4)
                     .padding(.top, 8)
+                    .padding(.trailing, 26)
             } else {
                 if !vm.hasText {
                     Text("按住下方麦克风说话；识别不准可直接在此修改")
                         .font(.system(size: 20, weight: .medium))
                         .foregroundColor(Color(.placeholderText))
-                        .padding(.horizontal, 4)
+                        .padding(.leading, 4)
                         .padding(.top, 8)
+                        .padding(.trailing, 26)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: Binding(
@@ -210,12 +206,27 @@ struct AIVoiceView: View {
                 .font(.system(size: 20, weight: .medium))
                 .foregroundColor(HomePalette.ink)
                 .frame(minHeight: 120)
+                .padding(.trailing, 20)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
+        // 一键清除：清掉识别+手动编辑的全部内容（录音中/解析中不显示，防止误触丢转写）
+        .overlay(alignment: .topTrailing) {
+            if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
+                Button {
+                    vm.clearText()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color(.tertiaryLabel))
+                        .padding(8)
+                        .contentShape(Rectangle())
+                }
+            }
+        }
     }
 
     private var statusText: String {
