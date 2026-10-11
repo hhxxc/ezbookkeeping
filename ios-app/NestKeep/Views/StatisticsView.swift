@@ -414,6 +414,8 @@ struct StatisticDailyItem: Codable {
 struct StatisticsView: View {
     @StateObject private var vm = StatisticsViewModel()
     @EnvironmentObject private var router: TabRouter
+    /// 排行/总览点击下钻的账单列表页用独立 VM（不与首页 VM 共享筛选态）
+    @StateObject private var listVM = TransactionsViewModel()
     @State private var mode: Mode = .expense
     /// 日收支图维度（支出/收入/全部）——独立于分类饼图维度，对齐 Web `dailyChartMode`
     @State private var dailyMode: DailyMode = .expense
@@ -425,6 +427,11 @@ struct StatisticsView: View {
     @State private var showFilterSheet = false
     /// 统计设置页
     @State private var showSettings = false
+    /// 下钻账单列表页（原生 push，返回即回统计页）
+    @State private var showListPage = false
+    @State private var editing: Transaction?
+    @State private var duplicating: Transaction?
+    @State private var detail: Transaction?
 
     enum Mode: String, CaseIterable {
         case expense = "支出"
@@ -455,8 +462,21 @@ struct StatisticsView: View {
     private var accent: Color { mode == .expense ? HomePalette.expense : HomePalette.income }
 
     var body: some View {
+        // 包 NavigationView 让下钻的账单列表页走系统 push：返回即回统计页
+        //（旧实现跨 Tab 跳到「详情」Tab，返回落在详情首页而非统计页，与 Web 不一致）
+        NavigationView {
+            statisticsBody
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var statisticsBody: some View {
         ScrollView {
             VStack(spacing: 16) {
+                // 自绘顶栏放进滚动内容（首页同款方案）：包进 NavigationView 后 iOS 15 上
+                // safeAreaInset(top) 定位不可靠（AIReceiptView 同款教训），不能再用悬浮方案
+                topBar
+                    .padding(.top, 4)
                 periodModePicker
                 overviewCard
                 modePicker
@@ -479,9 +499,6 @@ struct StatisticsView: View {
         }
         // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
         .background(Theme.pageBackground.ignoresSafeArea())
-        // 自绘顶栏（首页同款 safeAreaInset 方案）：替代系统导航栏工具条——
-        // 修复顶栏顶进状态栏、左侧残留返回箭头的问题
-        .safeAreaInset(edge: .top, spacing: 0) { topBar }
         .refreshable { await vm.load() }
         .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
                 Button("筛选账户") { showFilterSheet = true }
@@ -511,6 +528,38 @@ struct StatisticsView: View {
         .task { if router.selection == .statistics { await vm.load() } }
         .onChange(of: router.selection) { sel in
             if sel == .statistics && !vm.hasLoadedOnce { Task { await vm.load() } }
+        }
+        // 统计页根节点隐藏系统导航栏（自绘顶栏替代）；推入的账单列表页自动显示导航栏
+        .navigationBarHidden(true)
+        // 隐藏的编程式导航链接（iOS 15 手法）：排行/总览下钻账单列表页走系统 push
+        .background(
+            NavigationLink(
+                destination: BillListPageView(vm: listVM, onEdit: { tx in
+                    editing = tx
+                }, onDuplicate: { tx in
+                    duplicating = tx
+                }, onDetail: { tx in
+                    detail = tx
+                }),
+                isActive: $showListPage
+            ) { EmptyView() }
+        )
+        .sheet(item: $editing, onDismiss: {
+            Task { await listVM.load(); await vm.load() }
+        }) { tx in
+            TransactionEditView(transaction: tx, mode: .edit)
+        }
+        .sheet(item: $duplicating, onDismiss: {
+            Task { await listVM.load(); await vm.load() }
+        }) { tx in
+            TransactionEditView(transaction: tx, mode: .duplicate)
+        }
+        .sheet(item: $detail, onDismiss: {
+            Task { await listVM.load(); await vm.load() }
+        }) { tx in
+            TransactionDetailView(transaction: tx, onChanged: {
+                Task { await listVM.load(); await vm.load() }
+            })
         }
     }
 
@@ -633,13 +682,13 @@ struct StatisticsView: View {
         return AnyView(cell)
     }
 
-    /// 点击统计数字/分类行 → 跳账单 Tab 查看明细（复用「查看账单明细」的跨 Tab 筛选链路）。
+    /// 点击统计数字/分类行 → 在本 Tab 内原生 push 账单列表页（返回即回统计页）。
     /// type 对齐 TransactionFilter：0=全部 2=收入 3=支出；不传 categoryId 时保留当前分类筛选。
     private func routeToDetail(type: Int, categoryId: String? = nil) {
         // periodEnd 是开区间（下月 1 日 / 次年 1 日 00:00），
         // 账单列表的筛选是闭区间（当日 23:59:59），需回退 1 秒避免多算一天
         let closedEnd = vm.periodEnd.addingTimeInterval(-1)
-        router.routeToTransactionList(TransactionFilterRequest(
+        listVM.applyFilterRequest(TransactionFilterRequest(
             type: type,
             categoryIds: categoryId.map { [$0] } ?? Array(vm.filterCategoryIds),
             accountIds: Array(vm.filterAccountIds),
@@ -647,6 +696,7 @@ struct StatisticsView: View {
             endDate: closedEnd,
             keyword: vm.filterKeyword
         ))
+        showListPage = true
     }
 
     private var modePicker: some View {
@@ -872,23 +922,12 @@ struct StatisticsView: View {
             .frame(maxWidth: .infinity, alignment: alignment)
     }
 
-    // MARK: - 查看账单明细（跨 Tab 跳账单列表，对齐 Web `viewTransactionDetails`）
+    // MARK: - 查看账单明细（本 Tab 内原生 push，对齐 Web `viewTransactionDetails`）
 
     /// 底部「查看账单明细」链接：把当前统计的日期区间 + 筛选条件带到账单列表。
     private var viewDetailsLink: some View {
         Button {
-            // periodEnd 是开区间（下月 1 日 / 次年 1 日 00:00），
-            // 账单列表的筛选是闭区间（当日 23:59:59），需回退 1 秒避免多算一天
-            let closedEnd = vm.periodEnd.addingTimeInterval(-1)
-            let req = TransactionFilterRequest(
-                type: 0,
-                categoryIds: Array(vm.filterCategoryIds),
-                accountIds: Array(vm.filterAccountIds),
-                startDate: vm.periodStart,
-                endDate: closedEnd,
-                keyword: vm.filterKeyword
-            )
-            router.routeToTransactionList(req)
+            routeToDetail(type: 0)
         } label: {
             HStack {
                 Spacer()

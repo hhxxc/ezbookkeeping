@@ -30,7 +30,8 @@ enum MainTab: Int, CaseIterable {
     }
 }
 
-/// 跨 Tab 的账单筛选请求（统计页「查看账单明细」/ 点图表项 → 跳账单列表应用筛选）
+/// 跨 Tab 的账单筛选请求（保留机制：统计页下钻已改为统计 Tab 内原生 push，
+/// 不再经由本路由；留作后续跨 Tab 跳账单列表的通道）
 struct TransactionFilterRequest: Equatable {
     var type: Int = 0
     var categoryIds: [String] = []
@@ -41,7 +42,7 @@ struct TransactionFilterRequest: Equatable {
 }
 
 /// 跨 Tab 路由：持有当前选中 Tab 与「待应用到账单列表的筛选」。
-/// 统计页发起「查看账单明细」时写入 pending 请求并切到账单 Tab，账单页监听后应用筛选。
+/// 注意：统计页下钻账单明细不再走这里（改为统计 Tab 内 NavigationView push）。
 final class TabRouter: ObservableObject {
     @Published var selection: MainTab = .list
     /// 待应用筛选（每次写一个新的 struct，账单页 onChange 检测到非 nil 就应用并清空）

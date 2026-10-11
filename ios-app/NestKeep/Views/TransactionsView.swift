@@ -1273,7 +1273,9 @@ struct ScrollRefreshAttacher: UIViewRepresentable {
 /// 承载原首页的交易列表：搜索 / 加载与空态 / 日分组 / 左滑编辑删除；
 /// 筛选面板与搜索框也收在该页（首页只留总览卡片）。
 /// 通过 NavigationLink 原生 push 进入，导航栏由系统提供（左滑跟手返回）。
-private struct BillListPageView: View {
+/// 账单列表二级页（首页与统计页共用）：统计页排行/总览点击后在本 Tab 内原生 push，
+/// 返回即回统计页（对齐 Web：/transaction/list 推在 /statistic/transaction 页栈上）
+struct BillListPageView: View {
     @ObservedObject var vm: TransactionsViewModel
     let onEdit: (Transaction) -> Void
     let onDuplicate: (Transaction) -> Void
