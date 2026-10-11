@@ -636,13 +636,15 @@ struct TransactionsView: View {
     @StateObject private var calendarVM = TransactionCalendarViewModel()
     /// 首页背景图变化时刷新汇总卡底图
     @State private var backgroundToken = UUID()
-    /// 不打扰式更新提示：启动自动检查发现新版后在首页顶部短暂出现（3 秒自动消失，
-    /// 本次会话不再重复），点击进更新弹层
+    /// 不打扰式更新提示：启动自动检查发现新版后在首页顶部短暂出现（5 秒自动消失，
+    /// 同一版本只提醒一次——持久化记录已提醒版本，避免每次启动/重复检查反复打扰），
+    /// 点击进更新弹层
     @ObservedObject private var updateStore = UpdateStore.shared
     @State private var showUpdateBanner = false
-    @State private var updateBannerDismissed = false
     @State private var updateBannerVersion = ""
     @State private var showUpdateSheet = false
+    /// 已提醒过的版本（持久化）：同一版本永不二次提醒
+    private static let updateNotifiedVersionKey = "nestkeep.updateNotifiedVersion"
 
     init(showAdd: Binding<Bool> = .constant(false)) {
         _showAdd = showAdd
@@ -653,11 +655,10 @@ struct TransactionsView: View {
         showListPage = true
     }
 
-    /// 不打扰式更新提示胶囊（首页顶部悬浮，3 秒自动消失）
+    /// 不打扰式更新提示胶囊（首页顶部悬浮，5 秒自动消失）
     private var updateBanner: some View {
         Button {
             withAnimation(.easeIn(duration: 0.2)) { showUpdateBanner = false }
-            updateBannerDismissed = true
             showUpdateSheet = true
         } label: {
             HStack(spacing: 6) {
@@ -804,19 +805,18 @@ struct TransactionsView: View {
         }
         .navigationViewStyle(.stack)
         .onChange(of: updateStore.result) { r in
-            guard !updateBannerDismissed else { return }
             guard case .updateAvailable(_, let latest, _, _) = r else { return }
+            // 同一版本只提醒一次（跨启动持久化），防止启动检查/手动检查/二次进入重复推送
+            guard UserDefaults.standard.string(forKey: Self.updateNotifiedVersionKey) != latest else { return }
+            UserDefaults.standard.set(latest, forKey: Self.updateNotifiedVersionKey)
             updateBannerVersion = latest
             withAnimation(.easeOut(duration: 0.25)) { showUpdateBanner = true }
         }
         .task(id: showUpdateBanner) {
             guard showUpdateBanner else { return }
-            // 3 秒后自动淡出；期间用户点按则 task 随状态变化取消
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            withAnimation(.easeIn(duration: 0.25)) {
-                showUpdateBanner = false
-                updateBannerDismissed = true
-            }
+            // 5 秒后自动淡出；期间用户点按则 task 随状态变化取消
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            withAnimation(.easeIn(duration: 0.25)) { showUpdateBanner = false }
         }
         .sheet(isPresented: $showUpdateSheet) {
             UpdateResultSheet(updateStore: updateStore)
