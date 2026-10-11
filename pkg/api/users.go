@@ -118,13 +118,19 @@ func (a *UsersApi) UserRegisterHandler(c *core.WebContext) (any, *errs.Error) {
 		if err != nil {
 			log.Errorf(c, "[users.UserRegisterHandler] failed to create email verify token for user \"uid:%d\", because %s", user.Uid, err.Error())
 		} else {
-			go func() {
-				err = a.users.SendVerifyEmail(user, token, c.GetClientLocale())
+			go func(user *models.User, verifyEmailToken string, clientLocale string, contextId string) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Errorf(nil, "[users.UserRegisterHandler] panic while sending verify email (context %s): %v", contextId, r)
+					}
+				}()
+
+				err := a.users.SendVerifyEmail(user, verifyEmailToken, clientLocale)
 
 				if err != nil {
-					log.Warnf(c, "[users.UserRegisterHandler] cannot send verify email to \"%s\", because %s", user.Email, err.Error())
+					log.Warnf(nil, "[users.UserRegisterHandler] cannot send verify email to \"%s\" (context %s), because %s", user.Email, contextId, err.Error())
 				}
-			}()
+			}(user, token, c.GetClientLocale(), c.GetContextId())
 		}
 	}
 
@@ -559,13 +565,19 @@ func (a *UsersApi) UserUpdateProfileHandler(c *core.WebContext) (any, *errs.Erro
 			if err != nil {
 				log.Errorf(c, "[users.UserUpdateProfileHandler] failed to create email verify token for user \"uid:%d\", because %s", user.Uid, err.Error())
 			} else {
-				go func() {
-					err = a.users.SendVerifyEmail(user, token, c.GetClientLocale())
+				go func(user *models.User, verifyEmailToken string, clientLocale string, contextId string) {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Errorf(nil, "[users.UserUpdateProfileHandler] panic while sending verify email (context %s): %v", contextId, r)
+						}
+					}()
+
+					err := a.users.SendVerifyEmail(user, verifyEmailToken, clientLocale)
 
 					if err != nil {
-						log.Warnf(c, "[users.UserUpdateProfileHandler] cannot send verify email to \"%s\", because %s", user.Email, err.Error())
+						log.Warnf(nil, "[users.UserUpdateProfileHandler] cannot send verify email to \"%s\" (context %s), because %s", user.Email, contextId, err.Error())
 					}
-				}()
+				}(user, token, c.GetClientLocale(), c.GetContextId())
 			}
 		}
 	}
@@ -745,13 +757,19 @@ func (a *UsersApi) UserSendVerifyEmailByUnloginUserHandler(c *core.WebContext) (
 		return nil, errs.ErrTokenGenerating
 	}
 
-	go func() {
-		err = a.users.SendVerifyEmail(user, token, c.GetClientLocale())
+	go func(user *models.User, verifyEmailToken string, clientLocale string, contextId string) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf(nil, "[users.UserSendVerifyEmailByUnloginUserHandler] panic while sending verify email (context %s): %v", contextId, r)
+			}
+		}()
+
+		err := a.users.SendVerifyEmail(user, verifyEmailToken, clientLocale)
 
 		if err != nil {
-			log.Warnf(c, "[users.UserSendVerifyEmailByUnloginUserHandler] cannot send email to \"%s\", because %s", user.Email, err.Error())
+			log.Warnf(nil, "[users.UserSendVerifyEmailByUnloginUserHandler] cannot send email to \"%s\" (context %s), because %s", user.Email, contextId, err.Error())
 		}
-	}()
+	}(user, token, c.GetClientLocale(), c.GetContextId())
 
 	return true, nil
 }
@@ -789,13 +807,19 @@ func (a *UsersApi) UserSendVerifyEmailByLoginedUserHandler(c *core.WebContext) (
 		return nil, errs.ErrTokenGenerating
 	}
 
-	go func() {
-		err = a.users.SendVerifyEmail(user, token, c.GetClientLocale())
+	go func(user *models.User, verifyEmailToken string, clientLocale string, contextId string) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf(nil, "[users.UserSendVerifyEmailByLoginedUserHandler] panic while sending verify email (context %s): %v", contextId, r)
+			}
+		}()
+
+		err := a.users.SendVerifyEmail(user, verifyEmailToken, clientLocale)
 
 		if err != nil {
-			log.Warnf(c, "[users.UserSendVerifyEmailByLoginedUserHandler] cannot send email to \"%s\", because %s", user.Email, err.Error())
+			log.Warnf(nil, "[users.UserSendVerifyEmailByLoginedUserHandler] cannot send email to \"%s\" (context %s), because %s", user.Email, contextId, err.Error())
 		}
-	}()
+	}(user, token, c.GetClientLocale(), c.GetContextId())
 
 	return true, nil
 }

@@ -98,13 +98,21 @@ func (a *ForgetPasswordsApi) UserForgetPasswordRequestHandler(c *core.WebContext
 		return nil, errs.ErrTokenGenerating
 	}
 
-	go func() {
-		err = a.forgetPasswords.SendPasswordResetEmail(c, user, token, c.GetClientLocale())
+	// 参数化传值：goroutine 不得读写 gin 的 context（请求返回后 context 会被连接池复用）；
+	// err 用局部变量避免与外层竞争；recover 防止 SMTP panic 崩掉整个进程
+	go func(user *models.User, passwordResetToken string, clientLocale string, contextId string) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Errorf(nil, "[forget_passwords.UserForgetPasswordRequestHandler] panic while sending password reset email (context %s): %v", contextId, r)
+			}
+		}()
+
+		err := a.forgetPasswords.SendPasswordResetEmail(nil, user, passwordResetToken, clientLocale)
 
 		if err != nil {
-			log.Warnf(c, "[forget_passwords.UserForgetPasswordRequestHandler] cannot send email to \"%s\", because %s", user.Email, err.Error())
+			log.Warnf(nil, "[forget_passwords.UserForgetPasswordRequestHandler] cannot send email to \"%s\" (context %s), because %s", user.Email, contextId, err.Error())
 		}
-	}()
+	}(user, token, c.GetClientLocale(), c.GetContextId())
 
 	return true, nil
 }

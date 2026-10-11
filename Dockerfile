@@ -54,4 +54,7 @@ COPY --chown=1000:1000 templates /ezbookkeeping/templates
 COPY --chown=1000:1000 LICENSE /ezbookkeeping/LICENSE
 USER 1000:1000
 EXPOSE 8080
+# 存活探针：拉静态入口页（不依赖数据库），NAS/编排层可据此感知容器僵死
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/mobile || exit 1
 ENTRYPOINT ["/docker-entrypoint.sh"]

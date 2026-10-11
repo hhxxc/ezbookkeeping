@@ -43,7 +43,7 @@ CONTAINER_PORT="${CONTAINER_PORT:-15080}"
 DATA_DIR="${DATA_DIR:-/volume2/docker/ezbk}"
 # LLM API Key 文件（纯文本，内容是 key 本身）。必须自行提供，见文件头说明
 KEY_FILE="${KEY_FILE:-}"
-RESTART_POLICY="${RESTART_POLICY:-no}"
+RESTART_POLICY="${RESTART_POLICY:-unless-stopped}"
 # 外网入口（反代/隧道域名），留空则只输出局域网地址
 SHELL_BASE_URL="${SHELL_BASE_URL:-}"
 

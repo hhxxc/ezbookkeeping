@@ -46,16 +46,9 @@ func (p *AmapApiProxy) AmapApiProxyHandler(c *core.WebContext) (*httputil.Revers
 		targetRawUrl := fmt.Sprintf("%s?%s&jscode=%s", targetUrl, req.URL.RawQuery, p.CurrentConfig().AmapApplicationSecret)
 		targetUrl, _ := url.Parse(targetRawUrl)
 
-		oldCookies := req.Cookies()
+		// 高德接口不需要任何 Cookie：原实现会把非 ebk_ 前缀的用户 Cookie
+		// 全部透传给第三方（反代域名的其他站点 Cookie 也会被带出去），这里一律剥离
 		req.Header.Del("Cookie")
-
-		for i := 0; i < len(oldCookies); i++ {
-			if strings.HasPrefix(oldCookies[i].Name, "ebk_") {
-				continue
-			}
-
-			req.AddCookie(oldCookies[i])
-		}
 
 		req.URL = targetUrl
 		req.RequestURI = req.URL.RequestURI()
