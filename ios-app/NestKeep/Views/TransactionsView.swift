@@ -154,7 +154,7 @@ final class TransactionsViewModel: ObservableObject {
     @Published var year: Int
     @Published var month: Int
     @Published var isLoading = false
-    /// 是否完成过一次成功加载：控制首拉骨架占位（PulsingSkeletonCard）只出现一次，
+    /// 是否完成过一次成功加载：控制首拉 redacted 占位态只出现一次，
     /// 后续下拉刷新不再显示（保持已渲染内容，避免闪烁）
     @Published private(set) var hasLoadedOnce = false
     @Published var error: String?
@@ -684,6 +684,10 @@ struct TransactionsView: View {
         .buttonStyle(.plain)
     }
 
+    /// 首拉中（骨架占位态）：真实卡片照常挂载，内容用系统 redacted 灰条代替——
+    /// 布局与数据态逐像素一致，数据到达原地变真，不会出现骨架→卡片的高度跳动
+    private var firstLoading: Bool { vm.isLoading && !vm.hasLoadedOnce }
+
     var body: some View {
         // 首页包在 NavigationView 里：日历页/账单列表页/区间详情页改为**系统原生 push**
         //（NavigationLink 编程式跳转），获得标准视差滑动、边缘阴影与左滑跟手返回。
@@ -701,15 +705,6 @@ struct TransactionsView: View {
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
-                        // 首拉骨架占位：数据到达后真实卡片淡入上浮接替（下拉刷新走 else 保持不动）
-                        if vm.isLoading && !vm.hasLoadedOnce {
-                            VStack(spacing: 12) {
-                                PulsingSkeletonCard(height: 156)
-                                PulsingSkeletonCard(height: 340)
-                            }
-                            .padding(.top, 8)
-                            .transition(.opacity)
-                        } else {
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
                             // 水平 17pt 沿用原 insetGrouped 的系统分组边距
@@ -718,7 +713,9 @@ struct TransactionsView: View {
                             .onTapGesture { openListPage() }
                             .padding(.top, 8)
                             .padding(.bottom, 12)
-                            .transition(.opacity.combined(with: .offset(y: 14)))
+                            // 首拉占位：真实布局 + 灰色占位条（数据到达原地变真，无跳动）
+                            .redacted(reason: firstLoading ? .placeholder : [])
+                            .allowsHitTesting(!firstLoading)
 
                         // 检索框（首页入口）：样式与账单列表页搜索框一致，
                         // 点击推入列表页并自动聚焦搜索框，不直接在首页输入
@@ -742,11 +739,10 @@ struct TransactionsView: View {
                         }
                         .buttonStyle(.plain)
                         .padding(.bottom, 12)
-                        .transition(.opacity)
 
                         periodCard
-                            .transition(.opacity.combined(with: .offset(y: 14)))
-                        }
+                            .redacted(reason: firstLoading ? .placeholder : [])
+                            .allowsHitTesting(!firstLoading)
 
                         // AI 识图/语音入口常驻：不再依赖 server_settings 开关门控——
                         // 开关拉取失败（隧道未就绪等）会导致入口整场消失，反复修不好；
@@ -755,8 +751,8 @@ struct TransactionsView: View {
                         aiEntryRow
                             .padding(.top, 12)
                     }
-                    // 骨架 ↔ 真实卡片的接替动画（仅首拉 hasLoadedOnce 翻转时触发一次）
-                    .animation(.easeOut(duration: 0.35), value: vm.hasLoadedOnce)
+                    // 首拉结束时的 un-redact 用轻动画过渡（布局不变，只有占位条→真内容）
+                    .animation(.easeOut(duration: 0.3), value: vm.hasLoadedOnce)
                     .padding(.horizontal, 17)
                     // iOS 15：MainTabView 的 safeAreaInset 穿不透 NavigationView，
                     // 内容末尾自行留出「底栏高度 + 底部安全区 + 呼吸空间」，

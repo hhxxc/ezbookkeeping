@@ -144,22 +144,3 @@ struct AmountTweenLabel: View, Animatable {
         Text(verbatim: AmountFormat.format(Int64(value), currency: currency))
     }
 }
-
-/// 首拉骨架占位卡（首页用）：圆角灰卡 + 呼吸脉冲，数据到达后被真实卡片淡入接替
-struct PulsingSkeletonCard: View {
-    var height: CGFloat
-    var cornerRadius: CGFloat = 16
-
-    @State private var pulsing = false
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(Color.primary.opacity(pulsing ? 0.05 : 0.09))
-            .frame(height: height)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                    pulsing = true
-                }
-            }
-    }
-}
