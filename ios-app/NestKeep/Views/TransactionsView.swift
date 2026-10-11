@@ -636,6 +636,13 @@ struct TransactionsView: View {
     @StateObject private var calendarVM = TransactionCalendarViewModel()
     /// 首页背景图变化时刷新汇总卡底图
     @State private var backgroundToken = UUID()
+    /// 不打扰式更新提示：启动自动检查发现新版后在首页顶部短暂出现（3 秒自动消失，
+    /// 本次会话不再重复），点击进更新弹层
+    @ObservedObject private var updateStore = UpdateStore.shared
+    @State private var showUpdateBanner = false
+    @State private var updateBannerDismissed = false
+    @State private var updateBannerVersion = ""
+    @State private var showUpdateSheet = false
 
     init(showAdd: Binding<Bool> = .constant(false)) {
         _showAdd = showAdd
@@ -644,6 +651,32 @@ struct TransactionsView: View {
     /// 进入账单列表页（系统原生 push 动画）
     private func openListPage() {
         showListPage = true
+    }
+
+    /// 不打扰式更新提示胶囊（首页顶部悬浮，3 秒自动消失）
+    private var updateBanner: some View {
+        Button {
+            withAnimation(.easeIn(duration: 0.2)) { showUpdateBanner = false }
+            updateBannerDismissed = true
+            showUpdateSheet = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.up.circle.fill")
+                Text(verbatim: "发现新版本 v\(updateBannerVersion)，点击查看")
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(
+                Capsule().fill(Theme.brand)
+                    .shadow(color: Theme.brand.opacity(0.35), radius: 6, x: 0, y: 3)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     var body: some View {
@@ -719,6 +752,15 @@ struct TransactionsView: View {
                 }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
+                // 不打扰式更新提示：悬浮在首页顶部（顶栏下方），3 秒自动消失；
+                // 挂在 ScrollView 上，推入二级页时不显示
+                .overlay(alignment: .top) {
+                    if showUpdateBanner {
+                        updateBanner
+                            .padding(.top, 54)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
             }
             .refreshable { await vm.load() }
             // 返回首页后复位搜索聚焦标记，下次普通点汇总卡不再弹键盘；
@@ -761,6 +803,24 @@ struct TransactionsView: View {
             )
         }
         .navigationViewStyle(.stack)
+        .onChange(of: updateStore.result) { r in
+            guard !updateBannerDismissed else { return }
+            guard case .updateAvailable(_, let latest, _, _) = r else { return }
+            updateBannerVersion = latest
+            withAnimation(.easeOut(duration: 0.25)) { showUpdateBanner = true }
+        }
+        .task(id: showUpdateBanner) {
+            guard showUpdateBanner else { return }
+            // 3 秒后自动淡出；期间用户点按则 task 随状态变化取消
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            withAnimation(.easeIn(duration: 0.25)) {
+                showUpdateBanner = false
+                updateBannerDismissed = true
+            }
+        }
+        .sheet(isPresented: $showUpdateSheet) {
+            UpdateResultSheet(updateStore: updateStore)
+        }
         // AI 识图直连流程：点入口直接拉起相册，选完图进识别页，关闭后刷新首页
         .modifier(AIReceiptFlowModifier(flow: aiFlow, onReceiptDismiss: {
             Task { await vm.load() }
