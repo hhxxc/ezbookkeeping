@@ -25,8 +25,10 @@ final class AppDataStore: ObservableObject {
     private var categoriesAt: Date?
     private var tagsAt: Date?
     private var tagGroupsAt: Date?
-    /// 防同 key 并发重复请求（4 个 Tab 同时 ensure 时只发一次网络请求）
-    private var inflight: Set<String> = []
+    /// 防同 key 并发重复请求（4 个 Tab 同时 ensure 时只发一次网络请求）。
+    /// 存的是在途 Task，后来者会等待其完成而不是拿到可能为空的缓存
+    /// （旧实现命中 inflight 直接 return，冷启动后到的 Tab 会渲染空白）
+    private var inflight: [String: Task<Void, Error>] = [:]
 
     /// 缓存有效期。个人自用 + 单设备，2 分钟足够新鲜；
     /// 变更入口（保存/删除）都会主动失效，不受此值拖累
@@ -75,22 +77,36 @@ final class AppDataStore: ObservableObject {
 
     // MARK: - 读取（新鲜缓存直接返回；过期/为空才走网络；网络失败回退旧缓存）
 
+    /// 缓存过期后的取数：同一 key 并发调用只发一次请求，后来者 await 在途任务。
+    /// 请求失败时若本地已有旧数据则静默兜底（离线可用），完全没数据才向上抛错
+    private func fetchWithDedup(_ key: String, hasData: @escaping () -> Bool, fetch: @escaping () async throws -> Void) async throws {
+        if let existing = inflight[key] {
+            do {
+                try await existing.value
+            } catch {
+                if !hasData() { throw error }
+            }
+            return
+        }
+        let task = Task { try await fetch() }
+        inflight[key] = task
+        defer { inflight[key] = nil }
+        do {
+            try await task.value
+        } catch {
+            if !hasData() { throw error }
+        }
+    }
+
     func getAccounts(force: Bool = false) async throws -> [Account] {
         if !force, let at = accountsAt, Date().timeIntervalSince(at) < Self.staleInterval, !accounts.isEmpty {
             return accounts
         }
-        if !inflight.contains("accounts") {
-            do {
-                inflight.insert("accounts")
-                let fetched: [Account] = try await APIClient.shared.request("/api/v1/accounts/list.json")
-                accounts = fetched
-                accountsAt = Date()
-                saveDiskCache()
-            } catch {
-                // 有旧数据就先兜底返回（离线可用），完全没数据才向上抛错
-                if accounts.isEmpty { throw error }
-            }
-            inflight.remove("accounts")
+        try await fetchWithDedup("accounts", hasData: { !self.accounts.isEmpty }) {
+            let fetched: [Account] = try await APIClient.shared.request("/api/v1/accounts/list.json")
+            self.accounts = fetched
+            self.accountsAt = Date()
+            self.saveDiskCache()
         }
         return accounts
     }
@@ -99,17 +115,11 @@ final class AppDataStore: ObservableObject {
         if !force, let at = categoriesAt, Date().timeIntervalSince(at) < Self.staleInterval, !categories.isEmpty {
             return categories
         }
-        if !inflight.contains("categories") {
-            do {
-                inflight.insert("categories")
-                let fetched = try await APIClient.shared.requestCategoryList()
-                categories = fetched
-                categoriesAt = Date()
-                saveDiskCache()
-            } catch {
-                if categories.isEmpty { throw error }
-            }
-            inflight.remove("categories")
+        try await fetchWithDedup("categories", hasData: { !self.categories.isEmpty }) {
+            let fetched = try await APIClient.shared.requestCategoryList()
+            self.categories = fetched
+            self.categoriesAt = Date()
+            self.saveDiskCache()
         }
         return categories
     }
@@ -121,22 +131,16 @@ final class AppDataStore: ObservableObject {
            Date().timeIntervalSince(gAt) < Self.staleInterval {
             return (tags, tagGroups)
         }
-        if !inflight.contains("tags") {
-            do {
-                inflight.insert("tags")
-                async let t: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
-                async let g: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
-                let fetchedTags = try await t
-                let fetchedGroups = (try? await g) ?? []
-                tags = fetchedTags
-                tagGroups = fetchedGroups
-                tagsAt = Date()
-                tagGroupsAt = Date()
-                saveDiskCache()
-            } catch {
-                if tags.isEmpty { throw error }
-            }
-            inflight.remove("tags")
+        try await fetchWithDedup("tags", hasData: { !self.tags.isEmpty }) {
+            async let t: [TransactionTag] = APIClient.shared.request("/api/v1/transaction/tags/list.json")
+            async let g: [TransactionTagGroup] = APIClient.shared.request("/api/v1/transaction/tags/groups/list.json")
+            let fetchedTags = try await t
+            let fetchedGroups = (try? await g) ?? []
+            self.tags = fetchedTags
+            self.tagGroups = fetchedGroups
+            self.tagsAt = Date()
+            self.tagGroupsAt = Date()
+            self.saveDiskCache()
         }
         return (tags, tagGroups)
     }

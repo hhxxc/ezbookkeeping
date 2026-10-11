@@ -1439,9 +1439,22 @@ struct PhotoPicker: UIViewControllerRepresentable {
                   provider.canLoadObject(ofClass: UIImage.self) else { return }
             provider.loadObject(ofClass: UIImage.self) { object, _ in
                 guard let image = object as? UIImage,
-                      let data = image.jpegData(compressionQuality: 0.8) else { return }
+                      let data = Self.downsampledJPEGData(image, maxDimension: 1600) else { return }
                 DispatchQueue.main.async { self.onPicked(data) }
             }
+        }
+
+        /// 落库前压图：长边压到 maxDimension（与 AI 识图同口径），避免 48MP 原图整解码上传
+        private static func downsampledJPEGData(_ image: UIImage, maxDimension: CGFloat) -> Data? {
+            let longEdge = max(image.size.width, image.size.height) * image.scale
+            guard longEdge > maxDimension else { return image.jpegData(compressionQuality: 0.8) }
+            let ratio = maxDimension / longEdge
+            let newSize = CGSize(width: image.size.width * ratio, height: image.size.height * ratio)
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+            let resized = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+            return resized.jpegData(compressionQuality: 0.8)
         }
     }
 }

@@ -64,6 +64,7 @@ final class ImageLoader: ObservableObject {
 
     func load(url: URL?, scale: CGFloat) {
         guard let url = url else {
+            currentURL = nil
             image = nil
             return
         }
@@ -75,10 +76,19 @@ final class ImageLoader: ObservableObject {
         var request = URLRequest(url: url)
         request.cachePolicy = .returnCacheDataElseLoad
 
-        Self.session.dataTask(with: request) { data, _, _ in
-            guard let data = data, let img = UIImage(data: data, scale: scale) else { return }
-            Task { @MainActor [weak self] in
-                self?.image = img
+        Self.session.dataTask(with: request) { [weak self] data, _, _ in
+            guard let data = data, let img = UIImage(data: data, scale: scale) else {
+                // 加载失败：清掉标记允许下次 onAppear/onChange 重试，否则永久卡占位图
+                Task { @MainActor in
+                    guard let self = self, self.currentURL == url else { return }
+                    self.currentURL = nil
+                }
+                return
+            }
+            Task { @MainActor in
+                guard let self = self else { return }
+                self.currentURL = url
+                self.image = img
             }
         }.resume()
     }

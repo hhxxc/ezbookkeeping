@@ -157,9 +157,16 @@ final class TransactionsViewModel: ObservableObject {
     @Published var error: String?
 
     /// 汇总数据（原首页：总资产 + 本月收支）
-    @Published var accounts: [Account] = []
+    @Published var accounts: [Account] = [] {
+        didSet { accountById = Dictionary(accounts.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a }) }
+    }
     @Published var monthIncomeCents: Int64 = 0
     @Published var monthExpenseCents: Int64 = 0
+
+    /// id → 账户/分类 查找字典：列表每行都要查名，旧实现线性扫 O(行数×分类数)，
+    /// 这里在数据变更时重建一次，行渲染降为 O(1)
+    private var accountById: [String: Account] = [:]
+    private var categoryById: [String: TransactionCategory] = [:]
 
     /// 6 个区间的日期边界（用于展示副标题 + 点击跳筛选）
     @Published var ranges: [OverviewPeriod: OverviewDateRange] = [:]
@@ -177,7 +184,16 @@ final class TransactionsViewModel: ObservableObject {
     /// 是否处于筛选态（用于决定走 list.json 还是 by_month.json）
     var isFiltering: Bool { filter.isActive || !searchKeyword.isEmpty }
 
-    private var categories: [TransactionCategory] = []
+    private var categories: [TransactionCategory] = [] {
+        didSet {
+            var byId: [String: TransactionCategory] = [:]
+            for c in categories {
+                byId[c.id] = c
+                for sub in c.subCategories ?? [] { byId[sub.id] = sub }
+            }
+            categoryById = byId
+        }
+    }
     private var searchTask: Task<Void, Never>?
 
     /// 供筛选面板使用的拍平分类列表
@@ -252,6 +268,7 @@ final class TransactionsViewModel: ObservableObject {
             categories = try await cats
             transactions = try await txs
             await amounts
+            rebuildGrouping()
             isLoading = false
         } catch {
             isLoading = false
@@ -516,42 +533,25 @@ final class TransactionsViewModel: ObservableObject {
     }
 
     func accountName(_ id: String?) -> String {
-        accounts.first { $0.id == id }?.name ?? "—"
+        guard let id = id, let a = accountById[id] else { return "—" }
+        return a.name
     }
 
     func categoryName(_ id: String?) -> String {
-        guard let id = id else { return "—" }
-        for c in categories {
-            if c.id == id { return c.name }
-            if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }) {
-                return hit.name
-            }
-        }
-        return "—"
+        guard let id = id, let c = categoryById[id] else { return "—" }
+        return c.name
     }
 
     func categoryColor(_ id: String?) -> Color {
-        guard let id = id else { return Theme.brand }
-        for c in categories {
-            if c.id == id, let color = c.color { return Color(hex: color) }
-            if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }), let color = hit.color {
-                return Color(hex: color)
-            }
-        }
-        return Theme.brand
+        guard let id = id, let c = categoryById[id], let color = c.color else { return Theme.brand }
+        return Color(hex: color)
     }
 
     /// 分类 SF Symbol 名（经 CategoryIconCatalog 编号映射）。
     /// 返回 nil 表示找不到分类（转账/余额调整等），行 UI 回退交易类型图标
     func categoryIcon(_ id: String?) -> String? {
-        guard let id = id else { return nil }
-        for c in categories {
-            if c.id == id { return CategoryIconCatalog.symbol(c.icon) }
-            if let subs = c.subCategories, let hit = subs.first(where: { $0.id == id }) {
-                return CategoryIconCatalog.symbol(hit.icon)
-            }
-        }
-        return nil
+        guard let id = id, let c = categoryById[id] else { return nil }
+        return CategoryIconCatalog.symbol(c.icon)
     }
 
     /// 左滑删除：走 POST /transactions/delete.json
@@ -562,11 +562,38 @@ final class TransactionsViewModel: ObservableObject {
                 "/api/v1/transactions/delete.json", method: .POST, body: req
             )
             transactions.removeAll { $0.id == tx.id }
+            rebuildGrouping()
             await loadAmounts()
             AppDataStore.shared.invalidateAccounts()
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    /// 按日分组结果（缓存）：此前是 computed property，body 每次求值都整表
+    /// Dictionary(grouping:)+sorted，现在只在 transactions/isFiltering 变化时重建
+    @Published private(set) var groupedByDay: [(date: Date, items: [Transaction])] = []
+
+    func rebuildGrouping() {
+        let cal = Calendar.current
+        // 搜索/筛选态（走 list.json）时后端可能返回相关性排序（如金额精确命中置顶），
+        // 采用「连续同一天保序分组」：只合并相邻同日行、不重排，保留后端顺序；
+        // 非搜索态（by_month 按月浏览）保持原按天倒序分组逻辑。
+        if isFiltering {
+            var groups: [(date: Date, items: [Transaction])] = []
+            for tx in transactions {
+                let day = cal.startOfDay(for: tx.date)
+                if let last = groups.last, last.date == day {
+                    groups[groups.count - 1].items.append(tx)
+                } else {
+                    groups.append((day, [tx]))
+                }
+            }
+            groupedByDay = groups
+            return
+        }
+        let dict = Dictionary(grouping: transactions) { cal.startOfDay(for: $0.date) }
+        groupedByDay = dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
     }
 
     /// 今日合计（用于日分组头右侧）
@@ -1256,26 +1283,7 @@ private struct BillListPageView: View {
     @State private var showFilter = false
     @FocusState private var searchFieldFocused: Bool
 
-    private var grouped: [(date: Date, items: [Transaction])] {
-        let cal = Calendar.current
-        // 搜索/筛选态（走 list.json）时后端可能返回相关性排序（如金额精确命中置顶），
-        // 采用「连续同一天保序分组」：只合并相邻同日行、不重排，保留后端顺序；
-        // 非搜索态（by_month 按月浏览）保持原按天倒序分组逻辑。
-        if vm.isFiltering {
-            var groups: [(date: Date, items: [Transaction])] = []
-            for tx in vm.transactions {
-                let day = cal.startOfDay(for: tx.date)
-                if let last = groups.last, last.date == day {
-                    groups[groups.count - 1].items.append(tx)
-                } else {
-                    groups.append((day, [tx]))
-                }
-            }
-            return groups
-        }
-        let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
-        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
-    }
+    // 按日分组改用 vm.groupedByDay（缓存，见 TransactionsViewModel.rebuildGrouping）
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -1353,7 +1361,7 @@ private struct BillListPageView: View {
 
                 // 保序分组下同一日期可能出现多个分组（相关性置顶组 + 时间倒序组），
                 // 不能用 \.date 作身份，改用索引
-                ForEach(Array(grouped.enumerated()), id: \.offset) { _, group in
+                ForEach(Array(vm.groupedByDay.enumerated()), id: \.offset) { _, group in
                     Section(header: dayHeader(group.date, items: group.items)) {
                         ForEach(group.items) { tx in
                             TransactionRow(tx: tx, vm: vm)
@@ -1433,6 +1441,8 @@ final class RangeDetailViewModel: ObservableObject {
     @Published var transactions: [Transaction] = []
     @Published var isLoading = false
     @Published var error: String?
+    /// 按日分组缓存：body 每次求值不再重算 Dictionary(grouping:)
+    @Published private(set) var grouped: [(date: Date, items: [Transaction])] = []
 
     let context: RangeDetailContext
     let mainVM: TransactionsViewModel
@@ -1466,6 +1476,7 @@ final class RangeDetailViewModel: ObservableObject {
                 ]
             )
             transactions = page.items
+            grouped = Self.groupByDay(transactions)
             isLoading = false
         } catch {
             isLoading = false
@@ -1473,9 +1484,16 @@ final class RangeDetailViewModel: ObservableObject {
         }
     }
 
+    private static func groupByDay(_ items: [Transaction]) -> [(date: Date, items: [Transaction])] {
+        let cal = Calendar.current
+        let dict = Dictionary(grouping: items) { cal.startOfDay(for: $0.date) }
+        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
+    }
+
     func delete(_ tx: Transaction) async {
         await mainVM.delete(tx)
         transactions.removeAll { $0.id == tx.id }
+        grouped = Self.groupByDay(transactions)
     }
 
     func dayExpense(_ items: [Transaction]) -> Int64 {
@@ -1502,11 +1520,7 @@ struct RangeDetailView: View {
         self.mainVM = mainVM
     }
 
-    private var grouped: [(date: Date, items: [Transaction])] {
-        let cal = Calendar.current
-        let dict = Dictionary(grouping: vm.transactions) { cal.startOfDay(for: $0.date) }
-        return dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
-    }
+    // 按日分组改用 vm.grouped（缓存，见 RangeDetailViewModel）
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1569,10 +1583,12 @@ struct RangeDetailView: View {
         .chineseBackButton()
         .task { await vm.load() }
         .sheet(item: $editing, onDismiss: {
-            // 编辑保存后同步刷新详情列表 + 主页面的列表与区间汇总
+            // 编辑保存后同步刷新详情列表 + 主页面的列表与区间汇总（两者无依赖，并行）
             Task {
-                await vm.load()
-                await mainVM.load()
+                async let a: Void = vm.load()
+                async let b: Void = mainVM.load()
+                await a
+                await b
             }
         }) { tx in
             TransactionEditView(transaction: tx, mode: .edit)
@@ -1580,8 +1596,10 @@ struct RangeDetailView: View {
         .sheet(item: $duplicating, onDismiss: {
             // 复制为新交易落库后同样刷新两个层级
             Task {
-                await vm.load()
-                await mainVM.load()
+                async let a: Void = vm.load()
+                async let b: Void = mainVM.load()
+                await a
+                await b
             }
         }) { tx in
             TransactionEditView(transaction: tx, mode: .duplicate)
@@ -1589,14 +1607,18 @@ struct RangeDetailView: View {
         .sheet(item: $detail, onDismiss: {
             // 从详情页内部编辑/复制后，关闭详情时刷新（详情页自身无法就地更新）
             Task {
-                await vm.load()
-                await mainVM.load()
+                async let a: Void = vm.load()
+                async let b: Void = mainVM.load()
+                await a
+                await b
             }
         }) { tx in
             TransactionDetailView(transaction: tx, onChanged: {
                 Task {
-                    await vm.load()
-                    await mainVM.load()
+                    async let a: Void = vm.load()
+                    async let b: Void = mainVM.load()
+                    await a
+                    await b
                 }
             })
         }
@@ -1648,7 +1670,7 @@ struct RangeDetailView: View {
 
     private var transactionList: some View {
         List {
-            ForEach(grouped, id: \.date) { group in
+            ForEach(vm.grouped, id: \.date) { group in
                 Section(header: dayHeader(group.date, items: group.items)) {
                     ForEach(group.items) { tx in
                         TransactionRow(tx: tx, vm: mainVM)

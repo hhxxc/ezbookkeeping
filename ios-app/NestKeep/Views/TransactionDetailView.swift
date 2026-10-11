@@ -107,17 +107,18 @@ struct TransactionDetailView: View {
                     Button("完成") { dismiss() }
                 }
             }
-            // 编辑保存成功 → 通知上级刷新并关闭详情（详情页持有的是不可变快照，无法就地更新）
+            // 编辑保存成功 → 关闭详情，由父级 sheet 的 onDismiss 统一刷新
+            // （此前 onChanged + 父级 onDismiss 会各刷一轮，重复请求）
             .sheet(isPresented: $showEdit, onDismiss: {
                 if didEdit {
                     didEdit = false
-                    onChanged?()
                     dismiss()
                 }
             }) {
                 TransactionEditView(transaction: transaction, mode: .edit, onSaved: { didEdit = true })
             }
-            .sheet(isPresented: $showDuplicate, onDismiss: { onChanged?() }) {
+            // 复制保存 → onChanged 通知上级刷新（详情不关闭，onDismiss 是取消/完成也会触发的空刷新，去掉）
+            .sheet(isPresented: $showDuplicate) {
                 TransactionEditView(transaction: transaction, mode: .duplicate, onSaved: { onChanged?() })
             }
         }
