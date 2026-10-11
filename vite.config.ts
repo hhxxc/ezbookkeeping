@@ -238,16 +238,20 @@ export default defineConfig(() => {
                             return 'capacitor';
                         } else if (/[\\/]node_modules[\\/](dom7|framework7.*|skeleton-elements|swiper)[\\/]/i.test(id)) {
                             return 'vendor-mobile';
-                        } else if (/[\\/]node_modules[\\/](vuetify|vue-router|vue3-perfect-scrollbar|perfect-scrollbar|vuedraggable|sortablejs|@mdi.*)[\\/]/i.test(id)) {
+                        } else if (/[\\/]node_modules[\\/](vuetify|vue-router|vue3-perfect-scrollbar|perfect-scrollbar|vuedraggable|sortablejs|@mdi.*|tslib)[\\/]/i.test(id)) {
+                            // tslib 跟 vuetify 同块：vuetify/exceljs 都依赖它，放这里避免
+                            // vendor-desktop/vendor-echarts/vendor-export 互相 import 成环
                             return 'vendor-desktop';
-                        } else if (/[\\/]node_modules[\\/](echarts|zrender|tslib|resize-detector|vue-echarts)[\\/]/i.test(id)) {
-                            return 'vendor-desktop';
+                        } else if (/[\\/]node_modules[\\/](echarts|zrender|resize-detector|vue-echarts)[\\/]/i.test(id)) {
+                            // 图表族独立成块：桌面端图表页已懒加载（router asyncResolve），
+                            // 首页/列表页打开时不必拉 echarts
+                            return 'vendor-echarts';
                         } else if (/plugin-vuetify:/i.test(id)) {
                             return 'vendor-desktop';
                         } else if (/[\\/]node_modules[\\/](exceljs|jszip)[\\/]/i.test(id)) {
-                            // 仅桌面端 ExportDialog 静态引用（Excel 导出）。移出移动端首屏必载的
-                            // vendor-common，桌面入口会自动接住；jszip 是 exceljs 的依赖，一并处理。
-                            return 'vendor-desktop';
+                            // 仅桌面端 ExportDialog 引用（Excel 导出）。独立成块，
+                            // 不进导出对话框就永不加载；jszip 是 exceljs 的依赖，一并处理。
+                            return 'vendor-export';
                         } else if (/[\\/]node_modules[\\/]chardet[\\/]/i.test(id)) {
                             // 仅桌面端 ImportDialog 经 src/lib/file.ts 的 detectFileEncoding 动态 import
                             // 使用。若归入 vendor-common（兜底规则）会被移动端首屏强制加载，故脱离之，
@@ -259,6 +263,11 @@ export default defineConfig(() => {
                             return 'common';
                         } else if (/[\\/]src[\\/]lib[\\/](map[\\/]|ui[\\/]common|[a-zA-Z0-9-_]+\.(js|ts))/i.test(id)) {
                             return 'common';
+                        } else if (/[\\/]src[\\/]components[\\/]common[\\/](MapView|DateTimePicker|MonthPicker|TransactionCalendar)\.vue/i.test(id)) {
+                            // 全局注册的按需组件（mobile-main 里 defineAsyncComponent），
+                            // 不归入首屏必载的 common，让 rollup 拆成按需 chunk
+                            //（桌面入口静态引用它们，rollup 会生成两端共享的独立 chunk）
+                            return null;
                         } else if (/[\\/]src[\\/]components[\\/](base|common)[\\/]/i.test(id)) {
                             return 'common';
                         } else if (/[\\/]src[\\/]views[\\/]base[\\/]/i.test(id)) {

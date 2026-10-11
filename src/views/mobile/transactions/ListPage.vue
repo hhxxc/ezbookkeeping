@@ -624,9 +624,10 @@
 </template>
 
 <script setup lang="ts">
-import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
+// 识图弹层仅按需打开，异步加载不进首屏 chunk
+const AIImageRecognitionSheet = defineAsyncComponent(() => import('@/components/mobile/AIImageRecognitionSheet.vue'));
 
-import { ref, computed, nextTick, onMounted, onUnmounted, useTemplateRef } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, useTemplateRef, defineAsyncComponent } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';

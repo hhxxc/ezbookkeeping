@@ -356,10 +356,11 @@
 </template>
 
 <script setup lang="ts">
-import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
-import VoiceInputSheet from '@/components/mobile/VoiceInputSheet.vue';
+// 识图/语音弹层仅按需打开，异步加载不进首屏 chunk
+const AIImageRecognitionSheet = defineAsyncComponent(() => import('@/components/mobile/AIImageRecognitionSheet.vue'));
+const VoiceInputSheet = defineAsyncComponent(() => import('@/components/mobile/VoiceInputSheet.vue'));
 
-import { ref, computed, useTemplateRef } from 'vue';
+import { ref, computed, useTemplateRef, defineAsyncComponent } from 'vue';
 import type { Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';

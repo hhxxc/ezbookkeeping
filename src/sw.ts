@@ -241,10 +241,15 @@ registerRoute(
     })
 );
 
+// js/css runtime 缓存过期淘汰：内容 hash 文件名的旧版本运行时缓存（非预缓存部分）
+// 若无限堆积会慢慢吃掉存储配额；400 条 + 30 天足够覆盖两次发版间的所有资源
+const codeCacheExpirationPlugin = new DynamicExpirationPlugin(400, 30 * 24 * 60 * 60 * 1000);
+
 registerRoute(
     /.*\/css\/.*\.css/,
     new CacheFirst({
         cacheName: SW_CODE_CACHE_NAME,
+        plugins: [codeCacheExpirationPlugin]
     })
 );
 
@@ -252,6 +257,7 @@ registerRoute(
     /.*\/js\/.*\.js/,
     new CacheFirst({
         cacheName: SW_CODE_CACHE_NAME,
+        plugins: [codeCacheExpirationPlugin]
     })
 );
 

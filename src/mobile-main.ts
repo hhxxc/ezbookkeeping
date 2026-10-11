@@ -1,4 +1,4 @@
-import { createApp } from 'vue';
+import { createApp, defineAsyncComponent } from 'vue';
 import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 
@@ -43,45 +43,18 @@ import Framework7Vue, { registerComponents } from 'framework7-vue/bundle';
 import 'framework7-icons';
 import 'line-awesome/dist/line-awesome/css/line-awesome.css';
 
-import { VueDatePicker } from '@vuepic/vue-datepicker';
+// VueDatePicker 改为异步注册（见下方），样式保留在首屏 CSS 避免闪变
 import '@vuepic/vue-datepicker/dist/main.css';
 
 import { getI18nOptions, preloadInitialLanguageContent } from '@/locales/helpers.ts';
 
+// 以下四个组件在首屏链路（登录页/解锁页/应用锁页/账单列表）使用，保留静态注册；
+// 其余全局组件全部改为 defineAsyncComponent 按需分块加载，不进入首包。
 import PinCodeInput from '@/components/common/PinCodeInput.vue';
-import MapView from '@/components/common/MapView.vue';
-import DateTimePicker from '@/components/common/DateTimePicker.vue';
-import MonthPicker from '@/components/common/MonthPicker.vue';
-import TransactionCalendar from '@/components/common/TransactionCalendar.vue';
 
 import ItemIcon from '@/components/mobile/ItemIcon.vue';
 import LanguageSelectButton from '@/components/mobile/LanguageSelectButton.vue';
-import PieChart from '@/components/mobile/PieChart.vue';
-import TrendsBarChart from '@/components/mobile/TrendsBarChart.vue';
 import PinCodeInputSheet from '@/components/mobile/PinCodeInputSheet.vue';
-import PasswordInputSheet from '@/components/mobile/PasswordInputSheet.vue';
-import PasscodeInputSheet from '@/components/mobile/PasscodeInputSheet.vue';
-import DateTimeSelectionSheet from '@/components/mobile/DateTimeSelectionSheet.vue';
-import DateSelectionSheet from '@/components/mobile/DateSelectionSheet.vue';
-import FiscalYearStartSelectionSheet from '@/components/mobile/FiscalYearStartSelectionSheet.vue';
-import DateRangeSelectionSheet from '@/components/mobile/DateRangeSelectionSheet.vue';
-import MonthSelectionSheet from '@/components/mobile/MonthSelectionSheet.vue';
-import MonthRangeSelectionSheet from '@/components/mobile/MonthRangeSelectionSheet.vue';
-import ListNumberInput from '@/components/mobile/ListNumberInput.vue';
-import ListItemSelectionSheet from '@/components/mobile/ListItemSelectionSheet.vue';
-import ListItemSelectionPopup from '@/components/mobile/ListItemSelectionPopup.vue';
-import TwoColumnListItemSelectionSheet from '@/components/mobile/TwoColumnListItemSelectionSheet.vue';
-import TreeViewSelectionSheet from '@/components/mobile/TreeViewSelectionSheet.vue';
-import IconSelectionSheet from '@/components/mobile/IconSelectionSheet.vue';
-import ColorSelectionSheet from '@/components/mobile/ColorSelectionSheet.vue';
-import InformationSheet from '@/components/mobile/InformationSheet.vue';
-import NumberPadSheet from '@/components/mobile/NumberPadSheet.vue';
-import MapSheet from '@/components/mobile/MapSheet.vue';
-import TransactionTagSelectionSheet from '@/components/mobile/TransactionTagSelectionSheet.vue';
-import ScheduleFrequencySheet from '@/components/mobile/ScheduleFrequencySheet.vue';
-import AccountBalanceTrendsBarChart from '@/components/mobile/AccountBalanceTrendsBarChart.vue';
-import DailyIncomeExpenseBarChart from '@/components/mobile/DailyIncomeExpenseBarChart.vue';
-import AIImageRecognitionSheet from '@/components/mobile/AIImageRecognitionSheet.vue';
 
 import { loadRemoteServerSettings } from '@/lib/server_settings.ts';
 import { isAppShellSafeAreaSelfManaged } from '@/lib/ui/mobile.ts';
@@ -150,42 +123,46 @@ const userStore = useUserStore(pinia);
 registerComponents(app);
 app.use(pinia);
 
-app.component('VueDatePicker', VueDatePicker);
+// 非首屏组件统一异步注册：首次使用时才加载对应 chunk
+const asyncComp = (loader: Parameters<typeof defineAsyncComponent>[0]) => defineAsyncComponent(loader);
+
+app.component('VueDatePicker', asyncComp(() => import('@vuepic/vue-datepicker').then(m => m.VueDatePicker)));
 
 app.component('PinCodeInput', PinCodeInput);
-app.component('MapView', MapView);
-app.component('DateTimePicker', DateTimePicker);
-app.component('MonthPicker', MonthPicker);
-app.component('TransactionCalendar', TransactionCalendar);
+
+app.component('MapView', asyncComp(() => import('@/components/common/MapView.vue')));
+app.component('DateTimePicker', asyncComp(() => import('@/components/common/DateTimePicker.vue')));
+app.component('MonthPicker', asyncComp(() => import('@/components/common/MonthPicker.vue')));
+app.component('TransactionCalendar', asyncComp(() => import('@/components/common/TransactionCalendar.vue')));
 
 app.component('ItemIcon', ItemIcon);
 app.component('LanguageSelectButton', LanguageSelectButton);
-app.component('PieChart', PieChart);
-app.component('TrendsBarChart', TrendsBarChart);
+app.component('PieChart', asyncComp(() => import('@/components/mobile/PieChart.vue')));
+app.component('TrendsBarChart', asyncComp(() => import('@/components/mobile/TrendsBarChart.vue')));
 app.component('PinCodeInputSheet', PinCodeInputSheet);
-app.component('PasswordInputSheet', PasswordInputSheet);
-app.component('PasscodeInputSheet', PasscodeInputSheet);
-app.component('DateTimeSelectionSheet', DateTimeSelectionSheet);
-app.component('DateSelectionSheet', DateSelectionSheet);
-app.component('FiscalYearStartSelectionSheet', FiscalYearStartSelectionSheet);
-app.component('DateRangeSelectionSheet', DateRangeSelectionSheet);
-app.component('MonthSelectionSheet', MonthSelectionSheet);
-app.component('MonthRangeSelectionSheet', MonthRangeSelectionSheet);
-app.component('ListNumberInput', ListNumberInput);
-app.component('ListItemSelectionSheet', ListItemSelectionSheet);
-app.component('ListItemSelectionPopup', ListItemSelectionPopup);
-app.component('TwoColumnListItemSelectionSheet', TwoColumnListItemSelectionSheet);
-app.component('TreeViewSelectionSheet', TreeViewSelectionSheet);
-app.component('IconSelectionSheet', IconSelectionSheet);
-app.component('ColorSelectionSheet', ColorSelectionSheet);
-app.component('InformationSheet', InformationSheet);
-app.component('NumberPadSheet', NumberPadSheet);
-app.component('MapSheet', MapSheet);
-app.component('TransactionTagSelectionSheet', TransactionTagSelectionSheet);
-app.component('ScheduleFrequencySheet', ScheduleFrequencySheet);
-app.component('AccountBalanceTrendsBarChart', AccountBalanceTrendsBarChart);
-app.component('DailyIncomeExpenseBarChart', DailyIncomeExpenseBarChart);
-app.component('AIImageRecognitionSheet', AIImageRecognitionSheet);
+app.component('PasswordInputSheet', asyncComp(() => import('@/components/mobile/PasswordInputSheet.vue')));
+app.component('PasscodeInputSheet', asyncComp(() => import('@/components/mobile/PasscodeInputSheet.vue')));
+app.component('DateTimeSelectionSheet', asyncComp(() => import('@/components/mobile/DateTimeSelectionSheet.vue')));
+app.component('DateSelectionSheet', asyncComp(() => import('@/components/mobile/DateSelectionSheet.vue')));
+app.component('FiscalYearStartSelectionSheet', asyncComp(() => import('@/components/mobile/FiscalYearStartSelectionSheet.vue')));
+app.component('DateRangeSelectionSheet', asyncComp(() => import('@/components/mobile/DateRangeSelectionSheet.vue')));
+app.component('MonthSelectionSheet', asyncComp(() => import('@/components/mobile/MonthSelectionSheet.vue')));
+app.component('MonthRangeSelectionSheet', asyncComp(() => import('@/components/mobile/MonthRangeSelectionSheet.vue')));
+app.component('ListNumberInput', asyncComp(() => import('@/components/mobile/ListNumberInput.vue')));
+app.component('ListItemSelectionSheet', asyncComp(() => import('@/components/mobile/ListItemSelectionSheet.vue')));
+app.component('ListItemSelectionPopup', asyncComp(() => import('@/components/mobile/ListItemSelectionPopup.vue')));
+app.component('TwoColumnListItemSelectionSheet', asyncComp(() => import('@/components/mobile/TwoColumnListItemSelectionSheet.vue')));
+app.component('TreeViewSelectionSheet', asyncComp(() => import('@/components/mobile/TreeViewSelectionSheet.vue')));
+app.component('IconSelectionSheet', asyncComp(() => import('@/components/mobile/IconSelectionSheet.vue')));
+app.component('ColorSelectionSheet', asyncComp(() => import('@/components/mobile/ColorSelectionSheet.vue')));
+app.component('InformationSheet', asyncComp(() => import('@/components/mobile/InformationSheet.vue')));
+app.component('NumberPadSheet', asyncComp(() => import('@/components/mobile/NumberPadSheet.vue')));
+app.component('MapSheet', asyncComp(() => import('@/components/mobile/MapSheet.vue')));
+app.component('TransactionTagSelectionSheet', asyncComp(() => import('@/components/mobile/TransactionTagSelectionSheet.vue')));
+app.component('ScheduleFrequencySheet', asyncComp(() => import('@/components/mobile/ScheduleFrequencySheet.vue')));
+app.component('AccountBalanceTrendsBarChart', asyncComp(() => import('@/components/mobile/AccountBalanceTrendsBarChart.vue')));
+app.component('DailyIncomeExpenseBarChart', asyncComp(() => import('@/components/mobile/DailyIncomeExpenseBarChart.vue')));
+app.component('AIImageRecognitionSheet', asyncComp(() => import('@/components/mobile/AIImageRecognitionSheet.vue')));
 
 app.directive('TextareaAutoSize', TextareaAutoSize);
 

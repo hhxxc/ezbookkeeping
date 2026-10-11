@@ -262,7 +262,11 @@ axios.interceptors.response.use(response => {
 
     return response;
 }, error => {
-    if ('cancelableUuid' in error.response.config && error.response.config.cancelableUuid && cancelableRequests[error.response.config.cancelableUuid]) {
+    // 网络错误/超时/请求被取消时 error.response 可能为 undefined，先判空再访问 config
+    if (error.response
+        && 'cancelableUuid' in error.response.config
+        && error.response.config.cancelableUuid
+        && cancelableRequests[error.response.config.cancelableUuid]) {
         logger.debug('Response canceled by user request, url: ' + error.response.config.url + ', cancelableUuid: ' + error.response.config.cancelableUuid);
         delete cancelableRequests[error.response.config.cancelableUuid];
         return Promise.reject({ canceled: true });
