@@ -24,6 +24,73 @@ final class AccountsViewModel: ObservableObject {
             isLoading = false
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
+        // 收支统计卡随列表一起刷新
+        await loadStats()
+    }
+
+    // MARK: - 年度/累计收支统计
+
+    enum YearStatsRange: String, CaseIterable, Identifiable {
+        case thisYear
+        case all
+
+        var id: String { rawValue }
+        var title: String { self == .thisYear ? "今年" : "全部" }
+    }
+
+    @Published var statsRange: YearStatsRange = .thisYear
+    @Published private(set) var statsIncomeCents: Int64 = 0
+    @Published private(set) var statsExpenseCents: Int64 = 0
+    @Published private(set) var statsLoading = false
+
+    /// 收支统计：statistics.json 按分类维度返回，本地按分类类型聚合收入/支出
+    ///（口径与统计页一致：金额恒为正，1=收入 2=支出，转账/未知跳过）
+    func loadStats() async {
+        statsLoading = true
+        let cal = Calendar.current
+        let now = Date()
+        let start: Date
+        let end: Date
+        switch statsRange {
+        case .thisYear:
+            start = cal.date(from: cal.dateComponents([.year], from: now)) ?? now
+            end = cal.date(byAdding: .year, value: 1, to: start) ?? now
+        case .all:
+            start = Date(timeIntervalSince1970: 0)
+            end = cal.date(byAdding: .year, value: 1, to: now) ?? now
+        }
+        do {
+            let categories = (try? await AppDataStore.shared.getCategories()) ?? []
+            var typeById: [String: Int] = [:]
+            for c in categories {
+                typeById[c.id] = c.type
+                for sub in c.subCategories ?? [] { typeById[sub.id] = sub.type }
+            }
+            let items: [StatisticResponseItem] = try await APIClient.shared.request(
+                "/api/v1/transactions/statistics.json",
+                query: [
+                    URLQueryItem(name: "start_time", value: "\(Int(start.timeIntervalSince1970))"),
+                    URLQueryItem(name: "end_time", value: "\(Int(end.timeIntervalSince1970) - 1)"),
+                    URLQueryItem(name: "use_transaction_timezone", value: "true")
+                ]
+            )
+            var inc: Int64 = 0
+            var exp: Int64 = 0
+            for item in items {
+                let amount = abs(item.amount)
+                switch typeById[item.categoryId ?? "0"] {
+                case .some(1): inc += amount
+                case .some(2): exp += amount
+                default: break
+                }
+            }
+            statsIncomeCents = inc
+            statsExpenseCents = exp
+            statsLoading = false
+        } catch {
+            // 失败静默保留旧值（下次切范围/刷新再试）
+            statsLoading = false
+        }
     }
 
     /// 顶层账户（保留隐藏的，由分组逻辑决定是否展示）
@@ -229,6 +296,10 @@ struct AccountsView: View {
                                 .padding(.bottom, 12)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                             }
+
+                            // 收支统计卡：默认今年，可切全部（口径同统计页）
+                            statsCard
+                                .padding(.bottom, 12)
 
                             ForEach(vm.groupedAccounts, id: \.category) { group in
                                 Text(group.name)
@@ -522,6 +593,67 @@ struct AccountsView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .modifier(HomeShadow(active: shadow))
+        }
+        .padding(.trailing, 16)
+    }
+
+    // MARK: - 收支统计卡（默认今年，可切全部）
+    private var statsCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(vm.statsRange == .thisYear ? "今年收支" : "累计收支")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(HomePalette.ink)
+                Spacer()
+                Picker("范围", selection: $vm.statsRange) {
+                    ForEach(AccountsViewModel.YearStatsRange.allCases) { r in
+                        Text(r.title).tag(r)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+            .padding(.bottom, 12)
+            .onChange(of: vm.statsRange) { _ in
+                Task { await vm.loadStats() }
+            }
+
+            HStack(alignment: .top, spacing: 0) {
+                statsCell(label: "收入",
+                          value: masked(AmountFormat.format(vm.statsIncomeCents)),
+                          color: HomePalette.income)
+                Rectangle()
+                    .fill(HomePalette.divider)
+                    .frame(width: 1)
+                    .padding(.trailing, 16)
+                statsCell(label: "支出",
+                          value: masked(AmountFormat.format(vm.statsExpenseCents)),
+                          color: HomePalette.expense)
+                Spacer(minLength: 0)
+                if vm.statsLoading {
+                    ProgressView().padding(.top, 8)
+                }
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 16)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 10, x: 0, y: 4)
+    }
+
+    private func statsCell(label: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundColor(HomePalette.secondary)
+            Text(verbatim: value)
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundColor(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         }
         .padding(.trailing, 16)
     }
