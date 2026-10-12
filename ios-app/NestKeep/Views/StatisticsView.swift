@@ -635,7 +635,6 @@ struct StatisticsView: View {
                 Task { await listVM.load(); await vm.load() }
             })
         }
-        }
     }
 
     // MARK: - 顶部自绘栏：月份/年份切换胶囊 + 筛选入口（风格对齐首页顶栏胶囊）
