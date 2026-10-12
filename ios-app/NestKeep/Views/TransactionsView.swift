@@ -1215,13 +1215,16 @@ struct TransactionsView: View {
 
             Spacer(minLength: 8)
 
-            // 右侧收支双金额：与汇总卡指标同规格（15 semibold 等宽数字），数字滚动动画
+            // 右侧收支金额：收入只在有数时显示（大多数日子/区间收入为 0，常驻没有信息量）；
+            // 支出常驻（0 也传达「没花」状态）。与汇总卡指标同规格（15 semibold 等宽数字），数字滚动动画
             VStack(alignment: .trailing, spacing: 3) {
-                TweenAmountText(cents: vm.income(for: period), hidden: vm.hideAmounts)
-                    .font(.system(size: 15, weight: .semibold))
-                    .monospacedDigit()
-                    .foregroundColor(HomePalette.income)
-                    .lineLimit(1)
+                if vm.income(for: period) > 0 {
+                    TweenAmountText(cents: vm.income(for: period), hidden: vm.hideAmounts)
+                        .font(.system(size: 15, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundColor(HomePalette.income)
+                        .lineLimit(1)
+                }
                 TweenAmountText(cents: vm.expense(for: period), hidden: vm.hideAmounts)
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
@@ -1734,8 +1737,11 @@ struct RangeDetailView: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text("收 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.incomeCents))")
-                    .foregroundColor(HomePalette.income)
+                // 收入为 0 不显示（同首页区间卡口径）
+                if vm.incomeCents > 0 {
+                    Text("收 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.incomeCents))")
+                        .foregroundColor(HomePalette.income)
+                }
                 Text("支 \(mainVM.hideAmounts ? "＊＊＊" : AmountFormat.format(vm.expenseCents))")
                     .foregroundColor(HomePalette.expense)
             }
