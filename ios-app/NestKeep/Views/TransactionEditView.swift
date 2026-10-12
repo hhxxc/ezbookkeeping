@@ -352,6 +352,18 @@ private enum EditKey: Hashable {
     case save
 }
 
+/// 计算器键盘按压态样式：按下轻微缩小 + 变暗，松手回弹（0.08s 跟手）
+private struct EditKeyStyle: ButtonStyle {
+    var isPrimary = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? (isPrimary ? 0.82 : 0.6) : 1.0)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
 /// 记账页（计算器风格）：
 /// 顶栏 关闭 · 类型切换 · 更多 → 分类图标网格 → 快捷条（账户/日期/图片）→ 备注+金额 → 自绘数字键盘。
 /// 金额支持 12+34.5-3 形式的顺序表达式；「再记」保存后不关页继续记下一笔。
@@ -1006,7 +1018,8 @@ struct TransactionEditView: View {
                 .foregroundColor(isSave ? .white : HomePalette.ink)
                 .opacity(disabled ? 0.5 : 1)
         }
-        .buttonStyle(.plain)
+        // 按压态：轻微缩小 + 变暗（实时跟手），松手回弹——配合触感反馈提升丝滑感
+        .buttonStyle(EditKeyStyle(isPrimary: isSave))
         .disabled(disabled)
         // 退格键长按 0.4s 一键清空表达式（点击仍是删一位）；清空后松手触发的
         // tapKey(.del) 因 amountText 已空而空转，无需额外状态
@@ -1044,6 +1057,8 @@ struct TransactionEditView: View {
     }
 
     private func tapKey(_ key: EditKey) {
+        // 按键触感：普通键轻反馈，保存键稍重
+        UIImpactFeedbackGenerator(style: key == .save ? .medium : .light).impactOccurred()
         switch key {
         case .digit(let d):
             appendDigit(d)
