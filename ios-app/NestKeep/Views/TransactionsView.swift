@@ -1967,10 +1967,12 @@ struct TransactionFilterSheet: View {
                             get: { filter.startDate ?? Date() },
                             set: { filter.startDate = $0 }
                         ), displayedComponents: .date)
+                            .environment(\.locale, Locale(identifier: "zh_CN"))
                         DatePicker("结束", selection: Binding(
                             get: { filter.endDate ?? Date() },
                             set: { filter.endDate = $0 }
                         ), displayedComponents: .date)
+                            .environment(\.locale, Locale(identifier: "zh_CN"))
                     }
                 }
 

@@ -469,6 +469,8 @@ struct TransactionEditView: View {
                 DatePicker("日期", selection: $vm.date)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
+                    // 滚轮强制中文（年月/星期/上下午），不随系统语言变英文
+                    .environment(\.locale, Locale(identifier: "zh_CN"))
                     .frame(maxWidth: .infinity)
                     .padding(.top, 20)
                     .navigationTitle("选择时间")
@@ -924,7 +926,11 @@ struct TransactionEditView: View {
     }
 
     private var dateChipLabel: String {
-        Calendar.current.isDateInToday(vm.date) ? "今天" : Self.chipDateFormatter.string(from: vm.date)
+        // 非今天带出具体时刻（HH:mm），今天显示「今天 + 时刻」
+        if Calendar.current.isDateInToday(vm.date) {
+            return "今天 " + Self.chipTimeFormatter.string(from: vm.date)
+        }
+        return Self.chipDateTimeFormatter.string(from: vm.date)
     }
 
     /// 金额展示：表达式未输完（末尾是运算符/小数点）时显示原文，否则显示求值结果
@@ -1094,10 +1100,26 @@ struct TransactionEditView: View {
         return f
     }()
 
+    /// 日期（不含时刻）：分期首期文案用
     private static let chipDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M月d日"
+        return f
+    }()
+
+    /// 日期 + 时刻：时间胶囊标签用
+    private static let chipDateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "M月d日 HH:mm"
+        return f
+    }()
+
+    private static let chipTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "HH:mm"
         return f
     }()
 

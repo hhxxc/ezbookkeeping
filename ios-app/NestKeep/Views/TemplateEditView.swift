@@ -529,6 +529,7 @@ struct DateOnlyPickerSheet: View {
                         DatePicker(title, selection: $date, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .labelsHidden()
+                            .environment(\.locale, Locale(identifier: "zh_CN"))
                     }
                 }
             }

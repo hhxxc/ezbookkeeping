@@ -34,7 +34,9 @@ struct ReconciliationStatementView: View {
                         }
                         if vm.rangeType == .custom {
                             DatePicker("开始时间", selection: $vm.customStart, displayedComponents: [.date])
+                                .environment(\.locale, Locale(identifier: "zh_CN"))
                             DatePicker("结束时间", selection: $vm.customEnd, displayedComponents: [.date])
+                                .environment(\.locale, Locale(identifier: "zh_CN"))
                             Button("应用自定义范围") {
                                 Task { await vm.load(account: account) }
                             }

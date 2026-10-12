@@ -71,6 +71,7 @@ struct AccountEditView: View {
                             .keyboardType(.numbersAndPunctuation)
                         if !balanceText.isEmpty && balanceText != "0" {
                             DatePicker("余额时间", selection: $balanceTime)
+                                .environment(\.locale, Locale(identifier: "zh_CN"))
                         }
                     }
                 }
