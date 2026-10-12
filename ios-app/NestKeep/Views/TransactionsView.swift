@@ -1441,9 +1441,17 @@ struct BillListPageView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .onAppear {
-                        // 首页搜索入口进来时直接聚焦弹键盘
-                        if focusSearchOnAppear {
+                        // 首页搜索入口进来时直接聚焦弹键盘。
+                        // iOS 15 push 转场未完成时设置 FocusState 会被静默丢弃（键盘弹不出），
+                        // 延迟到转场结束后聚焦；0.4s 后读回焦点状态，没成再补一发
+                        guard focusSearchOnAppear else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             searchFieldFocused = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                if !searchFieldFocused {
+                                    searchFieldFocused = true
+                                }
+                            }
                         }
                     }
                     // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
