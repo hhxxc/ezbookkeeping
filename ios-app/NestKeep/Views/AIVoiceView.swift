@@ -140,7 +140,7 @@ struct AIVoiceView: View {
                 Spacer()
 
                 micButton
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 10)
 
                 // 提交按钮：文字确认/修改好后手动提交（不再停顿自动解析）
                 submitButton
@@ -288,7 +288,9 @@ struct AIVoiceView: View {
     }
 }
 
-/// 麦克风发散光圈：激活时从按钮边缘向外扩散并淡出（三圈错峰，雷达式）
+/// 麦克风发散光圈：激活时从按钮边缘向外扩散并淡出（三圈错峰，雷达式）。
+/// 最大扩散半径按与提交按钮的间距校准：1.5 倍 = 边缘外扩 18pt < 间距 26pt，
+/// 光晕不再压到提交按钮上（之前 1.9 倍会越界重叠）
 private struct RippleRing: View {
     let isActive: Bool
     var delay: Double = 0
@@ -298,7 +300,7 @@ private struct RippleRing: View {
         Circle()
             .stroke(Theme.brand, lineWidth: 2)
             .frame(width: 72, height: 72)
-            .scaleEffect(pulsing ? 1.9 : 1.0)
+            .scaleEffect(pulsing ? 1.5 : 1.0)
             .opacity(isActive ? (pulsing ? 0 : 0.5) : 0)
             .animation(isActive ? .easeOut(duration: 2.0).repeatForever(autoreverses: false).delay(delay) : nil, value: pulsing)
             .onChange(of: isActive) { active in
