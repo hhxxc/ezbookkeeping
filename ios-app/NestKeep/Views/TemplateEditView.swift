@@ -325,7 +325,7 @@ struct TemplateEditView: View {
                             HStack {
                                 Text("开始日期")
                                 Spacer()
-                                Text(vm.startDate.isEmpty ? "不限" : vm.startDate).foregroundColor(.secondary)
+                                Text(vm.startDate.isEmpty ? "不限" : Self.displayDate(vm.startDate)).foregroundColor(.secondary)
                             }
                         }
                         Button {
@@ -334,7 +334,7 @@ struct TemplateEditView: View {
                             HStack {
                                 Text("结束日期")
                                 Spacer()
-                                Text(vm.endDate.isEmpty ? "不限" : vm.endDate).foregroundColor(.secondary)
+                                Text(vm.endDate.isEmpty ? "不限" : Self.displayDate(vm.endDate)).foregroundColor(.secondary)
                             }
                         }
                     }
@@ -411,6 +411,30 @@ struct TemplateEditView: View {
             if vm.type == .expense { return cat.type == TransactionCategoryType.expense.rawValue }
             return true
         }
+    }
+
+    // MARK: - 计划起止日期展示
+
+    /// 线格式（与 DateOnlyPickerSheet / 后端契约一致）：yyyy-MM-dd
+    private static let wireDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// 展示格式（中文）：yyyy年M月d日
+    private static let displayDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "yyyy年M月d日"
+        return f
+    }()
+
+    /// 行里显示用：yyyy-MM-dd → 「yyyy年M月d日」（解析失败原样返回，不吞数据）
+    private static func displayDate(_ wire: String) -> String {
+        guard let d = wireDateFormatter.date(from: wire) else { return wire }
+        return displayDateFormatter.string(from: d)
     }
 }
 

@@ -22,7 +22,7 @@ final class ExchangeRatesViewModel: ObservableObject {
         guard let ts = data?.updateTime, ts > 0 else { return "—" }
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "yyyy-MM-dd HH:mm"
+        f.dateFormat = "yyyy年M月d日 HH:mm"
         return f.string(from: Date(timeIntervalSince1970: TimeInterval(ts)))
     }
 

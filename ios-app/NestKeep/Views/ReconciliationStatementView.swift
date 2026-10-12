@@ -278,7 +278,8 @@ final class ReconciliationViewModel: ObservableObject {
     private func buildItems(_ txs: [ReconciliationTransactionItem]) -> [ReconciliationListItem] {
         let cal = Calendar.current
         let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd"
+        fmt.locale = Locale(identifier: "zh_CN")
+        fmt.dateFormat = "yyyy年M月d日"
         var result: [ReconciliationListItem] = []
         var lastDay = ""
         // 后端按时间倒序返回；日期分组头按遇到的第一笔插入
