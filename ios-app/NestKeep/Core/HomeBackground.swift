@@ -95,12 +95,13 @@ extension Notification.Name {
     static let homeBackgroundChanged = Notification.Name("nestkeep.homeBackgroundChanged")
 }
 
-// MARK: - 内置默认背景（代码绘制的渐变+装饰：任意尺寸清晰、零体积，不占 IPA 空间）
+// MARK: - 内置默认背景（必应壁纸精选风景，按卡片比例裁剪的小尺寸高清图）
 
-/// 单个预设：名称 + 主渐变色（装饰元素由渲染视图统一处理）
+/// 单个预设：风景图走 imageName（Assets 里的 BGPresets）；colors 渐变仅作图片缺失时的兜底
 struct PresetBackground: Identifiable {
     let id: String
     let name: String
+    let imageName: String
     let colors: [Color]
 }
 
@@ -118,12 +119,18 @@ enum HomeBackgroundSource {
 
 extension HomeBackground {
     static let presets: [PresetBackground] = [
-        PresetBackground(id: "teal",     name: "松石", colors: [Color(hex: "#26A69A"), Color(hex: "#00695C")]),
-        PresetBackground(id: "ocean",    name: "深海", colors: [Color(hex: "#4FACFE"), Color(hex: "#0052D4")]),
-        PresetBackground(id: "violet",   name: "暮紫", colors: [Color(hex: "#8E2DE2"), Color(hex: "#4A00E0")]),
-        PresetBackground(id: "sunset",   name: "落日", colors: [Color(hex: "#FF9966"), Color(hex: "#FF5E62")]),
-        PresetBackground(id: "mint",     name: "薄荷", colors: [Color(hex: "#43E97B"), Color(hex: "#38F9D7")]),
-        PresetBackground(id: "graphite", name: "石墨", colors: [Color(hex: "#4B5563"), Color(hex: "#111827")]),
+        PresetBackground(id: "danxia",   name: "丹霞",     imageName: "bg-danxia",
+                         colors: [Color(hex: "#E07C3E"), Color(hex: "#8A4A2B")]),
+        PresetBackground(id: "yosemite", name: "优山美地", imageName: "bg-yosemite",
+                         colors: [Color(hex: "#F2A06B"), Color(hex: "#8A6A55")]),
+        PresetBackground(id: "seaside",  name: "海岸栈桥", imageName: "bg-seaside",
+                         colors: [Color(hex: "#5B87A6"), Color(hex: "#2E4A62")]),
+        PresetBackground(id: "autumn",   name: "秋日磨坊", imageName: "bg-autumn",
+                         colors: [Color(hex: "#D98E32"), Color(hex: "#7A4A21")]),
+        PresetBackground(id: "corsica",  name: "科西嘉",   imageName: "bg-corsica",
+                         colors: [Color(hex: "#D99A4E"), Color(hex: "#3E6E8E")]),
+        PresetBackground(id: "river",    name: "冰川河",   imageName: "bg-river",
+                         colors: [Color(hex: "#3FA8C9"), Color(hex: "#9A7A2E")]),
     ]
 
     private static let presetKey = "nestkeep.homeBackgroundPreset"
@@ -160,11 +167,24 @@ extension HomeBackground {
     }
 }
 
-/// 内置预设背景渲染：对角渐变 + 大半透明白圆装饰（矢量绘制，卡片尺寸下始终清晰）
+/// 内置预设背景渲染：优先用打包的风景图（resizable 填充，高清条幅按卡片裁切显示）；
+/// 图片缺失时退回对角渐变 + 半透明装饰
 struct PresetBackgroundView: View {
     let preset: PresetBackground
 
     var body: some View {
+        if let ui = UIImage(named: preset.imageName) {
+            Image(uiImage: ui)
+                .resizable()
+                .scaledToFill()
+                // 轻蒙层：比远端图（0.28）轻，风景观感优先，只兜底白字可读性
+                .overlay(Color.black.opacity(0.15))
+        } else {
+            gradientFallback
+        }
+    }
+
+    private var gradientFallback: some View {
         ZStack {
             LinearGradient(colors: preset.colors,
                            startPoint: .topLeading, endPoint: .bottomTrailing)
