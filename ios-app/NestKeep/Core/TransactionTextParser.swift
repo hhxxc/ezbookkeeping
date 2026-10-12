@@ -35,16 +35,57 @@ enum TransactionTextParser {
 
         let decoder = JSONDecoder()
         if let envelope = try? decoder.decode(APIEnvelope<[ReceiptRecognizer.Recognized]>.self, from: data) {
-            if envelope.success { return envelope.result ?? [] }
+            if envelope.success {
+                return await applyCategoryHints(envelope.result ?? [], text: text)
+            }
             throw APIError.server(code: envelope.errorCode ?? -1,
                                   message: envelope.errorMessage ?? "解析失败")
         }
         // 兼容旧版只返回单对象
         if let envelope = try? decoder.decode(APIEnvelope<ReceiptRecognizer.Recognized>.self, from: data) {
-            if envelope.success, let one = envelope.result { return [one] }
+            if envelope.success, let one = envelope.result {
+                return await applyCategoryHints([one], text: text)
+            }
             throw APIError.server(code: envelope.errorCode ?? -1,
                                   message: envelope.errorMessage ?? "解析失败")
         }
         throw APIError.invalidResponse
+    }
+
+    /// 口语关键词 → 分类校正：LLM 对特定口语词的归类不稳定（如提到「婴儿」可能被
+    /// 归到购物/日用品），命中关键词时强制归到指定名称的分类。
+    /// 按用户实际分类名包含匹配（含子分类）；目标分类不存在或已在该分类则不动。
+    /// 只校正支出（收入/转账的语义不同，避免误伤）。
+    private static let keywordCategoryHints: [(keywords: [String], categoryName: String)] = [
+        (keywords: ["婴儿"], categoryName: "育儿"),
+    ]
+
+    private static func applyCategoryHints(
+        _ results: [ReceiptRecognizer.Recognized], text: String
+    ) async -> [ReceiptRecognizer.Recognized] {
+        // 文本未命中任何关键词直接返回，不查分类列表
+        guard keywordCategoryHints.contains(where: { hint in
+            hint.keywords.contains { text.contains($0) }
+        }) else { return results }
+
+        let categories = (try? await AppDataStore.shared.getCategories()) ?? []
+        var flat: [(id: String, name: String)] = []
+        for c in categories {
+            flat.append((c.id, c.name))
+            for sub in c.subCategories ?? [] { flat.append((sub.id, sub.name)) }
+        }
+
+        var mapped = results
+        for (idx, var item) in mapped.enumerated() where item.transactionType == .expense {
+            for hint in keywordCategoryHints where hint.keywords.contains(where: { text.contains($0) }) {
+                // 已在目标分类（含子分类名带目标词的）则不动
+                if let current = flat.first(where: { $0.id == item.categoryId }),
+                   current.name.contains(hint.categoryName) { continue }
+                guard let target = flat.first(where: { $0.name.contains(hint.categoryName) }) else { continue }
+                item.categoryId = target.id
+                mapped[idx] = item
+            }
+        }
+        return mapped
     }
 }
