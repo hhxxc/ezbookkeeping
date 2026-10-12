@@ -166,10 +166,14 @@ struct MainTabView: View {
             await UpdateStore.shared.autoCheckIfNeeded()
         }
         // 回前台补拉服务端设置：冷启动拉取失败（隧道未就绪等）会导致
-        // 「AI 识图」入口整个会话消失，回前台自愈一次
+        // 「AI 识图」入口整个会话消失，回前台自愈一次。
+        // 同时回前台也检查更新：App 常驻后台不杀的话，原逻辑只有冷启动才检查，
+        // 新版本要等杀后台重启才提醒；内部 5 分钟节流，频繁切前后台不会狂打 API，
+        // 同版本只弹一次横幅（updateNotifiedVersionKey），不会反复打扰
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 Task { await ServerSettings.shared.refreshIfNeeded() }
+                Task { await UpdateStore.shared.autoCheckIfNeeded() }
             }
         }
     }
