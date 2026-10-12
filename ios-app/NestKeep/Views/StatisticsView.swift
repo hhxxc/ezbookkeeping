@@ -514,15 +514,13 @@ struct StatisticsView: View {
     }
 
     private var statisticsBody: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                // 自绘顶栏放进滚动内容（首页同款方案）：包进 NavigationView 后 iOS 15 上
-                // safeAreaInset(top) 定位不可靠（AIReceiptView 同款教训），不能再用悬浮方案。
-                // 显式补顶部安全区：iOS 15 隐藏导航栏后 ScrollView 丢失顶部 inset，
-                // 滚到顶时内容钻进状态栏（首页同款修复）
-                topBar
-                    .padding(.top, ScreenMetrics.topSafeInset + 4)
-                periodModePicker
+        // 固定顶栏（不随滚动）：首页同款结构——状态栏区域恒有顶栏不透明底盖着，
+        // 内容从底下穿过。顶栏放滚动内容里时 iOS 15 隐藏导航栏会丢顶部安全区
+        VStack(spacing: 0) {
+            topBar
+            ScrollView {
+                VStack(spacing: 16) {
+                    periodModePicker
                 // solo「只看某分类」横幅：当前聚焦的分类 + 一键退出
                 if let soloName = vm.soloCategoryName {
                     HStack(spacing: 8) {
@@ -571,10 +569,9 @@ struct StatisticsView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 24)
+            }
         }
         // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
-        // 状态栏区域固定不透明底色：内容滚过时不与时间/WIFI 重叠（对齐底栏处理）
-        .overlay(alignment: .top) { StatusBarBackdrop() }
         .background(Theme.pageBackground.ignoresSafeArea())
         .refreshable { await vm.load() }
         .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
@@ -637,6 +634,7 @@ struct StatisticsView: View {
             TransactionDetailView(transaction: tx, onChanged: {
                 Task { await listVM.load(); await vm.load() }
             })
+        }
         }
     }
 

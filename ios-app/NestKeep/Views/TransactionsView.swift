@@ -709,13 +709,15 @@ struct TransactionsView: View {
         // 滚动停顿后汇总卡顶部恰好停在状态栏下方（不与状态栏/顶栏重叠）；
         // 不用 safeAreaInset 悬浮（iOS 15 下其内容避让不可靠，汇总卡顶部会被压住）。
         NavigationView {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // 显式补顶部安全区：iOS 15 上 NavigationView + navigationBarHidden(true)
-                    // 会让 ScrollView 丢失顶部 inset，滚动到顶时顶栏/内容钻进状态栏
-                    topBar
-                        .padding(.top, ScreenMetrics.topSafeInset)
-                    // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
+            // 固定顶栏（不随滚动）：与账户页同款结构。顶栏放进滚动内容时，
+            // iOS 15 隐藏导航栏会让 ScrollView 丢顶部安全区（顶栏/内容钻进状态栏），
+            // 运行时补 inset 的方案在不同时机可能取到 0，不可靠——
+            // 固定结构下安全区由系统直接处理，状态栏区域恒有顶栏不透明底盖着
+            VStack(spacing: 0) {
+                topBar
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
                     // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
@@ -781,10 +783,9 @@ struct TransactionsView: View {
                     // 通过同样的响应链手法给 UIScrollView 挂真 UIRefreshControl
                     .overlay(ScrollRefreshAttacher { await vm.load() }.allowsHitTesting(false))
                 }
-                // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏。
-                // 状态栏区域固定不透明底色：内容滚过时不与时间/WIFI 重叠（对齐底栏处理）
+                }
+                // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
-                .overlay(alignment: .top) { StatusBarBackdrop() }
                 // 不打扰式更新提示：悬浮在首页顶部（顶栏下方），3 秒自动消失；
                 // 挂在 ScrollView 上，推入二级页时不显示
                 .overlay(alignment: .top) {
