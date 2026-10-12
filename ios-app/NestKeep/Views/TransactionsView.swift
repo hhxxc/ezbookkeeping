@@ -209,6 +209,8 @@ final class TransactionsViewModel: ObservableObject {
         }
     }
     private var searchTask: Task<Void, Never>?
+    /// 搜索中（输入到结果返回）：搜索框放大镜转成加载动画，结果回来列表淡入
+    @Published private(set) var isSearching = false
 
     /// 供筛选面板使用的拍平分类列表
     var categoriesForFilter: [TransactionCategory] {
@@ -285,8 +287,10 @@ final class TransactionsViewModel: ObservableObject {
             rebuildGrouping()
             hasLoadedOnce = true
             isLoading = false
+            isSearching = false
         } catch {
             isLoading = false
+            isSearching = false
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
     }
@@ -342,11 +346,12 @@ final class TransactionsViewModel: ObservableObject {
         return page.items
     }
 
-    /// 搜索防抖（300ms）
+    /// 搜索防抖（200ms）：输入即搜；输入到结果返回期间搜索框显示「搜索中」动画
     func scheduleSearch() {
         searchTask?.cancel()
+        isSearching = true
         searchTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(nanoseconds: 200_000_000)
             guard !Task.isCancelled, let self = self else { return }
             await self.load()
         }
@@ -1400,7 +1405,13 @@ struct BillListPageView: View {
                 // 搜索框（对齐 Web 的描述/金额关键字搜索，防抖；胶囊样式）
                 Section {
                     HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                        if vm.isSearching {
+                            ProgressView()
+                                .scaleEffect(0.65)
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                        }
                         TextField("搜索备注 / 金额", text: $vm.searchKeyword)
                             .textFieldStyle(.plain)
                             .focused($searchFieldFocused)
@@ -1502,6 +1513,8 @@ struct BillListPageView: View {
             }
             .listStyle(.insetGrouped)
             .environment(\.defaultMinListRowHeight, 0)
+            // 搜索结果/删除等变更：整列表内容淡入过渡（id 变化驱动的差量动画已就位）
+            .animation(.easeOut(duration: 0.2), value: vm.groupedByDay.map { $0.id })
             .refreshable { await vm.load() }
         }
         .navigationTitle(vm.isFiltering ? "已筛选账单" : "账单明细")
