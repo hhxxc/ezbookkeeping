@@ -39,6 +39,40 @@ final class StatisticsViewModel: ObservableObject {
     @Published var filterTagIds: Set<String> = []
     @Published var filterKeyword = ""
 
+    /// 「只看某分类」下钻（长按排行行触发，含其子分类）：nil = 查看全部分类。
+    /// 纯本地重算不回源，横幅 ✕ 一键退出
+    @Published var soloCategoryId: String?
+    /// 最近一次统计响应的原始数据（solo 切换时本地重算，不重复请求）
+    private var lastStatItems: [StatisticResponseItem] = []
+    private var lastDailyItems: [StatisticDailyItem] = []
+
+    /// solo 是否命中某统计项：分类 id 相等，或 solo 是父分类且 key 是其子分类
+    private func matchesSolo(_ key: String) -> Bool {
+        guard let solo = soloCategoryId else { return true }
+        if key == solo { return true }
+        if let cat = findCategory(solo), let subs = cat.subCategories {
+            return subs.contains { $0.id == key }
+        }
+        return false
+    }
+
+    /// 切换「只看某分类」（再点同分类/横幅 ✕ = 退出 solo），本地重算全部卡片
+    func setSoloCategory(_ id: String?) {
+        soloCategoryId = (soloCategoryId == id) ? nil : id
+        rebuildFiltered()
+    }
+
+    /// solo 名称（横幅展示用；找不到回退 id）
+    var soloCategoryName: String? {
+        guard let solo = soloCategoryId else { return nil }
+        return findCategory(solo)?.name ?? solo
+    }
+
+    private func rebuildFiltered() {
+        buildCategoryStats(lastStatItems)
+        buildDaily(lastDailyItems)
+    }
+
     struct CategoryStat: Identifiable {
         let id: String
         let name: String
@@ -163,6 +197,9 @@ final class StatisticsViewModel: ObservableObject {
             let stats = try await statResp
             let daily = (try? await dailyResp) ?? []
 
+            // 缓存原始响应：solo「只看某分类」切换时本地重算，不重复请求
+            lastStatItems = stats.items
+            lastDailyItems = daily
             buildCategoryStats(stats.items)
             buildDaily(daily)
             hasLoadedOnce = true
@@ -178,6 +215,9 @@ final class StatisticsViewModel: ObservableObject {
         var expMap: [String: Int64] = [:]
         var incMap: [String: Int64] = [:]
         for item in items {
+            // 「只看某分类」下钻：只保留该分类（含子分类）的统计项
+            let soloKey = item.categoryId ?? "0"
+            if !matchesSolo(soloKey) { continue }
             // 本地账户过滤
             if !filterAccountIds.isEmpty,
                let accountId = item.accountId, filterAccountIds.contains(accountId) {
@@ -334,8 +374,11 @@ final class StatisticsViewModel: ObservableObject {
         dailyIncome = inc
     }
 
-    /// 本地账户/分类过滤（用于日报表/柱状图的逐项过滤）
+    /// 本地账户/分类过滤（用于日报表/柱状图的逐项过滤）；solo「只看」优先级最高
     private func shouldExclude(_ item: StatisticResponseItem) -> Bool {
+        if !matchesSolo(item.categoryId ?? "0") {
+            return true
+        }
         if !filterAccountIds.isEmpty, let accountId = item.accountId, filterAccountIds.contains(accountId) {
             return true
         }
@@ -480,6 +523,27 @@ struct StatisticsView: View {
                 topBar
                     .padding(.top, ScreenMetrics.topSafeInset + 4)
                 periodModePicker
+                // solo「只看某分类」横幅：当前聚焦的分类 + 一键退出
+                if let soloName = vm.soloCategoryName {
+                    HStack(spacing: 8) {
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 12))
+                        Text("只看「\(soloName)」")
+                            .font(.system(size: 13, weight: .medium))
+                        Spacer()
+                        Button {
+                            vm.setSoloCategory(nil)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.brand))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 overviewCard
                 modePicker
                 // 首次进入的加载动画（仅首拉；切月/切年等后续刷新保持旧内容不闪烁）
@@ -782,6 +846,19 @@ struct StatisticsView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                // 长按：只看该分类（饼图/日曲线/日报/概览全部聚焦）或跳明细
+                .contextMenu {
+                    Button {
+                        vm.setSoloCategory(s.id)
+                    } label: {
+                        Label("只看「\(s.name)」", systemImage: "eye.fill")
+                    }
+                    Button {
+                        routeToDetail(type: mode == .expense ? 3 : 2, categoryId: s.id)
+                    } label: {
+                        Label("查看账单明细", systemImage: "list.bullet")
+                    }
+                }
                 .padding(.vertical, 7)
                 if idx < min(stats.count, 10) - 1 {
                     Divider().padding(.leading, 66)
