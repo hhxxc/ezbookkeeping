@@ -98,16 +98,23 @@ final class TransactionEditViewModel: ObservableObject {
                 amountText = AmountFormat.centsToText(tx.sourceAmount)
                 sourceAccountId = tx.sourceAccountId ?? ""
                 categoryId = tx.categoryId ?? ""
-                date = tx.date
+                // 复制 = 「照着再记一笔」：时间用当下、时区用设备当前时区，
+                // 不把老交易的时间带过来；编辑模式才回填原时间/原时区
+                if mode == .duplicate {
+                    date = Date()
+                    timeZoneIdentifier = TimeZone.current.identifier
+                } else {
+                    date = tx.date
+                    // 由 utcOffset 反推时区（找不到精确匹配就回退设备时区）
+                    if let offset = tx.utcOffset {
+                        timeZoneIdentifier = TimeZone.knownTimeZoneIdentifiers.first {
+                            TimeZone(identifier: $0)?.secondsFromGMT(for: tx.date) == offset * 60
+                        } ?? TimeZone.current.identifier
+                    }
+                }
                 comment = tx.comment ?? ""
                 selectedTagIds = Set(tx.tagIds ?? [])
                 geoLocation = tx.geoLocation
-                // 由 utcOffset 反推时区（找不到精确匹配就回退设备时区）
-                if let offset = tx.utcOffset {
-                    timeZoneIdentifier = TimeZone.knownTimeZoneIdentifiers.first {
-                        TimeZone(identifier: $0)?.secondsFromGMT(for: tx.date) == offset * 60
-                    } ?? TimeZone.current.identifier
-                }
                 if tx.transactionType == .transfer {
                     destinationAccountId = tx.destinationAccountId ?? ""
                     if let d = tx.destinationAmount { amountText = AmountFormat.centsToText(d) }
