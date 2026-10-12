@@ -161,11 +161,22 @@ struct AIVoiceView: View {
             .padding(.top, 16)
             .padding(.bottom, 16)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            // 键盘不压缩/顶起布局：编辑转写时 sheet 若被键盘顶起，顶部文字区会被
+            // 截出屏幕外看不全（键盘直接盖在下半部分，麦克风/提交在编辑时暂不可见，
+            // 收起键盘即恢复）。收起键盘走键盘工具栏的「收起键盘」按钮
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle("语音记账")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("返回") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("收起键盘") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
+                    .foregroundColor(Theme.brand)
                 }
             }
             .navigationViewStyle(.stack)
