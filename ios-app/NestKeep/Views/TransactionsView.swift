@@ -781,8 +781,10 @@ struct TransactionsView: View {
                     // 通过同样的响应链手法给 UIScrollView 挂真 UIRefreshControl
                     .overlay(ScrollRefreshAttacher { await vm.load() }.allowsHitTesting(false))
                 }
-                // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
+                // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏。
+                // 状态栏区域固定不透明底色：内容滚过时不与时间/WIFI 重叠（对齐底栏处理）
                 .navigationBarHidden(true)
+                .overlay(alignment: .top) { StatusBarBackdrop() }
                 // 不打扰式更新提示：悬浮在首页顶部（顶栏下方），3 秒自动消失；
                 // 挂在 ScrollView 上，推入二级页时不显示
                 .overlay(alignment: .top) {

@@ -133,6 +133,19 @@ enum ScreenMetrics {
     }
 }
 
+/// 状态栏区域（时间/WIFI 那一条）的固定不透明底色：
+/// 不随滚动移动，内容从它底下穿过时不会与时间/WIFI 重叠——
+/// 与底部菜单栏（safeAreaInset 固定 + 不透明）同思路。
+/// 用法：`.overlay(alignment: .top) { StatusBarBackdrop() }`（页面最外层，勿放进滚动内容）
+struct StatusBarBackdrop: View {
+    var body: some View {
+        Color(.systemGroupedBackground)
+            .frame(height: 1)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+    }
+}
+
 enum AmountFormat {
     /// 分 -> 本地化货币字符串
     static func format(_ cents: Int64, currency: String? = "CNY") -> String {

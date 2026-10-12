@@ -573,6 +573,8 @@ struct StatisticsView: View {
             .padding(.bottom, 24)
         }
         // 底部避让由 MainTabView 整页容器统一施加，此处不再重复叠加
+        // 状态栏区域固定不透明底色：内容滚过时不与时间/WIFI 重叠（对齐底栏处理）
+        .overlay(alignment: .top) { StatusBarBackdrop() }
         .background(Theme.pageBackground.ignoresSafeArea())
         .refreshable { await vm.load() }
         .confirmationDialog("更多", isPresented: $showMoreSheet, titleVisibility: .visible) {
