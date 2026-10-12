@@ -42,7 +42,9 @@ final class ThemeManager: ObservableObject {
         Task { await CloudSettingsStore.shared.set("appTheme", id) }
     }
 
-    /// 登录/启动后从云设置拉取（云优先；云值为空或非法时保持本地）
+    /// 登录/启动后从云设置拉取（云优先；云值为空或非法时保持本地）。
+    /// CloudSettingsStore 是 @MainActor，本方法单独标注（调用方 .task 均在主线程）
+    @MainActor
     func syncFromCloud() async {
         let store = CloudSettingsStore.shared
         if !store.loaded { await store.load() }
