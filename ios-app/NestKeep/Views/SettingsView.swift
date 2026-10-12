@@ -74,6 +74,11 @@ struct SettingsView: View {
                 // 页面与显示
                 Section(header: Text("页面与显示")) {
                     NavigationLink {
+                        ThemePickerView()
+                    } label: {
+                        Label("主题外观", systemImage: "paintpalette")
+                    }
+                    NavigationLink {
                         PageSettingsView()
                     } label: {
                         Label("页面设置", systemImage: "slider.horizontal.3")
@@ -564,3 +569,89 @@ struct UpdateResultSheet: View {
 /// UIDocumentInteractionController 的代理宿主（SwiftUI View 是 struct 当不了 NSObject）。
 /// 面板的生命周期靠 @State 强引用控制器本身维持，这里无需实现任何回调。
 private final class DocControllerHost: NSObject, UIDocumentInteractionControllerDelegate {}
+
+// MARK: - 主题外观选择
+
+/// 主题选择页（设置 push 进入）：2 列迷你预览卡（渐变底 + 模拟按钮/选中态），点选即生效
+struct ThemePickerView: View {
+    @ObservedObject private var theme = ThemeManager.shared
+
+    private let columns = [GridItem(.flexible(), spacing: 12),
+                           GridItem(.flexible(), spacing: 12)]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(ThemeManager.themes) { t in
+                    themeCard(t)
+                }
+            }
+            .padding(16)
+
+            Text("主题决定 App 的主色调：底栏选中态、按钮、加号、登录页等会一并换色；收支红绿与页面明暗（跟随系统）不变。")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle("主题外观")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// 主题预览卡：渐变底 + 模拟主按钮 + 模拟底栏选中态，右上角选中角标
+    private func themeCard(_ t: AppTheme) -> some View {
+        let selected = theme.currentID == t.id
+        return Button {
+            theme.select(t.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                ZStack(alignment: .topTrailing) {
+                    LinearGradient(colors: [t.brand, t.deep],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .padding(8)
+                    }
+                }
+                .frame(height: 76)
+                .overlay(alignment: .bottomLeading) {
+                    // 模拟「主按钮」观感
+                    Capsule()
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 44, height: 14)
+                        .padding(8)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    // 模拟底栏选中图标
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(8)
+                }
+
+                HStack(spacing: 6) {
+                    Text(t.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(HomePalette.ink)
+                    Spacer()
+                    Circle()
+                        .fill(t.brand)
+                        .frame(width: 10, height: 10)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+            .background(HomePalette.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(selected ? Theme.brand : Color.clear, lineWidth: 2)
+            )
+            .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 6, x: 0, y: 3)
+        }
+        .buttonStyle(.plain)
+    }
+}

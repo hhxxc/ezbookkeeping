@@ -162,6 +162,7 @@ struct MainTabView: View {
         .task {
             await ServerSettings.shared.loadIfNeeded()
             StartupMetrics.shared.markOnce("server-settings")
+            await ThemeManager.shared.syncFromCloud()
             await UpdateStore.shared.autoCheckIfNeeded()
         }
         // 回前台补拉服务端设置：冷启动拉取失败（隧道未就绪等）会导致

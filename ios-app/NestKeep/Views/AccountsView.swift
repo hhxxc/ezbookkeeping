@@ -212,6 +212,10 @@ struct AccountsView: View {
                             // 弹 sheet 时有不响应的毛病），点色即换并自动收起
                             if showInlinePreset {
                                 HStack(spacing: 12) {
+                                    // 首位「跟随主题」：实时取当前主题渐变
+                                    presetSwatch(PresetBackground(id: "theme", name: "跟随主题",
+                                                                  imageName: "",
+                                                                  colors: [Theme.brand, Theme.deep]))
                                     ForEach(HomeBackground.solidPresets) { preset in
                                         presetSwatch(preset)
                                     }
@@ -470,7 +474,7 @@ struct AccountsView: View {
         }
     }
 
-    /// 选择条里的单个色块（选中打勾，点选即生效）
+    /// 选择条里的单个色块（选中打勾；「跟随主题」未选中时显示魔法棒标识）
     private func presetSwatch(_ preset: PresetBackground) -> some View {
         let selected = HomeBackground.netAssetsPresetID == preset.id
         return Button {
@@ -486,6 +490,10 @@ struct AccountsView: View {
                         .frame(width: 44, height: 44)
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                } else if preset.id == "theme" {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 14))
                         .foregroundColor(.white)
                 }
             }

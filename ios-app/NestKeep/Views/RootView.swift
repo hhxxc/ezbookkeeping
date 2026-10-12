@@ -5,6 +5,8 @@ import UIKit
 struct RootView: View {
     @EnvironmentObject var auth: AuthManager
     @ObservedObject private var lock = AppLockManager.shared
+    /// 观察主题：切主题时整树重建，所有 Theme.brand 调用点同步换色
+    @ObservedObject private var theme = ThemeManager.shared
 
     init() {
         StartupMetrics.shared.markOnce("root-init")

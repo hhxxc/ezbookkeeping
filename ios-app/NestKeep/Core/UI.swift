@@ -1,18 +1,75 @@
 import SwiftUI
 import UIKit
 
-/// 主题色与金额格式化（沿用 Web 端设计令牌：主色 #26A69A，支出浅红、收入绿）
-enum Theme {
-    static let brand = Color(red: 38/255, green: 166/255, blue: 154/255)   // #26A69A
-    static let expense = Color(red: 0.90, green: 0.30, blue: 0.30)
-    static let income = Color(red: 0.20, green: 0.70, blue: 0.42)
-    static let pageBackground = Color(.systemGroupedBackground)
+/// 一套主题：主色（按钮/高亮/选中态）+ 渐变深色端
+struct AppTheme: Identifiable {
+    let id: String
+    let name: String
+    let brand: Color
+    let deep: Color
+}
 
-    /// 登录页头部 Logo / 登录按钮渐变（青绿系，与品牌色同族）
-    static let aiGradient = LinearGradient(
-        colors: [Color(hex: "#26A69A"), Color(hex: "#4DB6AC")],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+/// 主题管理器：全局品牌色动态化。`Theme.brand` 等静态属性实时取当前主题，
+/// 调用点零改动；RootView 观察本对象，切主题时整树重建换色。
+/// 本地 UserDefaults + 云设置（appTheme）双存储，跨设备跟随。
+@MainActor
+final class ThemeManager: ObservableObject {
+    static let shared = ThemeManager()
+
+    static let themes: [AppTheme] = [
+        AppTheme(id: "teal",     name: "松石", brand: Color(hex: "#26A69A"), deep: Color(hex: "#00695C")),
+        AppTheme(id: "ocean",    name: "深海", brand: Color(hex: "#1E88E5"), deep: Color(hex: "#0052D4")),
+        AppTheme(id: "violet",   name: "暮紫", brand: Color(hex: "#7C4DFF"), deep: Color(hex: "#4A00E0")),
+        AppTheme(id: "sunset",   name: "落日", brand: Color(hex: "#F4511E"), deep: Color(hex: "#D84315")),
+        AppTheme(id: "mint",     name: "薄荷", brand: Color(hex: "#10B981"), deep: Color(hex: "#047857")),
+        AppTheme(id: "graphite", name: "石墨", brand: Color(hex: "#4B5563"), deep: Color(hex: "#1F2937")),
+    ]
+
+    private static let key = "nestkeep.appTheme"
+
+    @Published private(set) var currentID: String =
+        UserDefaults.standard.string(forKey: "nestkeep.appTheme") ?? "teal"
+
+    var current: AppTheme {
+        Self.themes.first { $0.id == currentID } ?? Self.themes[0]
+    }
+
+    /// 切换主题：本地立即生效，并异步推送到云设置
+    func select(_ id: String) {
+        guard Self.themes.contains(where: { $0.id == id }), id != currentID else { return }
+        currentID = id
+        UserDefaults.standard.set(id, forKey: Self.key)
+        Task { await CloudSettingsStore.shared.set("appTheme", id) }
+    }
+
+    /// 登录/启动后从云设置拉取（云优先；云值为空或非法时保持本地）
+    func syncFromCloud() async {
+        let store = CloudSettingsStore.shared
+        if !store.loaded { await store.load() }
+        guard store.enabled else { return }
+        let cloud = store.string("appTheme")
+        if !cloud.isEmpty, cloud != currentID,
+           Self.themes.contains(where: { $0.id == cloud }) {
+            currentID = cloud
+            UserDefaults.standard.set(cloud, forKey: Self.key)
+        }
+    }
+}
+
+/// 主题色与金额格式化（沿用 Web 端设计令牌：支出浅红、收入绿）
+/// brand / deep / aiGradient 动态取当前主题（ThemeManager）；收支语义色固定不变
+enum Theme {
+    static var brand: Color { ThemeManager.shared.current.brand }
+    static var deep: Color { ThemeManager.shared.current.deep }
+    static var expense = Color(red: 0.90, green: 0.30, blue: 0.30)
+    static var income = Color(red: 0.20, green: 0.70, blue: 0.42)
+    static var pageBackground = Color(.systemGroupedBackground)
+
+    /// 登录页头部 Logo / 登录按钮渐变（跟随主题）
+    static var aiGradient: LinearGradient {
+        LinearGradient(colors: [brand, deep],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 }
 
 /// 首页（Web `HomePage.vue`）专属调色板 —— 与 Web 的 `--hp-*` 设计令牌逐项对齐。

@@ -187,14 +187,19 @@ extension HomeBackground {
 
     private static let netAssetsPresetKey = "nestkeep.netAssetsPreset"
 
-    /// 账户页净资产卡选中的纯色预设（本地存储，默认松石）
+    /// 账户页净资产卡背景选择：默认「跟随主题」（theme），手动选过纯色则固定该色
     static var netAssetsPresetID: String {
-        get { UserDefaults.standard.string(forKey: netAssetsPresetKey) ?? "teal" }
+        get { UserDefaults.standard.string(forKey: netAssetsPresetKey) ?? "theme" }
         set { UserDefaults.standard.set(newValue, forKey: netAssetsPresetKey) }
     }
 
     static var netAssetsPreset: PresetBackground {
-        solidPresets.first { $0.id == netAssetsPresetID } ?? solidPresets[0]
+        if netAssetsPresetID == "theme" {
+            // 跟随主题：色值实时取当前主题（切主题即时换色）
+            return PresetBackground(id: "theme", name: "跟随主题", imageName: "",
+                                    colors: [Theme.brand, Theme.deep])
+        }
+        return solidPresets.first { $0.id == netAssetsPresetID } ?? solidPresets[0]
     }
 }
 
