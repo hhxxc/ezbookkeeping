@@ -150,8 +150,8 @@ struct AccountsView: View {
     /// 排序模式
     @State private var isSorting = false
     @State private var sortItems: [Account] = []
-    /// 净资产卡纯色背景选择面板
-    @State private var showPresetPicker = false
+    /// 净资产卡纯色背景选择条（内联展开，不依赖 sheet）
+    @State private var showInlinePreset = false
 
     /// 排序模式下的扁平账户列表（父 + 可见子账户）
     private func flatSortableAccounts() -> [Account] {
@@ -206,7 +206,25 @@ struct AccountsView: View {
                             netAssetsCard
                                 // 顶栏底 4 + 卡顶 8 = 12pt，与主页汇总卡一致
                                 .padding(.top, 8)
+                                .padding(.bottom, showInlinePreset ? 0 : 12)
+
+                            // 纯色选择条：内联展开（不走 sheet——iOS 15 下从保活显隐页面
+                            // 弹 sheet 时有不响应的毛病），点色即换并自动收起
+                            if showInlinePreset {
+                                HStack(spacing: 12) {
+                                    ForEach(HomeBackground.solidPresets) { preset in
+                                        presetSwatch(preset)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(HomePalette.card)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.06), radius: 8, x: 0, y: 3)
                                 .padding(.bottom, 12)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
 
                             ForEach(vm.groupedAccounts, id: \.category) { group in
                                 Text(group.name)
@@ -268,9 +286,6 @@ struct AccountsView: View {
             }
             .sheet(item: $moveFromAccount) { acc in
                 MoveAllTransactionsView(fromAccount: acc)
-            }
-            .sheet(isPresented: $showPresetPicker) {
-                NetAssetsPresetPicker()
             }
             .confirmationDialog("删除账户？", isPresented: Binding(
                 get: { deleting != nil },
@@ -438,9 +453,12 @@ struct AccountsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
         .overlay(alignment: .topTrailing) {
-            // 纯色背景选择入口（对齐主页汇总卡换背景按钮的位置与规格）
-            Button { showPresetPicker = true } label: {
-                Image(systemName: "paintpalette")
+            // 纯色背景选择入口（对齐主页汇总卡换背景按钮的位置与规格）：
+            // 切换卡片下方内联选择条
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showInlinePreset.toggle() }
+            } label: {
+                Image(systemName: showInlinePreset ? "paintpalette.fill" : "paintpalette")
                     .font(.system(size: 15))
                     .foregroundColor(Color.white.opacity(0.85))
                     .frame(width: 30, height: 30)
@@ -450,6 +468,30 @@ struct AccountsView: View {
             .buttonStyle(.plain)
             .padding(12)
         }
+    }
+
+    /// 选择条里的单个色块（选中打勾，点选即生效）
+    private func presetSwatch(_ preset: PresetBackground) -> some View {
+        let selected = HomeBackground.netAssetsPresetID == preset.id
+        return Button {
+            HomeBackground.netAssetsPresetID = preset.id
+        } label: {
+            ZStack {
+                PresetBackgroundView(preset: preset)
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                if selected {
+                    Circle()
+                        .stroke(Color.white, lineWidth: 2)
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            }
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
     }
 
     /// 金额隐藏时显示 ＊＊＊＊（与主页汇总卡占位符同款全角星号）
@@ -537,69 +579,5 @@ struct AccountsView: View {
                 Label("删除", systemImage: "trash")
             }
         }
-    }
-}
-
-/// 净资产卡纯色背景选择：第一版渐变 6 色任选（本地即时生效）
-struct NetAssetsPresetPicker: View {
-    @Environment(\.dismiss) private var dismiss
-    /// 选中态驱动重绘；点选即保存
-    @State private var refreshToken = UUID()
-
-    private let columns = [GridItem(.flexible(), spacing: 10),
-                           GridItem(.flexible(), spacing: 10),
-                           GridItem(.flexible(), spacing: 10)]
-
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(HomeBackground.solidPresets) { preset in
-                        presetCell(preset)
-                    }
-                }
-                .padding(16)
-            }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            .navigationTitle("净资产卡背景")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") { dismiss() }
-                }
-            }
-        }
-        .navigationViewStyle(.stack)
-    }
-
-    private func presetCell(_ preset: PresetBackground) -> some View {
-        let selected = HomeBackground.netAssetsPresetID == preset.id
-        return Button {
-            HomeBackground.netAssetsPresetID = preset.id
-            refreshToken = UUID()
-        } label: {
-            ZStack(alignment: .bottom) {
-                PresetBackgroundView(preset: preset)
-                    .frame(height: 64)
-                Text(preset.name)
-                    .font(.caption2.weight(.medium))
-                    .foregroundColor(.white)
-                    .padding(.bottom, 5)
-                if selected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        .padding(5)
-                }
-            }
-            .frame(height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(selected ? Theme.brand : Color.clear, lineWidth: 2)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
