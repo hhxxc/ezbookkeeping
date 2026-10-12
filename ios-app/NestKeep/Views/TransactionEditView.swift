@@ -275,6 +275,9 @@ final class TransactionEditViewModel: ObservableObject {
             isLoading = false
             // 交易落库改变账户余额 → 失效账户缓存（AppDataStore 也监听 transactionsChanged，此处直接调用更可靠）
             AppDataStore.shared.invalidateAccounts()
+            // 广播变更：首页/账单列表等监听者自动刷新（中央加号新增的 sheet 没有
+            // onDismiss 钩子，靠这里才能让背后页面及时更新；「再记」keepOpen 同样依赖）
+            NotificationCenter.default.post(name: .transactionsChanged, object: nil)
             if keepOpen {
                 resetForNextEntry()
             } else {

@@ -146,6 +146,17 @@ struct RangeDetailContext: Identifiable {
     var id: String { period.rawValue }
 }
 
+/// 按日分组（含稳定身份）：日期 + 组内首笔交易 id——删除其他行/分组时身份不变，
+/// List 才能做差量动画（用数组下标当身份会让删除后整列表生硬重排）
+struct DayGroup: Identifiable {
+    let date: Date
+    let items: [Transaction]
+
+    var id: String { "\(Int(date.timeIntervalSince1970))-\(items.first?.id ?? "empty")" }
+    /// 语义化别名（ForEach(id: \.listIdentity) 用）
+    var listIdentity: String { id }
+}
+
 /// 账单页：顶部汇总卡（原首页内容）+ 按月分页列表，按日分组。
 /// 结构对齐手机端 Web：Web 的首页内容并入本页顶部，底部不再有独立「首页」Tab。
 @MainActor
@@ -569,8 +580,10 @@ final class TransactionsViewModel: ObservableObject {
     }
 
     /// 按日分组结果（缓存）：此前是 computed property，body 每次求值都整表
-    /// Dictionary(grouping:)+sorted，现在只在 transactions/isFiltering 变化时重建
-    @Published private(set) var groupedByDay: [(date: Date, items: [Transaction])] = []
+    /// Dictionary(grouping:)+sorted，现在只在 transactions/isFiltering 变化时重建。
+    /// DayGroup 带**稳定身份**（日期 + 组内首笔交易 id）：List 删一行时其他分组
+    /// 身份不变，才能做差量动画（用下标当身份会导致整列表生硬重排）
+    @Published private(set) var groupedByDay: [DayGroup] = []
 
     func rebuildGrouping() {
         let cal = Calendar.current
@@ -587,11 +600,11 @@ final class TransactionsViewModel: ObservableObject {
                     groups.append((day, [tx]))
                 }
             }
-            groupedByDay = groups
+            groupedByDay = groups.map { DayGroup(date: $0.date, items: $0.items) }
             return
         }
         let dict = Dictionary(grouping: transactions) { cal.startOfDay(for: $0.date) }
-        groupedByDay = dict.keys.sorted(by: >).map { ($0, dict[$0] ?? []) }
+        groupedByDay = dict.keys.sorted(by: >).map { DayGroup(date: $0, items: dict[$0] ?? []) }
     }
 
     /// 今日合计（用于日分组头右侧）
@@ -1452,8 +1465,10 @@ struct BillListPageView: View {
                 }
 
                 // 保序分组下同一日期可能出现多个分组（相关性置顶组 + 时间倒序组），
-                // 不能用 \.date 作身份，改用索引
-                ForEach(Array(vm.groupedByDay.enumerated()), id: \.offset) { _, group in
+                // 不能用 \.date 作身份；也不能用数组下标——删一行后后面所有分组的
+                // 身份全变，List 做不了差量动画（左滑删除后整列表生硬重排）。
+                // 折中：日期 + 组内首笔交易 id 作稳定身份，删除其他行时身份不变
+                ForEach(vm.groupedByDay, id: \.listIdentity) { group in
                     Section(header: dayHeader(group.date, items: group.items)) {
                         ForEach(group.items) { tx in
                             TransactionRow(tx: tx, vm: vm)
