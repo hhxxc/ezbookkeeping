@@ -3,6 +3,8 @@ import SwiftUI
 /// 登录页：服务器地址 + 用户名/密码 + 两步验证 + 忘记密码。
 /// 自定义卡片式设计（渐变 Logo 头部 + 圆角输入卡 + 品牌渐变登录按钮）。
 struct LoginView: View {
+    /// 观察主题：切主题立即换色（无参数子视图不会被父级重绘带动）
+    @ObservedObject private var theme = ThemeManager.shared
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var settings: AppSettings
 

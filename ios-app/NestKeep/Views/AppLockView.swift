@@ -3,6 +3,8 @@ import SwiftUI
 /// 应用锁解锁页：6 位 PIN 输入 + 生物识别（可用时）。
 /// 解锁失败给错误提示；也提供「重新登录」的兜底出口。
 struct AppLockView: View {
+    /// 观察主题：切主题立即换色（无参数子视图不会被父级重绘带动）
+    @ObservedObject private var theme = ThemeManager.shared
     @ObservedObject private var lock = AppLockManager.shared
     @EnvironmentObject private var auth: AuthManager
 

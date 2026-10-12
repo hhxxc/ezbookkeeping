@@ -60,6 +60,9 @@ final class TabRouter: ObservableObject {
 /// 启动落在「详情」页（Web 的首页内容并入该页顶部），中央加号是记账主入口，
 /// 短按新增交易、长按弹出模板快捷菜单。
 struct MainTabView: View {
+    /// 观察主题：无参数子视图在父级重绘时会被 SwiftUI 跳过（结构身份未变），
+    /// 必须自己观察 ThemeManager 才能在切主题时立即重绘换色
+    @ObservedObject private var theme = ThemeManager.shared
     @StateObject private var router = TabRouter()
     @State private var showAdd = false
     /// 长按中央加号弹出的模板菜单
