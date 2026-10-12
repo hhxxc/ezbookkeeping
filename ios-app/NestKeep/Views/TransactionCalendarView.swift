@@ -158,7 +158,7 @@ struct TransactionCalendarView: View {
             HStack {
                 Button { vm.shiftMonth(by: -1) } label: { Image(systemName: "chevron.left") }
                 Spacer()
-                Text(vm.monthLabel).font(.subheadline.weight(.semibold))
+                Text(vm.monthLabel).font(.system(size: 17, weight: .semibold))
                 Spacer()
                 Button { vm.shiftMonth(by: 1) } label: { Image(systemName: "chevron.right") }
             }
@@ -167,14 +167,14 @@ struct TransactionCalendarView: View {
             // 星期表头
             LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(weekdays, id: \.self) { w in
-                    Text(w).font(.footnote).foregroundColor(.secondary)
+                    Text(w).font(.system(size: 14, weight: .medium)).foregroundColor(.secondary)
                 }
             }
 
             // 日期网格
             LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(0..<vm.leadingBlanks, id: \.self) { _ in
-                    Color.clear.frame(height: 52)
+                    Color.clear.frame(height: 64)
                 }
                 ForEach(1...vm.daysInMonth, id: \.self) { day in
                     dayCell(day)
@@ -201,21 +201,29 @@ struct TransactionCalendarView: View {
                 onSelectDay(date)
             }
         } label: {
-            VStack(spacing: 1) {
+            VStack(spacing: 2) {
                 Text("\(day)")
-                    .font(.footnote)
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(isToday ? .white : .primary)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 22, height: 22)
                     .background(isToday ? Theme.brand : Color.clear)
                     .clipShape(Circle())
                 if exp > 0 {
-                    Text(Self.compact(exp)).font(.system(size: 8)).foregroundColor(Theme.expense)
+                    Text(Self.compact(exp))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(Theme.expense)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 if inc > 0 {
-                    Text(Self.compact(inc)).font(.system(size: 8)).foregroundColor(Theme.income)
+                    Text(Self.compact(inc))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(Theme.income)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 64)
             .background(Color(.tertiarySystemGroupedBackground))
             .cornerRadius(8)
             .contentShape(Rectangle())
