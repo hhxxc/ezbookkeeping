@@ -150,6 +150,8 @@ struct AccountsView: View {
     /// 排序模式
     @State private var isSorting = false
     @State private var sortItems: [Account] = []
+    /// 净资产卡纯色背景选择面板
+    @State private var showPresetPicker = false
 
     /// 排序模式下的扁平账户列表（父 + 可见子账户）
     private func flatSortableAccounts() -> [Account] {
@@ -267,6 +269,9 @@ struct AccountsView: View {
             .sheet(item: $moveFromAccount) { acc in
                 MoveAllTransactionsView(fromAccount: acc)
             }
+            .sheet(isPresented: $showPresetPicker) {
+                NetAssetsPresetPicker()
+            }
             .confirmationDialog("删除账户？", isPresented: Binding(
                 get: { deleting != nil },
                 set: { if !$0 { deleting = nil } }
@@ -363,21 +368,20 @@ struct AccountsView: View {
         Task { await vm.saveOrder(ordered) }
     }
 
-    // MARK: - 净资产卡（样式对齐首页汇总卡：16 圆角 / 同边距 / 同字阶 / 同背景图蒙层）
+    // MARK: - 净资产卡（背景 = 第一版纯色渐变 6 选 1，卡片右上角调色板按钮更换）
     private var netAssetsCard: some View {
-        let bgURL = HomeBackground.imageURL
-        let hasBG = bgURL != nil
-        let primaryText: Color = hasBG ? .white : HomePalette.ink
-        let labelColor: Color = hasBG ? Color.white.opacity(0.9) : HomePalette.secondary
-        let assetColor: Color = hasBG ? .white : HomePalette.income
-        let liabilityColor: Color = hasBG ? .white : HomePalette.expense
+        let preset = HomeBackground.netAssetsPreset
+        let primaryText: Color = .white
+        let labelColor: Color = Color.white.opacity(0.9)
+        let assetColor: Color = .white
+        let liabilityColor: Color = .white
 
         return VStack(alignment: .leading, spacing: 0) {
             // 标题字阶/间距与主页汇总卡的月份标题一致（16 semibold + 底 6）
             Text("净资产")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(primaryText)
-                .modifier(HomeShadow(active: hasBG))
+                .modifier(HomeShadow(active: true))
                 .padding(.bottom, 6)
 
             // 大金额 + 眼睛开关
@@ -388,7 +392,7 @@ struct AccountsView: View {
                     .foregroundColor(primaryText)
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
-                    .modifier(HomeShadow(active: hasBG))
+                    .modifier(HomeShadow(active: true))
                 Button {
                     withAnimation(.easeInOut(duration: 0.16)) { vm.hideAmounts.toggle() }
                 } label: {
@@ -408,16 +412,16 @@ struct AccountsView: View {
                            value: masked(AmountFormat.format(vm.totalAssetsCents)),
                            valueColor: assetColor,
                            labelColor: labelColor,
-                           shadow: hasBG)
+                           shadow: true)
                 Rectangle()
-                    .fill(hasBG ? Color.white.opacity(0.28) : HomePalette.divider)
+                    .fill(Color.white.opacity(0.28))
                     .frame(width: 1)
                     .padding(.trailing, 16)
                 metricCell(label: "总负债",
                            value: masked(AmountFormat.format(vm.totalLiabilitiesCents)),
                            valueColor: liabilityColor,
                            labelColor: labelColor,
-                           shadow: hasBG)
+                           shadow: true)
                 Spacer(minLength: 0)
             }
             .padding(.top, 12)
@@ -428,19 +432,24 @@ struct AccountsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             ZStack {
-                HomePalette.card
-                if let url = bgURL {
-                    CachedAsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color.clear
-                    }
-                    Color.black.opacity(0.28)
-                }
+                PresetBackgroundView(preset: preset)
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.08), radius: 10, x: 0, y: 4)
+        .overlay(alignment: .topTrailing) {
+            // 纯色背景选择入口（对齐主页汇总卡换背景按钮的位置与规格）
+            Button { showPresetPicker = true } label: {
+                Image(systemName: "paintpalette")
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.white.opacity(0.85))
+                    .frame(width: 30, height: 30)
+                    .background(Color.black.opacity(0.25))
+                    .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
+            .padding(12)
+        }
     }
 
     /// 金额隐藏时显示 ＊＊＊＊（与主页汇总卡占位符同款全角星号）
@@ -528,5 +537,69 @@ struct AccountsView: View {
                 Label("删除", systemImage: "trash")
             }
         }
+    }
+}
+
+/// 净资产卡纯色背景选择：第一版渐变 6 色任选（本地即时生效）
+struct NetAssetsPresetPicker: View {
+    @Environment(\.dismiss) private var dismiss
+    /// 选中态驱动重绘；点选即保存
+    @State private var refreshToken = UUID()
+
+    private let columns = [GridItem(.flexible(), spacing: 10),
+                           GridItem(.flexible(), spacing: 10),
+                           GridItem(.flexible(), spacing: 10)]
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(HomeBackground.solidPresets) { preset in
+                        presetCell(preset)
+                    }
+                }
+                .padding(16)
+            }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("净资产卡背景")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private func presetCell(_ preset: PresetBackground) -> some View {
+        let selected = HomeBackground.netAssetsPresetID == preset.id
+        return Button {
+            HomeBackground.netAssetsPresetID = preset.id
+            refreshToken = UUID()
+        } label: {
+            ZStack(alignment: .bottom) {
+                PresetBackgroundView(preset: preset)
+                    .frame(height: 64)
+                Text(preset.name)
+                    .font(.caption2.weight(.medium))
+                    .foregroundColor(.white)
+                    .padding(.bottom, 5)
+                if selected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .padding(5)
+                }
+            }
+            .frame(height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(selected ? Theme.brand : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

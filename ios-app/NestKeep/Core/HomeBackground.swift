@@ -167,6 +167,37 @@ extension HomeBackground {
     }
 }
 
+// MARK: - 账户页净资产卡纯色预设（第一版渐变 6 色，独立于首页背景选择）
+
+extension HomeBackground {
+    static let solidPresets: [PresetBackground] = [
+        PresetBackground(id: "teal",     name: "松石", imageName: "",
+                         colors: [Color(hex: "#26A69A"), Color(hex: "#00695C")]),
+        PresetBackground(id: "ocean",    name: "深海", imageName: "",
+                         colors: [Color(hex: "#4FACFE"), Color(hex: "#0052D4")]),
+        PresetBackground(id: "violet",   name: "暮紫", imageName: "",
+                         colors: [Color(hex: "#8E2DE2"), Color(hex: "#4A00E0")]),
+        PresetBackground(id: "sunset",   name: "落日", imageName: "",
+                         colors: [Color(hex: "#FF9966"), Color(hex: "#FF5E62")]),
+        PresetBackground(id: "mint",     name: "薄荷", imageName: "",
+                         colors: [Color(hex: "#43E97B"), Color(hex: "#38F9D7")]),
+        PresetBackground(id: "graphite", name: "石墨", imageName: "",
+                         colors: [Color(hex: "#4B5563"), Color(hex: "#111827")]),
+    ]
+
+    private static let netAssetsPresetKey = "nestkeep.netAssetsPreset"
+
+    /// 账户页净资产卡选中的纯色预设（本地存储，默认松石）
+    static var netAssetsPresetID: String {
+        get { UserDefaults.standard.string(forKey: netAssetsPresetKey) ?? "teal" }
+        set { UserDefaults.standard.set(newValue, forKey: netAssetsPresetKey) }
+    }
+
+    static var netAssetsPreset: PresetBackground {
+        solidPresets.first { $0.id == netAssetsPresetID } ?? solidPresets[0]
+    }
+}
+
 /// 内置预设背景渲染：优先用打包的风景图（resizable 填充，高清条幅按卡片裁切显示）；
 /// 图片缺失时退回对角渐变 + 半透明装饰
 struct PresetBackgroundView: View {
