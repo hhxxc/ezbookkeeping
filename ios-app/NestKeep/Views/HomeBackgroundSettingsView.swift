@@ -18,19 +18,24 @@ struct HomeBackgroundSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 当前预览：完整显示图片构图（scaledToFit），不再铺满裁切——
-                // sheet 从下往上打开时铺满模式会让照片左右溢出裁掉，看不出全貌
+                // 当前预览：铺满裁切（与汇总卡实际观感一致）。
+                // 布局撑宽问题已在图片源头用 GeometryReader 硬约束根治，这里放心 fill
                 ZStack {
                     Rectangle().fill(Color.black.opacity(0.55))
                     switch HomeBackground.source {
                     case .remote(let url):
                         CachedAsyncImage(url: url) { image in
-                            image.resizable().scaledToFit()
+                            GeometryReader { geo in
+                                image.resizable().scaledToFill()
+                                    .frame(width: geo.size.width, height: geo.size.height)
+                                    .clipped()
+                                    .overlay(Color.black.opacity(0.28))
+                            }
                         } placeholder: {
                             ProgressView().tint(.white)
                         }
                     case .preset(let preset):
-                        presetPreviewContent(preset)
+                        PresetBackgroundView(preset: preset)
                     case .none:
                         placeholder
                     }
@@ -126,17 +131,6 @@ struct HomeBackgroundSettingsView: View {
                 refreshToken = UUID()
             }
             Button("取消", role: .cancel) {}
-        }
-    }
-
-    /// 预览区用：照片完整显示（fit、无蒙层），看清整个构图
-    @ViewBuilder
-    private func presetPreviewContent(_ preset: PresetBackground) -> some View {
-        if let ui = UIImage(named: preset.imageName) {
-            Image(uiImage: ui).resizable().scaledToFit()
-        } else {
-            // 图片缺失的渐变兜底（铺满式，保持卡片观感）
-            PresetBackgroundView(preset: preset)
         }
     }
 
