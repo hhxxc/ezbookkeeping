@@ -986,10 +986,11 @@ struct TransactionEditView: View {
         )
     }
 
+    @ViewBuilder
     private func keyButton(_ key: EditKey) -> some View {
         let isSave = key == .save
         let disabled = (isSave || key == .again) && vm.isLoading
-        return Button {
+        let btn = Button {
             tapKey(key)
         } label: {
             keyLabel(key)
@@ -1004,6 +1005,19 @@ struct TransactionEditView: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+        // 退格键长按 0.4s 一键清空表达式（点击仍是删一位）；清空后松手触发的
+        // tapKey(.del) 因 amountText 已空而空转，无需额外状态
+        if key == .del {
+            return btn.simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.4)
+                    .onEnded { _ in
+                        guard !vm.amountText.isEmpty else { return }
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        vm.amountText = ""
+                    }
+            )
+        }
+        return btn
     }
 
     @ViewBuilder
