@@ -78,34 +78,34 @@ struct MainTabView: View {
     /// SwiftUI 自动为所有滚动内容留出「栏高 + 底部安全区」。
     static let barContentHeight: CGFloat = 49
 
-    /// Tab 切换时非选中页「停靠」在屏幕右侧外的距离（统一右往左滑动动画）
-    private static let parkedOffset: CGFloat = UIScreen.main.bounds.width
-
     var body: some View {
         ZStack {
             // 页面容器：用 ZStack 保活所有页面，切 Tab 不丢状态（贴近 F7 页面栈行为）。
-        // Tab 点击**无动画**即时切换（用户要求）：非选中页停靠在屏幕右侧外，选中页置于顶层。
+            // Tab 点击**无动画**即时切换（用户要求）：非选中页原位置 opacity 0 隐藏。
+            // 旧实现用 offset 把非选中页平移一整屏宽停靠到屏幕外——每次切换四页同时
+            // 大规模位移会引发一帧重排/闪烁（用户反馈「屏幕抖一下」），改纯透明度切换
+            // 后页面原地不动，只翻可见性，无任何位移。
             ZStack {
                 TransactionsView(showAdd: $showAdd)
                     .environmentObject(router)
-                    .offset(x: router.selection == .list ? 0 : Self.parkedOffset)
+                    .opacity(router.selection == .list ? 1 : 0)
                     .allowsHitTesting(router.selection == .list)
                     .zIndex(router.selection == .list ? 1 : 0)
 
                 AccountsView()
                     .environmentObject(router)
-                    .offset(x: router.selection == .accounts ? 0 : Self.parkedOffset)
+                    .opacity(router.selection == .accounts ? 1 : 0)
                     .allowsHitTesting(router.selection == .accounts)
                     .zIndex(router.selection == .accounts ? 1 : 0)
 
                 StatisticsView()
                     .environmentObject(router)
-                    .offset(x: router.selection == .statistics ? 0 : Self.parkedOffset)
+                    .opacity(router.selection == .statistics ? 1 : 0)
                     .allowsHitTesting(router.selection == .statistics)
                     .zIndex(router.selection == .statistics ? 1 : 0)
 
                 SettingsView()
-                    .offset(x: router.selection == .settings ? 0 : Self.parkedOffset)
+                    .opacity(router.selection == .settings ? 1 : 0)
                     .allowsHitTesting(router.selection == .settings)
                     .zIndex(router.selection == .settings ? 1 : 0)
             }
