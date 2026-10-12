@@ -12,7 +12,7 @@ struct AppTheme: Identifiable {
 /// 主题管理器：全局品牌色动态化。`Theme.brand` 等静态属性实时取当前主题，
 /// 调用点零改动；RootView 观察本对象，切主题时整树重建换色。
 /// 本地 UserDefaults + 云设置（appTheme）双存储，跨设备跟随。
-@MainActor
+/// 注意：不加 @MainActor——Theme.brand 在非隔离上下文也有调用；写入只在主线程发生。
 final class ThemeManager: ObservableObject {
     static let shared = ThemeManager()
 
