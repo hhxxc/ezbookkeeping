@@ -478,19 +478,13 @@ final class TransactionsViewModel: ObservableObject {
         }
     }
 
-    /// 汇总卡左上角的月份标题 —— 对齐 Web `formatDateTimeToGregorianLikeLongMonth` 的**实际渲染**：
-    /// Web 端 moment 的活动 locale 实际停留在 en（自定义 locale key 未生效），中文界面下
-    /// `MMMM` 仍渲染英文长月名（如「October」，见 Web 手机端截图），故此处直接用英文月名
+    /// 汇总卡左上角的月份标题 —— 中文月份（Web 端渲染英文月名是它的 locale bug，不跟随）
     var summaryMonthTitle: String {
-        Self.englishMonthName(month)
-    }
-
-    /// 公历月份 → 英文长月名（对齐 Web 卡片标题的实际渲染「January…December」）
-    private static func englishMonthName(_ month: Int) -> String {
-        let names = ["January", "February", "March", "April", "May", "June",
-                     "July", "August", "September", "October", "November", "December"]
-        guard month >= 1 && month <= 12 else { return "\(month)月" }
-        return names[month - 1]
+        // 当年只显示「10月」；跨年浏览补上年份（「2025年12月」）
+        if year == Calendar.current.component(.year, from: Date()) {
+            return "\(month)月"
+        }
+        return "\(year)年\(month)月"
     }
 
     private static let longDateFormatter: DateFormatter = {
