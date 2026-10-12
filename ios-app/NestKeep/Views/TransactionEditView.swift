@@ -1008,7 +1008,7 @@ struct TransactionEditView: View {
         // 退格键长按 0.4s 一键清空表达式（点击仍是删一位）；清空后松手触发的
         // tapKey(.del) 因 amountText 已空而空转，无需额外状态
         if key == .del {
-            return btn.simultaneousGesture(
+            btn.simultaneousGesture(
                 LongPressGesture(minimumDuration: 0.4)
                     .onEnded { _ in
                         guard !vm.amountText.isEmpty else { return }
@@ -1016,8 +1016,9 @@ struct TransactionEditView: View {
                         vm.amountText = ""
                     }
             )
+        } else {
+            btn
         }
-        return btn
     }
 
     @ViewBuilder
