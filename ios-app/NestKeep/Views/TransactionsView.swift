@@ -1298,17 +1298,25 @@ private struct ScrollIndicatorHider: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
-        DispatchQueue.main.async { Self.hideIndicators(from: uiView) }
+        // SwiftUI 可能在任意 body 重绘/结构变化时重建底层 UIScrollView，
+        // 指示条随新实例回归——做几个延时重试覆盖重建窗口期
+        for delay in [0, 0.3, 1.0, 3.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                Self.hideIndicators(from: uiView)
+            }
+        }
     }
 
     static func hideIndicators(from view: UIView) {
+        // 沿响应链向上把沿途**所有** UIScrollView 的指示条都关掉再停（首个命中的
+        // 可能是重建后的实例，也可能是内层滚动视图；走到 UIWindow 为止）
         var responder: UIResponder? = view
         while let next = responder?.next {
             if let scrollView = next as? UIScrollView {
                 scrollView.showsVerticalScrollIndicator = false
                 scrollView.showsHorizontalScrollIndicator = false
-                return
             }
+            if next is UIWindow { break }
             responder = next
         }
     }
