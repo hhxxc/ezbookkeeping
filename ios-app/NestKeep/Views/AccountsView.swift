@@ -66,7 +66,9 @@ final class AccountsViewModel: ObservableObject {
                 typeById[c.id] = c.type
                 for sub in c.subCategories ?? [] { typeById[sub.id] = sub.type }
             }
-            let items: [StatisticResponseItem] = try await APIClient.shared.request(
+            // statistics.json 返回的是 StatisticResponse 对象（数组在 .items 里），
+            // 直接按数组解码会失败→静默变 0（v1.9.8 的坑）
+            let resp: StatisticResponse = try await APIClient.shared.request(
                 "/api/v1/transactions/statistics.json",
                 query: [
                     URLQueryItem(name: "start_time", value: "\(Int(start.timeIntervalSince1970))"),
@@ -76,7 +78,7 @@ final class AccountsViewModel: ObservableObject {
             )
             var inc: Int64 = 0
             var exp: Int64 = 0
-            for item in items {
+            for item in resp.items {
                 let amount = abs(item.amount)
                 switch typeById[item.categoryId ?? "0"] {
                 case .some(1): inc += amount
