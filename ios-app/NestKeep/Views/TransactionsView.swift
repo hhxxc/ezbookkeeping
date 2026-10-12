@@ -1245,7 +1245,12 @@ struct TransactionsView: View {
         if cal.isDateInYesterday(d) { return "昨天" }
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
-        f.dateFormat = "M月d日 EEEE"
+        // 跨年的老账单补上年份（当年省略，避免每行冗长）
+        if cal.component(.year, from: d) != cal.component(.year, from: Date()) {
+            f.dateFormat = "yyyy年M月d日 EEEE"
+        } else {
+            f.dateFormat = "M月d日 EEEE"
+        }
         return f.string(from: d)
     }
 }
