@@ -174,11 +174,18 @@ struct PresetBackgroundView: View {
 
     var body: some View {
         if let ui = UIImage(named: preset.imageName) {
-            Image(uiImage: ui)
-                .resizable()
-                .scaledToFill()
-                // 轻蒙层：比远端图（0.28）轻，风景观感优先，只兜底白字可读性
-                .overlay(Color.black.opacity(0.15))
+            // 硬约束到容器尺寸再铺满裁切：scaledToFill 若不加限，会把父容器布局宽度
+            // 撑大到图片自然尺寸（sheet 内容整体左右超出屏幕的根因），GeometryReader
+            // 把图钉死在提案尺寸内，视觉铺满、布局零溢出
+            GeometryReader { geo in
+                Image(uiImage: ui)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    // 轻蒙层：比远端图（0.28）轻，风景观感优先，只兜底白字可读性
+                    .overlay(Color.black.opacity(0.15))
+            }
         } else {
             gradientFallback
         }
