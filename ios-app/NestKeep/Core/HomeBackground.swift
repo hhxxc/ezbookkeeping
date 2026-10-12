@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// 首页汇总卡背景图。
 ///
@@ -61,6 +62,7 @@ enum HomeBackground {
 
     static func remove() {
         path = ""
+        presetID = ""
         Task {
             await CloudSettingsStore.shared.set("homeSummaryBackgroundImage", "")
         }
@@ -91,4 +93,97 @@ enum HomeBackground {
 extension Notification.Name {
     /// 首页背景图变化（首页据此刷新汇总卡底图）
     static let homeBackgroundChanged = Notification.Name("nestkeep.homeBackgroundChanged")
+}
+
+// MARK: - 内置默认背景（代码绘制的渐变+装饰：任意尺寸清晰、零体积，不占 IPA 空间）
+
+/// 单个预设：名称 + 主渐变色（装饰元素由渲染视图统一处理）
+struct PresetBackground: Identifiable {
+    let id: String
+    let name: String
+    let colors: [Color]
+}
+
+/// 背景来源：无 / 内置预设 / 服务器图片
+enum HomeBackgroundSource {
+    case none
+    case preset(PresetBackground)
+    case remote(URL)
+
+    var isNone: Bool {
+        if case .none = self { return true }
+        return false
+    }
+}
+
+extension HomeBackground {
+    static let presets: [PresetBackground] = [
+        PresetBackground(id: "teal",     name: "松石", colors: [Color(hex: "#26A69A"), Color(hex: "#00695C")]),
+        PresetBackground(id: "ocean",    name: "深海", colors: [Color(hex: "#4FACFE"), Color(hex: "#0052D4")]),
+        PresetBackground(id: "violet",   name: "暮紫", colors: [Color(hex: "#8E2DE2"), Color(hex: "#4A00E0")]),
+        PresetBackground(id: "sunset",   name: "落日", colors: [Color(hex: "#FF9966"), Color(hex: "#FF5E62")]),
+        PresetBackground(id: "mint",     name: "薄荷", colors: [Color(hex: "#43E97B"), Color(hex: "#38F9D7")]),
+        PresetBackground(id: "graphite", name: "石墨", colors: [Color(hex: "#4B5563"), Color(hex: "#111827")]),
+    ]
+
+    private static let presetKey = "nestkeep.homeBackgroundPreset"
+
+    /// 选中的内置预设 id（空串 = 未选；预设是本地资产，不上云）
+    static var presetID: String {
+        get { UserDefaults.standard.string(forKey: presetKey) ?? "" }
+        set {
+            UserDefaults.standard.set(newValue, forKey: presetKey)
+            NotificationCenter.default.post(name: .homeBackgroundChanged, object: nil)
+        }
+    }
+
+    static func preset(byID id: String) -> PresetBackground? {
+        presets.first { $0.id == id }
+    }
+
+    /// 当前生效的背景来源：预设优先于远端图
+    static var source: HomeBackgroundSource {
+        if !presetID.isEmpty, let p = preset(byID: presetID) { return .preset(p) }
+        if let url = imageURL { return .remote(url) }
+        return .none
+    }
+
+    /// 选择内置预设（本地切换；远端图路径与云端设置一并清空，避免下拉刷新被远端图盖回）
+    static func selectPreset(_ id: String) {
+        presetID = id
+        if !path.isEmpty {
+            path = ""
+        }
+        Task {
+            await CloudSettingsStore.shared.set("homeSummaryBackgroundImage", "")
+        }
+    }
+}
+
+/// 内置预设背景渲染：对角渐变 + 大半透明白圆装饰（矢量绘制，卡片尺寸下始终清晰）
+struct PresetBackgroundView: View {
+    let preset: PresetBackground
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: preset.colors,
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+                Circle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: w * 0.9, height: w * 0.9)
+                    .offset(x: -w * 0.35, y: -h * 0.9)
+                Circle()
+                    .fill(Color.white.opacity(0.10))
+                    .frame(width: w * 0.7, height: w * 0.7)
+                    .offset(x: w * 0.55, y: h * 0.35)
+                Circle()
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
+                    .frame(width: w * 0.32, height: w * 0.32)
+                    .offset(x: w * 0.10, y: h * 0.55)
+            }
+        }
+    }
 }

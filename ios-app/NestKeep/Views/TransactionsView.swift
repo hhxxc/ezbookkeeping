@@ -1033,9 +1033,12 @@ struct TransactionsView: View {
     /// 设置背景图后转为白字 + 投影（对应 Web 的 `.has-bg`）。
     private var summaryCard: some View {
         // 依赖 backgroundToken：用户更换/移除背景图后触发重建
-        let bgURL = HomeBackground.imageURL
         _ = backgroundToken
-        let hasBG = bgURL != nil
+        let bgSource = HomeBackground.source
+        let hasBG: Bool = {
+            if case .none = bgSource { return false }
+            return true
+        }()
         // 有背景图时统一走白色系
         let primaryText: Color = hasBG ? .white : HomePalette.ink
         let secondaryText: Color = hasBG ? Color.white.opacity(0.9) : HomePalette.secondary
@@ -1114,7 +1117,8 @@ struct TransactionsView: View {
         .background(
             ZStack {
                 HomePalette.card
-                if let url = bgURL {
+                switch bgSource {
+                case .remote(let url):
                     CachedAsyncImage(url: url) { image in
                         image.resizable().scaledToFill()
                     } placeholder: {
@@ -1123,6 +1127,11 @@ struct TransactionsView: View {
                     // 图片上再压一层中性蒙层，保证白字可读（不使用主色渐变，
                     // 以免与 Web 的「原图 + 白字」观感不符）
                     Color.black.opacity(0.28)
+                case .preset(let preset):
+                    // 内置预设自设计为白字可读，不再叠加压暗蒙层
+                    PresetBackgroundView(preset: preset)
+                case .none:
+                    EmptyView()
                 }
             }
         )
