@@ -120,6 +120,17 @@ enum ScreenMetrics {
         let window = windows.first { $0.isKeyWindow } ?? windows.first
         return window?.safeAreaInsets.bottom ?? 0
     }
+
+    /// 顶部安全区高度（状态栏区域）。
+    /// iOS 15 的 NavigationView + navigationBarHidden(true) 会让 ScrollView 丢失
+    /// 顶部安全区（滚动到顶时内容钻进状态栏/WIFI 那一栏），
+    /// 自绘顶栏放在 ScrollView 内部的页面需自行补上这段
+    static var topSafeInset: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let windows = scenes.flatMap { $0.windows }
+        let window = windows.first { $0.isKeyWindow } ?? windows.first
+        return window?.safeAreaInsets.top ?? 0
+    }
 }
 
 enum AmountFormat {

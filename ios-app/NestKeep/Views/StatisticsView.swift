@@ -474,9 +474,11 @@ struct StatisticsView: View {
         ScrollView {
             VStack(spacing: 16) {
                 // 自绘顶栏放进滚动内容（首页同款方案）：包进 NavigationView 后 iOS 15 上
-                // safeAreaInset(top) 定位不可靠（AIReceiptView 同款教训），不能再用悬浮方案
+                // safeAreaInset(top) 定位不可靠（AIReceiptView 同款教训），不能再用悬浮方案。
+                // 显式补顶部安全区：iOS 15 隐藏导航栏后 ScrollView 丢失顶部 inset，
+                // 滚到顶时内容钻进状态栏（首页同款修复）
                 topBar
-                    .padding(.top, 4)
+                    .padding(.top, ScreenMetrics.topSafeInset + 4)
                 periodModePicker
                 overviewCard
                 modePicker

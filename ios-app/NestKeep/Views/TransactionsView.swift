@@ -706,7 +706,10 @@ struct TransactionsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 0) {
+                    // 显式补顶部安全区：iOS 15 上 NavigationView + navigationBarHidden(true)
+                    // 会让 ScrollView 丢失顶部 inset，滚动到顶时顶栏/内容钻进状态栏
                     topBar
+                        .padding(.top, ScreenMetrics.topSafeInset)
                     // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
                     // 账单列表（搜索/日分组/左滑操作）整体移入 BillListPageView，点汇总卡推入。
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
