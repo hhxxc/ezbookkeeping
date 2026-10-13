@@ -275,7 +275,7 @@ final class TransactionsViewModel: ObservableObject {
         }
     }
 
-    // MARK: - 月度列表本地缓存（冷启动秒开：先渲染上次内容跳过骨架屏，后台静默刷新）
+    // MARK: - 月度列表本地缓存（按月多文件：冷启动/切月秒开，先渲染缓存再后台刷新）
 
     private struct MonthListCache: Codable {
         let year: Int
@@ -283,15 +283,19 @@ final class TransactionsViewModel: ObservableObject {
         let items: [Transaction]
     }
 
-    private static var monthCacheURL: URL {
+    private static var monthCacheDir: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("nestkeep_month_list_cache.json")
+            .appendingPathComponent("month_list", isDirectory: true)
     }
 
-    /// 冷启动时用上次的月度列表即时渲染（hasLoadedOnce 置位跳过骨架屏）；随后 load() 后台刷新覆盖
-    func loadCachedMonthIfAny() {
+    private static func monthCacheURL(_ year: Int, _ month: Int) -> URL {
+        monthCacheDir.appendingPathComponent(String(format: "%d-%02d.json", year, month))
+    }
+
+    /// 按月浏览秒开：该月有磁盘缓存则先渲染（冷启动/切月都生效；hasLoadedOnce 置位跳过骨架屏）
+    private func hydrateMonthCache(year: Int, month: Int) {
         guard transactions.isEmpty, !isFiltering,
-              let data = try? Data(contentsOf: Self.monthCacheURL),
+              let data = try? Data(contentsOf: Self.monthCacheURL(year, month)),
               let cache = try? JSONDecoder().decode(MonthListCache.self, from: data),
               cache.year == year, cache.month == month, !cache.items.isEmpty else { return }
         transactions = cache.items
@@ -299,12 +303,22 @@ final class TransactionsViewModel: ObservableObject {
         hasLoadedOnce = true
     }
 
-    /// 按月浏览成功后落盘（检索态结果不覆盖月度缓存）
+    /// 按月浏览成功后落盘到对应月份文件（检索态结果不覆盖），只保留最近 6 个月
     private func saveMonthCache() {
         guard !isFiltering else { return }
         let payload = MonthListCache(year: year, month: month, items: transactions)
-        if let data = try? JSONEncoder().encode(payload) {
-            try? data.write(to: Self.monthCacheURL, options: .atomic)
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        let fm = FileManager.default
+        try? fm.createDirectory(at: Self.monthCacheDir, withIntermediateDirectories: true)
+        try? data.write(to: Self.monthCacheURL(year, month), options: .atomic)
+        // 清理：只留最近修改的 6 个月
+        if let files = try? fm.contentsOfDirectory(at: Self.monthCacheDir, includingPropertiesForKeys: [.contentModificationDateKey]), files.count > 6 {
+            let sorted = files.sorted {
+                let a = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let b = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return a > b
+            }
+            for f in sorted.dropFirst(6) { try? fm.removeItem(at: f) }
         }
     }
 
@@ -358,6 +372,10 @@ final class TransactionsViewModel: ObservableObject {
     var monthLabel: String { "\(month)月" }
 
     func load(includeAmounts: Bool = true) async {
+        // 按月浏览秒开：该月有磁盘缓存先渲染（冷启动/切月都生效），随后网络刷新覆盖
+        if !isFiltering, transactions.isEmpty {
+            hydrateMonthCache(year: year, month: month)
+        }
         isLoading = true
         error = nil
         do {
@@ -1067,8 +1085,8 @@ struct TransactionsView: View {
         }
         .task {
             await ServerSettings.shared.loadIfNeeded()
-            // 冷启动秒开：先渲染上次的月度列表（跳过骨架屏），数据请求与背景图云端同步并行
-            vm.loadCachedMonthIfAny()
+            // 与云端同步背景图（Web 端设置的背景图原生共用）；数据请求与它并行，
+            // 月列表缓存在 load() 内部先行渲染（冷启动/切月都生效）
             async let bgSync: Void = HomeBackground.syncFromCloud()
             await vm.load()
             // 首屏账单数据就绪（用户体验意义上的「可用」时刻）
@@ -1916,7 +1934,8 @@ struct RangeDetailView: View {
                 Spacer()
                 ProgressView()
                 Spacer()
-            } else if let error = vm.error {
+            } else if let error = vm.error, vm.transactions.isEmpty {
+                // 仅在无内容可显示时才整页报错；有缓存/已渲染内容时保持列表展示
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
