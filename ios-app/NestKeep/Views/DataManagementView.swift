@@ -54,7 +54,7 @@ final class DataManagementViewModel: ObservableObject {
     }
 
     /// 导出 CSV 的下载地址（带 token 由 App 内下载后再分享）
-    func exportCSVURL() -> URL? {
+    func exportCSVURL(path: String = "export.csv") -> URL? {
         AppSettings.shared.serverURL.appendingPathComponent("/api/v1/data/export.csv")
     }
 }
@@ -81,6 +81,7 @@ struct DataManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showClearTx = false
     @State private var showClearAll = false
+    @State private var exporting = false
 
     var body: some View {
         List {
@@ -93,11 +94,16 @@ struct DataManagementView: View {
                 statRow("模板", vm.stats?.templateCount)
             }
 
-            Section(header: Text("导出")) {
+            Section(header: Text("导出"), footer: Text("导出文件经系统分享面板保存或发送。")) {
                 Button {
-                    exportCSV()
+                    exportData(path: "export.csv", fileName: "ezbookkeeping-export.csv")
                 } label: {
                     Label("导出为 CSV", systemImage: "square.and.arrow.up")
+                }
+                Button {
+                    exportData(path: "export.tsv", fileName: "ezbookkeeping-export.tsv")
+                } label: {
+                    Label("导出为 TSV", systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -147,9 +153,10 @@ struct DataManagementView: View {
         }
     }
 
-    /// 导出 CSV：带 token 下载到临时文件后弹系统分享
-    private func exportCSV() {
-        guard let base = vm.exportCSVURL() else { return }
+    /// 导出下载：带 token 拉取导出接口，写入临时文件后弹系统分享
+    private func exportData(path: String, fileName: String) {
+        guard exporting == false, let base = vm.exportCSVURL(path: path) else { return }
+        exporting = true
         var req = URLRequest(url: base)
         if let token = AuthManager.shared.token {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -157,10 +164,14 @@ struct DataManagementView: View {
         let tz = TimeZone.current
         req.setValue("\(tz.secondsFromGMT() / 60)", forHTTPHeaderField: "X-Timezone-Offset")
 
-        URLSession.shared.dataTask(with: req) { data, _, _ in
-            guard let data = data else { return }
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent("ezbookkeeping-export.csv")
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
+            DispatchQueue.main.async { self.exporting = false }
+            guard let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                  let data = data, !data.isEmpty else {
+                DispatchQueue.main.async { self.vm.error = "导出失败，请稍后重试" }
+                return
+            }
+            let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
             try? data.write(to: tmp)
             DispatchQueue.main.async {
                 let activity = UIActivityViewController(activityItems: [tmp], applicationActivities: nil)
