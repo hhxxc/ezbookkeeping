@@ -1759,6 +1759,12 @@ final class RangeDetailViewModel: ObservableObject {
     var incomeCents: Int64 { mainVM.income(for: context.period) }
     var expenseCents: Int64 { mainVM.expense(for: context.period) }
 
+    /// 检索分页状态：区间（如「今年」）匹配可能超过单页 500 条，靠游标续页补全
+    @Published private(set) var totalCount: Int?
+    @Published private(set) var hasMore = false
+    @Published private(set) var isLoadingMore = false
+    private var nextCursor: String?
+
     func load() async {
         isLoading = true
         error = nil
@@ -1780,10 +1786,42 @@ final class RangeDetailViewModel: ObservableObject {
             )
             transactions = page.items
             grouped = Self.groupByDay(transactions)
+            totalCount = page.totalCount
+            hasMore = page.nextTimeSequenceId != nil
+            nextCursor = page.nextTimeSequenceId
             isLoading = false
         } catch {
             isLoading = false
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// 游标续页：单页 500 条装不下的区间（如全年）滚动到底自动补全
+    func loadMore() async {
+        guard hasMore, !isLoadingMore, !isLoading else { return }
+        guard let cursor = nextCursor else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let page: TransactionPage = try await APIClient.shared.request(
+                "/api/v1/transactions/list.json",
+                query: [
+                    URLQueryItem(name: "count", value: "500"),
+                    URLQueryItem(name: "min_time", value: "\(Int64(context.range.start) * 1000)"),
+                    URLQueryItem(name: "max_time", value: cursor),
+                    URLQueryItem(name: "sort_by", value: "time"),
+                    URLQueryItem(name: "sort_order", value: "desc")
+                ]
+            )
+            let existing = Set(transactions.map { $0.id })
+            let fresh = page.items.filter { !existing.contains($0.id) }
+            transactions.append(contentsOf: fresh)
+            grouped = Self.groupByDay(transactions)
+            if let total = page.totalCount { totalCount = total }
+            hasMore = page.nextTimeSequenceId != nil && !fresh.isEmpty
+            nextCursor = page.nextTimeSequenceId
+        } catch {
+            // 静默失败：保留已有结果，滚动到底会再次触发
         }
     }
 
@@ -2001,6 +2039,20 @@ struct RangeDetailView: View {
                                 }
                                 .tint(.indigo)
                             }
+                    }
+                }
+                // 区间匹配超过单页 500 条：滚动到底自动续拉补全
+                if vm.hasMore {
+                    Section {
+                        HStack(spacing: 8) {
+                            Spacer()
+                            ProgressView()
+                            Text("正在加载更多…").font(.footnote).foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .onAppear { Task { await vm.loadMore() } }
                     }
                 }
             }
