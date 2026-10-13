@@ -1065,13 +1065,13 @@ struct TransactionsView: View {
         }
         .task {
             await ServerSettings.shared.loadIfNeeded()
-            // 与云端同步背景图（Web 端设置的背景图原生共用）
-            await HomeBackground.syncFromCloud()
-            // 冷启动秒开：先用上次的月度列表渲染（跳过骨架屏），再后台刷新
+            // 冷启动秒开：先渲染上次的月度列表（跳过骨架屏），数据请求与背景图云端同步并行
             vm.loadCachedMonthIfAny()
+            async let bgSync: Void = HomeBackground.syncFromCloud()
             await vm.load()
             // 首屏账单数据就绪（用户体验意义上的「可用」时刻）
             StartupMetrics.shared.markOnce("home-data")
+            await bgSync
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
             // 切背景图后刷新汇总卡底图

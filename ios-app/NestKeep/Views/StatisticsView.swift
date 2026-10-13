@@ -202,6 +202,8 @@ final class StatisticsViewModel: ObservableObject {
             lastDailyItems = daily
             buildCategoryStats(stats.items)
             buildDaily(daily)
+            saveStatsCacheIfClean(year: year, month: month,
+                                  statItems: stats.items, daily: daily)
             hasLoadedOnce = true
             isLoading = false
         } catch {
@@ -401,9 +403,53 @@ final class StatisticsViewModel: ObservableObject {
         Task { await load() }
     }
 
+    // MARK: - 统计数据本地缓存（冷启动秒开：同周期先重建跳过骨架屏，后台刷新覆盖）
+
+    private struct StatsCache: Codable {
+        let year: Int
+        let month: Int
+        let isYearMode: Bool
+        let statItems: [StatisticResponseItem]
+        let daily: [StatisticDailyItem]
+    }
+
+    private static var statsCacheURL: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("nestkeep_stats_cache.json")
+    }
+
+    /// 无筛选（含无 solo）才落盘缓存，保证缓存语义 = 该周期全量
+    private func saveStatsCacheIfClean(year: Int, month: Int,
+                                       statItems: [StatisticResponseItem],
+                                       daily: [StatisticDailyItem]) {
+        guard filterAccountIds.isEmpty, filterCategoryIds.isEmpty, filterTagIds.isEmpty,
+              filterKeyword.isEmpty, soloCategoryId == nil else { return }
+        let payload = StatsCache(year: year, month: month, isYearMode: isYearMode,
+                                 statItems: statItems, daily: daily)
+        if let data = try? JSONEncoder().encode(payload) {
+            try? data.write(to: Self.statsCacheURL, options: .atomic)
+        }
+    }
+
+    /// 冷启动秒开：命中同周期缓存则先重建统计（hasLoadedOnce 置位跳过骨架屏）；随后 load() 刷新覆盖
+    func loadCachedStatsIfAny() async {
+        guard !hasLoadedOnce, filterAccountIds.isEmpty, filterCategoryIds.isEmpty,
+              filterTagIds.isEmpty, filterKeyword.isEmpty, soloCategoryId == nil,
+              let data = try? Data(contentsOf: Self.statsCacheURL),
+              let cache = try? JSONDecoder().decode(StatsCache.self, from: data),
+              cache.year == year, cache.month == month, cache.isYearMode == isYearMode,
+              !cache.statItems.isEmpty || !cache.daily.isEmpty else { return }
+        // 分类名/颜色解析依赖 categories：磁盘缓存即时可得（AppDataStore 双层缓存）
+        categories = (try? await AppDataStore.shared.getCategories()) ?? []
+        lastStatItems = cache.statItems
+        lastDailyItems = cache.daily
+        buildCategoryStats(cache.statItems)
+        buildDaily(cache.daily)
+        hasLoadedOnce = true
+    }
+
     /// 清空筛选
-    func clearFilter() {
-        filterAccountIds = []
+    func clearFilter() {        filterAccountIds = []
         filterCategoryIds = []
         filterTagIds = []
         filterKeyword = ""
@@ -598,10 +644,19 @@ struct StatisticsView: View {
                         }
                 }
             }
-        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉统计
-        .task { if router.selection == .statistics { await vm.load() } }
+        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉统计。
+        // 秒开：先用同周期磁盘缓存重建统计（跳过骨架屏），再后台刷新
+        .task {
+            guard router.selection == .statistics else { return }
+            await vm.loadCachedStatsIfAny()
+            await vm.load()
+        }
         .onChange(of: router.selection) { sel in
-            if sel == .statistics && !vm.hasLoadedOnce { Task { await vm.load() } }
+            guard sel == .statistics, !vm.hasLoadedOnce else { return }
+            Task {
+                await vm.loadCachedStatsIfAny()
+                await vm.load()
+            }
         }
         // 统计页根节点隐藏系统导航栏（自绘顶栏替代）；推入的账单列表页自动显示导航栏
         .navigationBarHidden(true)
