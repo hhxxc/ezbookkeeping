@@ -270,20 +270,27 @@ final class TransactionsViewModel: ObservableObject {
 
     var monthLabel: String { "\(month)月" }
 
-    func load() async {
+    func load(includeAmounts: Bool = true) async {
         isLoading = true
         error = nil
         do {
             // 四路并行；accounts/categories 走共享缓存（staleTime 内不发请求），
-            // 下拉刷新时也就只刷账单和汇总，不再重拉账户/分类
+            // 下拉刷新时也就只刷账单和汇总，不再重拉账户/分类。
+            // includeAmounts=false（检索态）跳过汇总请求，敲字搜索更快
             async let accs = AppDataStore.shared.getAccounts()
             async let cats = AppDataStore.shared.getCategories()
             async let txs = fetchTransactions()
-            async let amounts: Void = loadAmounts()
-            accounts = try await accs
-            categories = try await cats
-            transactions = try await txs
-            await amounts
+            if includeAmounts {
+                async let amounts: Void = loadAmounts()
+                accounts = try await accs
+                categories = try await cats
+                transactions = try await txs
+                await amounts
+            } else {
+                accounts = try await accs
+                categories = try await cats
+                transactions = try await txs
+            }
             rebuildGrouping()
             hasLoadedOnce = true
             isLoading = false
@@ -346,14 +353,15 @@ final class TransactionsViewModel: ObservableObject {
         return page.items
     }
 
-    /// 搜索防抖（200ms）：输入即搜；输入到结果返回期间搜索框显示「搜索中」动画
+    /// 搜索防抖（200ms）：输入即搜；输入到结果返回期间搜索框显示「搜索中」动画。
+    /// 检索态加载跳过月汇总请求（搜索敲字只关心列表，月汇总不变无需重拉）
     func scheduleSearch() {
         searchTask?.cancel()
         isSearching = true
         searchTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 200_000_000)
             guard !Task.isCancelled, let self = self else { return }
-            await self.load()
+            await self.load(includeAmounts: false)
         }
     }
 

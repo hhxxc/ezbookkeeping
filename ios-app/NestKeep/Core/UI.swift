@@ -147,13 +147,27 @@ struct StatusBarBackdrop: View {
 }
 
 enum AmountFormat {
+    /// NumberFormatter 构造成本高（每次 ~1ms），而每行账单渲染都要格式化金额——
+    /// 长列表滚动时反复构造会造成掉帧。按币种缓存实例（NSLock 兜底线程安全）
+    private static let lock = NSLock()
+    private static var formatterCache: [String: NumberFormatter] = [:]
+
+    private static func cachedFormatter(for code: String) -> NumberFormatter {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = formatterCache[code] { return cached }
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = code
+        f.locale = Locale(identifier: "zh_CN")
+        formatterCache[code] = f
+        return f
+    }
+
     /// 分 -> 本地化货币字符串
     static func format(_ cents: Int64, currency: String? = "CNY") -> String {
         let decimal = Decimal(cents) / 100
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currency ?? "CNY"
-        formatter.locale = Locale(identifier: "zh_CN")
+        let formatter = cachedFormatter(for: currency ?? "CNY")
         return formatter.string(from: decimal as NSDecimalNumber) ?? "\(decimal)"
     }
 
