@@ -723,6 +723,8 @@ final class TransactionsViewModel: ObservableObject {
             rebuildGrouping()
             await loadAmounts()
             AppDataStore.shared.invalidateAccounts()
+            // 同步月列表缓存，避免冷启动短暂显示已删交易
+            saveMonthCache()
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
@@ -1645,9 +1647,11 @@ struct BillListPageView: View {
                     }
                     // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
                     .overlay(ScrollIndicatorHider().allowsHitTesting(false))
-                    // 检索态：显示匹配总数（全库范围）
+                    // 检索态：显示匹配总数（全库范围）；仍有更多时引导下滑
                     if vm.isFiltering, let total = vm.totalCount {
-                        Text("共 \(total) 条结果")
+                        Text(verbatim: vm.hasMore
+                             ? "已显示 \(vm.transactions.count) / 共 \(total) 条，下滑继续加载"
+                             : "共 \(total) 条结果")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
