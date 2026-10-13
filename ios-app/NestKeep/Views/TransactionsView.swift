@@ -1602,6 +1602,8 @@ struct BillListPageView: View {
                             }
                         }
                     }
+                    // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
+                    .overlay(ScrollIndicatorHider().allowsHitTesting(false))
                     // 检索态：显示匹配总数（全库范围）
                     if vm.isFiltering, let total = vm.totalCount {
                         Text("共 \(total) 条结果")
@@ -1612,8 +1614,6 @@ struct BillListPageView: View {
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
-                    // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
-                    .overlay(ScrollIndicatorHider().allowsHitTesting(false))
                 }
 
                 if vm.isLoading && vm.transactions.isEmpty {
