@@ -275,6 +275,39 @@ final class TransactionsViewModel: ObservableObject {
         }
     }
 
+    // MARK: - 月度列表本地缓存（冷启动秒开：先渲染上次内容跳过骨架屏，后台静默刷新）
+
+    private struct MonthListCache: Codable {
+        let year: Int
+        let month: Int
+        let items: [Transaction]
+    }
+
+    private static var monthCacheURL: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("nestkeep_month_list_cache.json")
+    }
+
+    /// 冷启动时用上次的月度列表即时渲染（hasLoadedOnce 置位跳过骨架屏）；随后 load() 后台刷新覆盖
+    func loadCachedMonthIfAny() {
+        guard transactions.isEmpty, !isFiltering,
+              let data = try? Data(contentsOf: Self.monthCacheURL),
+              let cache = try? JSONDecoder().decode(MonthListCache.self, from: data),
+              cache.year == year, cache.month == month, !cache.items.isEmpty else { return }
+        transactions = cache.items
+        rebuildGrouping()
+        hasLoadedOnce = true
+    }
+
+    /// 按月浏览成功后落盘（检索态结果不覆盖月度缓存）
+    private func saveMonthCache() {
+        guard !isFiltering else { return }
+        let payload = MonthListCache(year: year, month: month, items: transactions)
+        if let data = try? JSONEncoder().encode(payload) {
+            try? data.write(to: Self.monthCacheURL, options: .atomic)
+        }
+    }
+
     init() {
         let comps = Calendar.current.dateComponents([.year, .month], from: Date())
         year = comps.year!
@@ -349,6 +382,7 @@ final class TransactionsViewModel: ObservableObject {
             hasLoadedOnce = true
             isLoading = false
             isSearching = false
+            saveMonthCache()
         } catch {
             isLoading = false
             isSearching = false
@@ -1033,6 +1067,8 @@ struct TransactionsView: View {
             await ServerSettings.shared.loadIfNeeded()
             // 与云端同步背景图（Web 端设置的背景图原生共用）
             await HomeBackground.syncFromCloud()
+            // 冷启动秒开：先用上次的月度列表渲染（跳过骨架屏），再后台刷新
+            vm.loadCachedMonthIfAny()
             await vm.load()
             // 首屏账单数据就绪（用户体验意义上的「可用」时刻）
             StartupMetrics.shared.markOnce("home-data")
