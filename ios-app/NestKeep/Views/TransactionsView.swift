@@ -146,6 +146,44 @@ struct RangeDetailContext: Identifiable {
     var id: String { period.rawValue }
 }
 
+/// 账单行的渲染查找表：账户/分类字典 + 预解析的分类色。
+/// 行按值持有此快照而不再 @ObservedObject 整个 VM——VM 任何状态变化
+/// （搜索转圈/加载中等）不再连带重算所有可见行；快照仅在账户/分类缓存更新时重建
+struct TransactionRowLookup {
+    fileprivate var categoryById: [String: TransactionCategory] = [:]
+    fileprivate var accountById: [String: Account] = [:]
+    private var colorById: [String: Color] = [:]
+
+    init(categoryById: [String: TransactionCategory] = [:], accountById: [String: Account] = [:]) {
+        self.categoryById = categoryById
+        self.accountById = accountById
+        for (id, c) in categoryById {
+            if let hex = c.color { colorById[id] = Color(hex: hex) }
+        }
+    }
+
+    func categoryName(_ id: String?) -> String {
+        guard let id, let c = categoryById[id] else { return "—" }
+        return c.name
+    }
+
+    func categoryColor(_ id: String?) -> Color {
+        guard let id else { return Theme.brand }
+        return colorById[id] ?? Theme.brand
+    }
+
+    /// nil = 找不到分类（转账/余额调整等），行 UI 回退交易类型图标
+    func categoryIcon(_ id: String?) -> String? {
+        guard let id, let c = categoryById[id] else { return nil }
+        return CategoryIconCatalog.symbol(c.icon)
+    }
+
+    func accountName(_ id: String?) -> String {
+        guard let id, let a = accountById[id] else { return "—" }
+        return a.name
+    }
+}
+
 /// 按日分组（含稳定身份）：日期 + 组内首笔交易 id——删除其他行/分组时身份不变，
 /// List 才能做差量动画（用数组下标当身份会让删除后整列表生硬重排）
 struct DayGroup: Identifiable {
@@ -172,7 +210,10 @@ final class TransactionsViewModel: ObservableObject {
 
     /// 汇总数据（原首页：总资产 + 本月收支）
     @Published var accounts: [Account] = [] {
-        didSet { accountById = Dictionary(accounts.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a }) }
+        didSet {
+            accountById = Dictionary(accounts.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            rebuildRowLookup()
+        }
     }
     @Published var monthIncomeCents: Int64 = 0
     @Published var monthExpenseCents: Int64 = 0
@@ -206,7 +247,15 @@ final class TransactionsViewModel: ObservableObject {
                 for sub in c.subCategories ?? [] { byId[sub.id] = sub }
             }
             categoryById = byId
+            rebuildRowLookup()
         }
+    }
+
+    /// 账单行渲染查找快照（账户/分类任一更新时重建）
+    @Published private(set) var rowLookup = TransactionRowLookup()
+
+    private func rebuildRowLookup() {
+        rowLookup = TransactionRowLookup(categoryById: categoryById, accountById: accountById)
     }
     private var searchTask: Task<Void, Never>?
     /// 搜索中（输入到结果返回）：搜索框放大镜转成加载动画，结果回来列表淡入
@@ -1602,7 +1651,7 @@ struct BillListPageView: View {
                 ForEach(vm.groupedByDay, id: \.listIdentity) { group in
                     Section(header: dayHeader(group.date, items: group.items)) {
                         ForEach(group.items) { tx in
-                            TransactionRow(tx: tx, vm: vm)
+                            TransactionRow(tx: tx, lookup: vm.rowLookup)
                                 .contentShape(Rectangle())
                                 .onTapGesture { onDetail(tx) }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -1930,7 +1979,7 @@ struct RangeDetailView: View {
             ForEach(vm.grouped, id: \.date) { group in
                 Section(header: dayHeader(group.date, items: group.items)) {
                     ForEach(group.items) { tx in
-                        TransactionRow(tx: tx, vm: mainVM)
+                        TransactionRow(tx: tx, lookup: mainVM.rowLookup)
                             .contentShape(Rectangle())
                             .onTapGesture { detail = tx }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -1986,7 +2035,8 @@ struct RangeDetailView: View {
 
 struct TransactionRow: View {
     let tx: Transaction
-    @ObservedObject var vm: TransactionsViewModel
+    /// 渲染查找快照（按值）：不订阅 VM，VM 状态变化不再连带重算所有可见行
+    let lookup: TransactionRowLookup
 
     private var amountColor: Color {
         switch tx.transactionType {
@@ -2034,9 +2084,9 @@ struct TransactionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if showsCategoryIcon, let symbol = vm.categoryIcon(tx.categoryId) {
+            if showsCategoryIcon, let symbol = lookup.categoryIcon(tx.categoryId) {
                 // 分类图标用**分类色**（浅底），对齐 Web 端；不用交易类型色（否则支出行全红）
-                let catColor = vm.categoryColor(tx.categoryId)
+                let catColor = lookup.categoryColor(tx.categoryId)
                 Image(systemName: symbol)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(catColor)
@@ -2053,12 +2103,12 @@ struct TransactionRow: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(vm.categoryName(tx.categoryId))
+                Text(lookup.categoryName(tx.categoryId))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundColor(HomePalette.ink)
                     .lineLimit(1)
                 HStack(spacing: 6) {
-                    Text(vm.accountName(tx.sourceAccountId))
+                    Text(lookup.accountName(tx.sourceAccountId))
                     if let comment = tx.comment, !comment.isEmpty {
                         Text("· \(comment)").lineLimit(1)
                     }
