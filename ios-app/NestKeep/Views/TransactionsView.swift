@@ -1071,6 +1071,11 @@ struct TransactionsView: View {
             await vm.load()
             // 首屏账单数据就绪（用户体验意义上的「可用」时刻）
             StartupMetrics.shared.markOnce("home-data")
+            // 空闲预热：把当前周期统计写入磁盘缓存，首次切统计 Tab 命中缓存秒开
+            Task.detached(priority: .utility) {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                await StatisticsViewModel.prefetchCurrentPeriodStatsCache()
+            }
             await bgSync
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in

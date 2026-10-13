@@ -448,6 +448,13 @@ final class StatisticsViewModel: ObservableObject {
         hasLoadedOnce = true
     }
 
+    /// 后台预热：为当前周期拉一次统计写入磁盘缓存（首页加载完成后低优先级调用）。
+    /// 用户首次切到统计 Tab 命中缓存即时渲染，无需等网络
+    static func prefetchCurrentPeriodStatsCache() async {
+        let vm = StatisticsViewModel()
+        await vm.load()   // load 内部 saveStatsCacheIfClean 落盘（干净态）
+    }
+
     /// 清空筛选
     func clearFilter() {        filterAccountIds = []
         filterCategoryIds = []
