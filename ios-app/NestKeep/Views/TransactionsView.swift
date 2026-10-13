@@ -971,7 +971,7 @@ struct TransactionsView: View {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.secondary)
-                                Text("搜索备注 / 金额")
+                                Text("搜索备注 / 金额 / 分类 / 账户")
                                     .font(.system(size: 15))
                                     .foregroundColor(.secondary)
                                 Spacer()
@@ -1657,7 +1657,7 @@ struct BillListPageView: View {
                         } else {
                             Image(systemName: "magnifyingglass").foregroundColor(.secondary)
                         }
-                        TextField("搜索备注 / 金额", text: $vm.searchKeyword)
+                        TextField("搜索备注 / 金额 / 分类 / 账户", text: $vm.searchKeyword)
                             .textFieldStyle(.plain)
                             .focused($searchFieldFocused)
                             .onChange(of: vm.searchKeyword) { _ in vm.scheduleSearch() }
