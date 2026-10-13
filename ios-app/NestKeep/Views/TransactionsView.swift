@@ -211,6 +211,11 @@ final class TransactionsViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     /// 搜索中（输入到结果返回）：搜索框放大镜转成加载动画，结果回来列表淡入
     @Published private(set) var isSearching = false
+    /// 检索态分页：服务端匹配总数 + 游标续页（list.json 单页有上限，超过需 loadMore 追加）
+    @Published private(set) var totalCount: Int?
+    @Published private(set) var hasMore = false
+    @Published private(set) var isLoadingMore = false
+    private var nextTimeSequenceId: String?
 
     /// 供筛选面板使用的拍平分类列表
     var categoriesForFilter: [TransactionCategory] {
@@ -316,11 +321,15 @@ final class TransactionsViewModel: ObservableObject {
                     URLQueryItem(name: "sort_order", value: "desc")
                 ]
             )
+            // 按月浏览无检索分页状态
+            totalCount = nil
+            hasMore = false
+            nextTimeSequenceId = nil
             return page.items
         }
 
         var query: [URLQueryItem] = [
-            URLQueryItem(name: "count", value: "200"),
+            URLQueryItem(name: "count", value: "500"),
             URLQueryItem(name: "with_count", value: "true"),
             URLQueryItem(name: "sort_by", value: filter.sortBy),
             URLQueryItem(name: "sort_order", value: filter.sortOrder)
@@ -350,7 +359,51 @@ final class TransactionsViewModel: ObservableObject {
         let page: TransactionPage = try await APIClient.shared.request(
             "/api/v1/transactions/list.json", query: query
         )
+        // 记录检索分页状态：总数展示 + 游标续页（loadMore）
+        totalCount = page.totalCount
+        hasMore = page.nextTimeSequenceId != nil
+        nextTimeSequenceId = page.nextTimeSequenceId
         return page.items
+    }
+
+    /// 检索态加载更多：用服务端游标（nextTimeSequenceId）续拉一页并追加。
+    /// list.json 是单页查询，超过单页上限的匹配靠这里补全——保证「全部搜」语义
+    func loadMore() async {
+        guard isFiltering, hasMore, !isLoadingMore, !isLoading else { return }
+        guard let cursor = nextTimeSequenceId else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            var query: [URLQueryItem] = [
+                URLQueryItem(name: "count", value: "500"),
+                URLQueryItem(name: "with_count", value: "false"),
+                URLQueryItem(name: "sort_by", value: filter.sortBy),
+                URLQueryItem(name: "sort_order", value: filter.sortOrder)
+            ]
+            if filter.type > 0 { query.append(URLQueryItem(name: "type", value: "\(filter.type)")) }
+            if !filter.categoryIds.isEmpty {
+                query.append(URLQueryItem(name: "category_ids", value: filter.categoryIds.joined(separator: ",")))
+            }
+            if !filter.accountIds.isEmpty {
+                query.append(URLQueryItem(name: "account_ids", value: filter.accountIds.joined(separator: ",")))
+            }
+            query.append(URLQueryItem(name: "max_time", value: cursor))
+            if !searchKeyword.isEmpty {
+                query.append(URLQueryItem(name: "keyword", value: searchKeyword))
+            }
+            let page: TransactionPage = try await APIClient.shared.request(
+                "/api/v1/transactions/list.json", query: query
+            )
+            let existing = Set(transactions.map { $0.id })
+            let fresh = page.items.filter { !existing.contains($0.id) }
+            transactions.append(contentsOf: fresh)
+            if let total = page.totalCount { totalCount = total }
+            hasMore = page.nextTimeSequenceId != nil && !fresh.isEmpty
+            nextTimeSequenceId = page.nextTimeSequenceId
+            rebuildGrouping()
+        } catch {
+            // 静默失败：保留已有结果，滚动到底会再次触发
+        }
     }
 
     /// 搜索防抖（200ms）：输入即搜；输入到结果返回期间搜索框显示「搜索中」动画。
@@ -1500,6 +1553,16 @@ struct BillListPageView: View {
                             }
                         }
                     }
+                    // 检索态：显示匹配总数（全库范围）
+                    if vm.isFiltering, let total = vm.totalCount {
+                        Text("共 \(total) 条结果")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
                     // 隐藏 List 右侧滚动指示条（同首页，响应链方案）
                     .overlay(ScrollIndicatorHider().allowsHitTesting(false))
                 }
@@ -1562,6 +1625,20 @@ struct BillListPageView: View {
                                     .tint(.indigo)
                                 }
                         }
+                    }
+                }
+                // 检索态加载更多：滚动到底自动续拉（游标分页），保证「全部搜」语义
+                if vm.hasMore && !vm.transactions.isEmpty {
+                    Section {
+                        HStack(spacing: 8) {
+                            Spacer()
+                            ProgressView()
+                            Text("正在加载更多…").font(.footnote).foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .onAppear { Task { await vm.loadMore() } }
                     }
                 }
             }
