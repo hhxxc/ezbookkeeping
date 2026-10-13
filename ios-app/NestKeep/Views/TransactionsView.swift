@@ -671,26 +671,53 @@ struct TransactionsView: View {
         showListPage = true
     }
 
-    /// 不打扰式更新提示胶囊（首页顶部悬浮，5 秒自动消失）
+    /// 不打扰式更新提示卡片（首页顶部悬浮，5 秒自动消失）：
+    /// 渐变图标块 + 标题/NEW 角标 + 版本副标题 + 卡片阴影，点按进更新详情
     private var updateBanner: some View {
         Button {
             withAnimation(.easeIn(duration: 0.2)) { showUpdateBanner = false }
             showUpdateSheet = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up.circle.fill")
-                Text(verbatim: "发现新版本 v\(updateBannerVersion)，点击查看")
-                    .lineLimit(1)
+            HStack(spacing: 12) {
+                // 渐变图标块
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Theme.aiGradient)
+                    Image(systemName: "arrow.down.app.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 36, height: 36)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("发现新版本")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(HomePalette.ink)
+                        Text("NEW")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Theme.expense))
+                    }
+                    Text(verbatim: "v\(updateBannerVersion) · 点此查看更新内容")
+                        .font(.system(size: 12))
+                        .foregroundColor(HomePalette.secondary)
+                }
+
+                Spacer(minLength: 0)
+
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(HomePalette.secondary.opacity(0.6))
             }
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .background(
-                Capsule().fill(Theme.brand)
-                    .shadow(color: Theme.brand.opacity(0.35), radius: 6, x: 0, y: 3)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(HomePalette.card)
+                    .shadow(color: Color.black.opacity(HomePalette.isDark ? 0.5 : 0.12), radius: 12, x: 0, y: 5)
             )
         }
         .buttonStyle(.plain)
@@ -843,7 +870,7 @@ struct TransactionsView: View {
             guard UserDefaults.standard.string(forKey: Self.updateNotifiedVersionKey) != latest else { return }
             UserDefaults.standard.set(latest, forKey: Self.updateNotifiedVersionKey)
             updateBannerVersion = latest
-            withAnimation(.easeOut(duration: 0.25)) { showUpdateBanner = true }
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { showUpdateBanner = true }
         }
         .task(id: showUpdateBanner) {
             guard showUpdateBanner else { return }
