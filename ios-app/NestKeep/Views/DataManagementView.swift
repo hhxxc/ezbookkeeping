@@ -82,6 +82,7 @@ struct DataManagementView: View {
     @State private var showClearTx = false
     @State private var showClearAll = false
     @State private var exporting = false
+    @State private var showImportWizard = false
 
     var body: some View {
         List {
@@ -104,6 +105,14 @@ struct DataManagementView: View {
                     exportData(path: "export.tsv", fileName: "ezbookkeeping-export.tsv")
                 } label: {
                     Label("导出为 TSV", systemImage: "square.and.arrow.up")
+                }
+            }
+
+            Section(header: Text("导入")) {
+                Button {
+                    showImportWizard = true
+                } label: {
+                    Label("从文件导入账单", systemImage: "square.and.arrow.down")
                 }
             }
 
@@ -140,6 +149,11 @@ struct DataManagementView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("账户、分类、标签、账单、图片都会被永久删除，且无法恢复。")
+        }
+        .sheet(isPresented: $showImportWizard, onDismiss: {
+            Task { await vm.load() }
+        }) {
+            ImportWizardView(onImported: { Task { await vm.load() } })
         }
         .task { await vm.load() }
     }
