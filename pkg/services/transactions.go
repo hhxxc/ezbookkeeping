@@ -2886,17 +2886,26 @@ func (s *TransactionService) buildTransactionQueryCondition(uid int64, maxTransa
 	}
 
 	if keyword != "" {
+		// 分类名/账户名子查询：名称命中（含「父分类名命中的子分类」「父账户名命中的子账户」）
+		// 也算搜索命中——让「育儿」这类分类名能直接搜出对应账单（App 与 Web 同步受益）
+		categoryNameMatch := "(category_id IN (SELECT category_id FROM transaction_category WHERE uid = ? AND deleted = 0 AND (name LIKE ? OR category_id IN (SELECT category_id FROM transaction_category WHERE uid = ? AND deleted = 0 AND parent_category_id IN (SELECT category_id FROM transaction_category WHERE uid = ? AND deleted = 0 AND name LIKE ?)))))"
+		accountNameMatch := "(account_id IN (SELECT account_id FROM account WHERE uid = ? AND deleted = 0 AND (name LIKE ? OR account_id IN (SELECT account_id FROM account WHERE uid = ? AND deleted = 0 AND parent_account_id IN (SELECT account_id FROM account WHERE uid = ? AND deleted = 0 AND name LIKE ?)))))"
+
 		// Try to parse keyword as a number to support amount search
 		if amountInCents, err := utils.ParseAmount(keyword); err == nil {
 			// Using string-based decimal parsing to avoid floating-point precision issues
-			// Search both comment and amount fields
-			condition = condition + " AND (comment LIKE ? OR amount = ?)"
+			// Search comment, amount, category name and account name fields
+			condition = condition + " AND (comment LIKE ? OR amount = ? OR " + categoryNameMatch + " OR " + accountNameMatch + ")"
 			conditionParams = append(conditionParams, "%%"+keyword+"%%")
 			conditionParams = append(conditionParams, amountInCents)
+			conditionParams = append(conditionParams, uid, "%%"+keyword+"%%", uid, uid, "%%"+keyword+"%%")
+			conditionParams = append(conditionParams, uid, "%%"+keyword+"%%", uid, uid, "%%"+keyword+"%%")
 		} else {
-			// If not a number, only search in comment field
-			condition = condition + " AND comment LIKE ?"
+			// Non-number keyword searches comment, category name and account name fields
+			condition = condition + " AND (comment LIKE ? OR " + categoryNameMatch + " OR " + accountNameMatch + ")"
 			conditionParams = append(conditionParams, "%%"+keyword+"%%")
+			conditionParams = append(conditionParams, uid, "%%"+keyword+"%%", uid, uid, "%%"+keyword+"%%")
+			conditionParams = append(conditionParams, uid, "%%"+keyword+"%%", uid, uid, "%%"+keyword+"%%")
 		}
 	}
 
