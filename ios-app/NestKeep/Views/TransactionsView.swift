@@ -891,6 +891,38 @@ struct TransactionsView: View {
     /// 布局与数据态逐像素一致，数据到达原地变真，不会出现骨架→卡片的高度跳动
     private var firstLoading: Bool { vm.isLoading && !vm.hasLoadedOnce }
 
+    /// 加载失败说明卡（仅无任何数据时显示；有缓存内容时不打扰，重试走下拉刷新）
+    private func homeErrorCard(_ message: String) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 26, weight: .medium))
+                .foregroundColor(.orange)
+                .frame(width: 64, height: 64)
+                .background(Color.orange.opacity(0.12))
+                .cornerRadius(22)
+            Text(message)
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Button {
+                Task { await vm.load() }
+            } label: {
+                Text("重试")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 8)
+                    .background(Theme.brand)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
+        .background(HomePalette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     var body: some View {
         // 首页包在 NavigationView 里：日历页/账单列表页/区间详情页改为**系统原生 push**
         //（NavigationLink 编程式跳转），获得标准视差滑动、边缘阴影与左滑跟手返回。
@@ -913,6 +945,10 @@ struct TransactionsView: View {
                     // 用 ScrollView+VStack 自控间距：insetGrouped List 首组顶部有 ~30pt 系统默认
                     // 留白（iOS 15 无 listSectionSpacing，收不掉），导致顶栏与汇总卡间隙过大。
                     VStack(spacing: 0) {
+                        // 弱网/故障：无任何数据且有错误时给说明与重试（有缓存内容时不打扰）
+                        if !vm.isLoading, vm.transactions.isEmpty, let loadError = vm.error {
+                            homeErrorCard(loadError)
+                        }
                         summaryCard
                             // 顶部 8 + 顶栏底部 4 = 12pt 紧凑间隙（与卡间距节奏一致）；
                             // 水平 17pt 沿用原 insetGrouped 的系统分组边距
@@ -1684,6 +1720,36 @@ struct BillListPageView: View {
                         HStack { Spacer(); ProgressView(); Spacer() }
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                    }
+                } else if !vm.isLoading && vm.transactions.isEmpty && vm.error != nil {
+                    // 加载失败 ≠ 没有账单：给出原因与重试
+                    Section {
+                        VStack(spacing: 12) {
+                            Image(systemName: "wifi.exclamationmark")
+                                .font(.system(size: 26, weight: .medium))
+                                .foregroundColor(.orange)
+                                .frame(width: 64, height: 64)
+                                .background(Color.orange.opacity(0.12))
+                                .cornerRadius(22)
+                            Text(vm.error ?? "")
+                                .font(.footnote).foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                Task { await vm.load() }
+                            } label: {
+                                Text("重试")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 22).padding(.vertical, 8)
+                                    .background(Theme.brand)
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                     }
                 } else if !vm.isLoading && vm.transactions.isEmpty {
                     Section {
