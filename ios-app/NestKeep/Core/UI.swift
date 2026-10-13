@@ -241,3 +241,4 @@ struct AmountTweenLabel: View, Animatable {
         Text(verbatim: AmountFormat.format(Int64(value), currency: currency))
     }
 }
+
