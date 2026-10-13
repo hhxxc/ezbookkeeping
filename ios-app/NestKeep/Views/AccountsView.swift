@@ -28,6 +28,16 @@ final class AccountsViewModel: ObservableObject {
         await loadStats()
     }
 
+    /// 冷启动秒开：先用 AppDataStore 磁盘缓存的账户即时上屏（余额可能略旧，随后 load 刷新纠正）
+    func hydrateFromStoreCache() {
+        guard !hasLoadedOnce, accounts.isEmpty else { return }
+        let cached = AppDataStore.shared.cachedAccounts
+        guard !cached.isEmpty else { return }
+        accounts = cached
+        hasLoadedOnce = true
+        isLoading = false
+    }
+
     // MARK: - 年度/累计收支统计
 
     enum YearStatsRange: String, CaseIterable, Identifiable {
@@ -391,10 +401,18 @@ struct AccountsView: View {
             } message: {
                 Text("该账户下的账单不会被删除，但账户将不可用。")
             }
-        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉数据
-        .task { if router.selection == .accounts { await vm.load() } }
+        // 冷启动不加载（4 Tab 全保活，屏外 .task 也会执行）：首次真正切到本 Tab 才拉数据。
+        // 秒开：先用 AppDataStore 磁盘缓存的账户即时上屏（余额可能略旧），后台刷新纠正
+        .task {
+            guard router.selection == .accounts else { return }
+            vm.hydrateFromStoreCache()
+            await vm.load()
+        }
         .onChange(of: router.selection) { sel in
-            if sel == .accounts && !vm.hasLoadedOnce { Task { await vm.load() } }
+            if sel == .accounts && !vm.hasLoadedOnce {
+                vm.hydrateFromStoreCache()
+                Task { await vm.load() }
+            }
         }
     }
 

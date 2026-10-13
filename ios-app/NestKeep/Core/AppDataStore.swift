@@ -17,6 +17,9 @@ final class AppDataStore: ObservableObject {
     static let shared = AppDataStore()
 
     @Published private(set) var accounts: [Account] = []
+
+    /// 冷启动秒开用：磁盘缓存恢复后的账户快照（未加载过时为空）
+    var cachedAccounts: [Account] { accounts }
     @Published private(set) var categories: [TransactionCategory] = []
     @Published private(set) var tags: [TransactionTag] = []
     @Published private(set) var tagGroups: [TransactionTagGroup] = []
@@ -41,6 +44,8 @@ final class AppDataStore: ObservableObject {
         var categories: [TransactionCategory] = []
         var tags: [TransactionTag] = []
         var tagGroups: [TransactionTagGroup] = []
+        /// 落盘时间（旧缓存无此字段解码为 nil，视为已过期走网络）
+        var savedAt: Date? = nil
     }
 
     private static var cacheURL: URL {
@@ -66,11 +71,18 @@ final class AppDataStore: ObservableObject {
         categories = cache.categories
         tags = cache.tags
         tagGroups = cache.tagGroups
+        // 恢复落盘时间戳：让冷启动后 staleTime 判定可用（旧缓存无时间戳视为已过期）
+        if let savedAt = cache.savedAt {
+            accountsAt = savedAt
+            categoriesAt = savedAt
+            tagsAt = savedAt
+            tagGroupsAt = savedAt
+        }
     }
 
     private func saveDiskCache() {
         let cache = DiskCache(accounts: accounts, categories: categories,
-                              tags: tags, tagGroups: tagGroups)
+                              tags: tags, tagGroups: tagGroups, savedAt: Date())
         guard let data = try? JSONEncoder().encode(cache) else { return }
         try? data.write(to: Self.cacheURL, options: .atomic)
     }
