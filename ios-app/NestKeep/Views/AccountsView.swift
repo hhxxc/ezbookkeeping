@@ -236,6 +236,9 @@ struct AccountsView: View {
         return arr
     }
 
+    /// 当前年份（年度分析页入参）
+    private var currentYear: Int { Calendar.current.component(.year, from: Date()) }
+
     var body: some View {
         // 包 NavigationView：年度分析页走系统 push（返回即回账户页）。
         // 根页隐藏系统导航栏（自绘顶栏），推入的二级页自动显示
