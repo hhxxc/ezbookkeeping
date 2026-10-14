@@ -804,6 +804,8 @@ struct TransactionsView: View {
     @State private var editing: Transaction?
     @State private var duplicating: Transaction?
     @State private var detail: Transaction?
+    @State private var shareImage: UIImage?
+    @State private var showShareSheet = false
     /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
     @State private var detailContext: RangeDetailContext?
     /// 首页搜索入口：推入账单列表页时自动聚焦搜索框（消费后由 onChange 复位）
@@ -2053,6 +2055,22 @@ struct RangeDetailView: View {
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    shareImage = ReconciliationShareRenderer.render(vm: vm, mainVM: mainVM)
+                    showShareSheet = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(vm.transactions.isEmpty)
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let img = shareImage {
+                ActivityShareSheet(items: [img])
+            }
+        }
         .navigationTitle(vm.context.period.title)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(false)
