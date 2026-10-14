@@ -169,7 +169,7 @@
 		fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TwoFactorAuthView.swift; sourceTree = "<group>"; };
 		97a32b6869505131847b6e7b /* NestKeep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestKeep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		c14e96265fbb5ee5893d1722 /* NestKeepWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NestKeepWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		8785eee3a2ae59869fb7de5e /* NestKeepWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepWidget/NestKeepWidgetBundle.swift; sourceTree = "<group>"; };
+		8785eee3a2ae59869fb7de5e /* NestKeepWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepWidgetBundle.swift; sourceTree = "<group>"; };
 		f6b51b49f5ab5537a189796d /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 

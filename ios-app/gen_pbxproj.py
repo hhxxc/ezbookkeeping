@@ -125,7 +125,7 @@ for f in WIDGET_SWIFT_FILES:
     name = os.path.basename(f)
     wf = "widget/" + f
     file_refs.append(
-        f'\t\t{file_ref_ids[wf]} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepWidget/{f}; sourceTree = "<group>"; }};\n'
+        f'\t\t{file_ref_ids[wf]} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {f}; sourceTree = "<group>"; }};\n'
     )
 # 资源目录引用（lastKnownFileType = folder.assetcatalog）
 file_refs.append(
