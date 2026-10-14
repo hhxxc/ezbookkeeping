@@ -158,6 +158,7 @@ struct ReconciliationShareCard: View {
 
 enum ReconciliationShareRenderer {
     /// 把分享卡片渲染为长图（固定浅色、宽度 390）
+    @MainActor
     static func render(vm: RangeDetailViewModel, mainVM: TransactionsViewModel) -> UIImage {
         let daily = vm.grouped.map { ($0.date, $0.items.reduce(Int64(0)) { $0 + abs($1.sourceAmount) }) }
             .sorted { $0.0 < $1.0 }

@@ -804,8 +804,6 @@ struct TransactionsView: View {
     @State private var editing: Transaction?
     @State private var duplicating: Transaction?
     @State private var detail: Transaction?
-    @State private var shareImage: UIImage?
-    @State private var showShareSheet = false
     /// 点击区间行 → 推入「区间详情页」（对齐 Web 的 /transaction/list?dateType=...）
     @State private var detailContext: RangeDetailContext?
     /// 首页搜索入口：推入账单列表页时自动聚焦搜索框（消费后由 onChange 复位）
@@ -1991,6 +1989,8 @@ struct RangeDetailView: View {
     @State private var editing: Transaction?
     @State private var duplicating: Transaction?
     @State private var detail: Transaction?
+    @State private var shareImage: UIImage?
+    @State private var showShareSheet = false
 
     init(context: RangeDetailContext, mainVM: TransactionsViewModel) {
         _vm = StateObject(wrappedValue: RangeDetailViewModel(context: context, mainVM: mainVM))
