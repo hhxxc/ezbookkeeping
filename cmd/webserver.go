@@ -499,6 +499,8 @@ func startWebServer(c *core.CliContext) error {
 			apiV1Route.POST("/transaction/categories/delete.json", bindApi(api.TransactionCategories.CategoryDeleteHandler))
 
 			// Transaction Tag Groups
+			apiV1Route.GET("/budget/get.json", bindApi(api.TransactionBudgets.GetBudgetHandler))
+			apiV1Route.POST("/budget/set.json", bindApi(api.TransactionBudgets.SaveBudgetHandler))
 			apiV1Route.GET("/transaction/tags/groups/list.json", bindApi(api.TransactionTagGroups.TagGroupListHandler))
 			apiV1Route.GET("/transaction/tags/groups/get.json", bindApi(api.TransactionTagGroups.TagGroupGetHandler))
 			apiV1Route.POST("/transaction/tags/groups/add.json", bindApi(api.TransactionTagGroups.TagGroupCreateHandler))

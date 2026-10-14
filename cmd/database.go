@@ -125,6 +125,14 @@ func updateAllDatabaseTablesStructure(c *core.CliContext) error {
 
 	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] transaction tag table maintained successfully")
 
+	err = datastore.Container.UserDataStore.SyncStructs(new(models.TransactionBudget))
+
+	if err != nil {
+		return err
+	}
+
+	log.BootInfof(c, "[database.updateAllDatabaseTablesStructure] transaction budget table maintained successfully")
+
 	err = datastore.Container.UserDataStore.SyncStructs(new(models.TransactionTagIndex))
 
 	if err != nil {
