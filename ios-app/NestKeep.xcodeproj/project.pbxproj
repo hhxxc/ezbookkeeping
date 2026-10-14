@@ -24,6 +24,7 @@
 		a2a03949c3c759fc8720b78d /* UI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8f1cb5e6d2ab59c79d1dad97 /* UI.swift */; };
 		f222835fc89a57ac808a67fc /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84d8becc80c2522a8c056b7f /* UpdateChecker.swift */; };
 		d4daef3e9a885e2794cf838e /* VoiceTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */; };
+		1b637c48f83e52518a4d32c3 /* WidgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8b6ddf993c425a7fbb42e3cf /* WidgetSync.swift */; };
 		574dbc9fffe5518c98920162 /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78fe97771f275491a820e1d6 /* Account.swift */; };
 		0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423ad0e33f075c4abee4e5df /* AccountRequests.swift */; };
 		db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = ac235b0b29e8548681d4ac1e /* ApiModels.swift */; };
@@ -119,6 +120,7 @@
 		8f1cb5e6d2ab59c79d1dad97 /* UI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/UI.swift; sourceTree = "<group>"; };
 		84d8becc80c2522a8c056b7f /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/UpdateChecker.swift; sourceTree = "<group>"; };
 		384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/VoiceTranscriber.swift; sourceTree = "<group>"; };
+		8b6ddf993c425a7fbb42e3cf /* WidgetSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/WidgetSync.swift; sourceTree = "<group>"; };
 		78fe97771f275491a820e1d6 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/Account.swift; sourceTree = "<group>"; };
 		423ad0e33f075c4abee4e5df /* AccountRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/AccountRequests.swift; sourceTree = "<group>"; };
 		ac235b0b29e8548681d4ac1e /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ApiModels.swift; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 				8f1cb5e6d2ab59c79d1dad97 /* UI.swift */,
 				84d8becc80c2522a8c056b7f /* UpdateChecker.swift */,
 				384f00ce90bc54c0a5871eaa /* VoiceTranscriber.swift */,
+				8b6ddf993c425a7fbb42e3cf /* WidgetSync.swift */,
 				78fe97771f275491a820e1d6 /* Account.swift */,
 				423ad0e33f075c4abee4e5df /* AccountRequests.swift */,
 				ac235b0b29e8548681d4ac1e /* ApiModels.swift */,
@@ -390,6 +393,7 @@
 				a2a03949c3c759fc8720b78d /* UI.swift in Sources */,
 				f222835fc89a57ac808a67fc /* UpdateChecker.swift in Sources */,
 				d4daef3e9a885e2794cf838e /* VoiceTranscriber.swift in Sources */,
+				1b637c48f83e52518a4d32c3 /* WidgetSync.swift in Sources */,
 				574dbc9fffe5518c98920162 /* Account.swift in Sources */,
 				0f8d83f53d2652a2a0d87ead /* AccountRequests.swift in Sources */,
 				db60ddbfa0e058c4843be7f3 /* ApiModels.swift in Sources */,

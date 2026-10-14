@@ -896,6 +896,12 @@ struct TransactionsView: View {
     /// 布局与数据态逐像素一致，数据到达原地变真，不会出现骨架→卡片的高度跳动
     private var firstLoading: Bool { vm.isLoading && !vm.hasLoadedOnce }
 
+    /// 桌面小组件快照同步（预算沿用上次快照值，统计页加载时更新）
+    private func syncWidgetSnapshot(expense: Int64, income: Int64) {
+        let budgetCents = WidgetDataStore.currentBudgetCents()
+        WidgetDataStore.saveSnapshot(expenseCents: expense, incomeCents: income, budgetCents: budgetCents)
+    }
+
     /// 加载失败说明卡（仅无任何数据时显示；有缓存内容时不打扰，重试走下拉刷新）
     private func homeErrorCard(_ message: String) -> some View {
         VStack(spacing: 10) {
@@ -1137,17 +1143,7 @@ struct TransactionsView: View {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 await StatisticsViewModel.prefetchCurrentPeriodStatsCache()
             }
-            // 桌面小组件快照：本月收支（预算沿用上次快照值，统计页加载时更新）
-            var widgetBudgetCents: Int64 = 0
-            if let data = WidgetDataStore.sharedDefaults?.data(forKey: WidgetDataStore.snapshotKey),
-               let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) {
-                widgetBudgetCents = snapshot.budgetCents
-            }
-            WidgetDataStore.saveSnapshot(
-                expenseCents: vm.monthExpenseCents,
-                incomeCents: vm.monthIncomeCents,
-                budgetCents: widgetBudgetCents
-            )
+            syncWidgetSnapshot(expense: vm.monthExpenseCents, income: vm.monthIncomeCents)
             await bgSync
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
