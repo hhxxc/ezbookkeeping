@@ -44,6 +44,7 @@
 		dc231398963051488e3e881b /* AccountsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = cb972d23c64853e39535066b /* AccountsView.swift */; };
 		9866b69b5f2755d7872598d7 /* AppLockSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e125612cf3fa5ea399320061 /* AppLockSettingsView.swift */; };
 		3a581e296565509aaaa6b5d1 /* AppLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9bb55c7e0d3b5f6094b7ea29 /* AppLockView.swift */; };
+		597da771cef756bea0a5f2ac /* BudgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2c29cc27567b5eb4a1afda12 /* BudgetViews.swift */; };
 		f5e12d55c800509fbb11a442 /* CategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */; };
 		e6880a9091d1535dbb277219 /* DataManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */; };
 		db87de37176e58aaa3fae295 /* ExchangeRatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */; };
@@ -112,6 +113,7 @@
 		cb972d23c64853e39535066b /* AccountsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AccountsView.swift; sourceTree = "<group>"; };
 		e125612cf3fa5ea399320061 /* AppLockSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AppLockSettingsView.swift; sourceTree = "<group>"; };
 		9bb55c7e0d3b5f6094b7ea29 /* AppLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/AppLockView.swift; sourceTree = "<group>"; };
+		2c29cc27567b5eb4a1afda12 /* BudgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/BudgetViews.swift; sourceTree = "<group>"; };
 		cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CategoriesView.swift; sourceTree = "<group>"; };
 		a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DataManagementView.swift; sourceTree = "<group>"; };
 		58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ExchangeRatesView.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				cb972d23c64853e39535066b /* AccountsView.swift */,
 				e125612cf3fa5ea399320061 /* AppLockSettingsView.swift */,
 				9bb55c7e0d3b5f6094b7ea29 /* AppLockView.swift */,
+				2c29cc27567b5eb4a1afda12 /* BudgetViews.swift */,
 				cecc50aac3ec5e3cb9917e42 /* CategoriesView.swift */,
 				a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */,
 				58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */,
@@ -340,6 +343,7 @@
 				dc231398963051488e3e881b /* AccountsView.swift in Sources */,
 				9866b69b5f2755d7872598d7 /* AppLockSettingsView.swift in Sources */,
 				3a581e296565509aaaa6b5d1 /* AppLockView.swift in Sources */,
+				597da771cef756bea0a5f2ac /* BudgetViews.swift in Sources */,
 				f5e12d55c800509fbb11a442 /* CategoriesView.swift in Sources */,
 				e6880a9091d1535dbb277219 /* DataManagementView.swift in Sources */,
 				db87de37176e58aaa3fae295 /* ExchangeRatesView.swift in Sources */,

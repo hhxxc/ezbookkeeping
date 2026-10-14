@@ -528,6 +528,9 @@ struct StatisticsView: View {
     @State private var editing: Transaction?
     @State private var duplicating: Transaction?
     @State private var detail: Transaction?
+    /// 预算（当月）：进度卡 + 设置页
+    @StateObject private var budgetVM = BudgetViewModel()
+    @State private var showBudgetSettings = false
 
     enum Mode: String, CaseIterable {
         case expense = "支出"
@@ -574,6 +577,16 @@ struct StatisticsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     periodModePicker
+                // 本月预算进度卡：设置了总预算才显示
+                if let budget = budgetVM.budget, budget.totalAmount > 0 {
+                    BudgetProgressCard(
+                        totalAmount: budget.totalAmount,
+                        expenseCents: vm.totalExpenseCents,
+                        categoryExpense: vm.expenseByCategory,
+                        categoryBudgets: budget.categoryBudgets,
+                        onOpenSettings: { showBudgetSettings = true }
+                    )
+                }
                 // solo「只看某分类」横幅：当前聚焦的分类 + 一键退出
                 if let soloName = vm.soloCategoryName {
                     HStack(spacing: 8) {
@@ -657,6 +670,18 @@ struct StatisticsView: View {
             guard router.selection == .statistics else { return }
             await vm.loadCachedStatsIfAny()
             await vm.load()
+            await budgetVM.load(year: vm.year, month: vm.month)
+        }
+        .onChange(of: vm.month) { _ in
+            Task { await budgetVM.load(year: vm.year, month: vm.month) }
+        }
+        .onChange(of: vm.year) { _ in
+            Task { await budgetVM.load(year: vm.year, month: vm.month) }
+        }
+        .sheet(isPresented: $showBudgetSettings) {
+            BudgetSettingsView(year: vm.year, month: vm.month, onSaved: {
+                Task { await budgetVM.load(year: vm.year, month: vm.month) }
+            })
         }
         .onChange(of: router.selection) { sel in
             guard sel == .statistics, !vm.hasLoadedOnce else { return }
