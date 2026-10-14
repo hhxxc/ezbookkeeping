@@ -55,6 +55,7 @@
 		5796c59537205f95b42bb9c8 /* MoveAllTransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93fbc423f4e65cba8a20f613 /* MoveAllTransactionsView.swift */; };
 		de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e81840588cd05eec8525384e /* PresetCategoriesView.swift */; };
 		62685a5156795bc3b514dff5 /* ProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */; };
+		bffbd7c8d7865cd8bdfb14ef /* ReconciliationShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8edf1bd152d1552a846af5ab /* ReconciliationShareCard.swift */; };
 		ea634148d9e85cf580c47620 /* ReconciliationStatementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = aca9531efb715bcca0a6ed69 /* ReconciliationStatementView.swift */; };
 		df3d8fb2acd85116a0144ac1 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79ace7319d6955619bef9c0d /* RootView.swift */; };
 		442ed9f9a15357e284f38184 /* SessionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3eee32060bec5375b8d67600 /* SessionsView.swift */; };
@@ -122,6 +123,7 @@
 		93fbc423f4e65cba8a20f613 /* MoveAllTransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MoveAllTransactionsView.swift; sourceTree = "<group>"; };
 		e81840588cd05eec8525384e /* PresetCategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PresetCategoriesView.swift; sourceTree = "<group>"; };
 		7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ProfileEditView.swift; sourceTree = "<group>"; };
+		8edf1bd152d1552a846af5ab /* ReconciliationShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ReconciliationShareCard.swift; sourceTree = "<group>"; };
 		aca9531efb715bcca0a6ed69 /* ReconciliationStatementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ReconciliationStatementView.swift; sourceTree = "<group>"; };
 		79ace7319d6955619bef9c0d /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RootView.swift; sourceTree = "<group>"; };
 		3eee32060bec5375b8d67600 /* SessionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SessionsView.swift; sourceTree = "<group>"; };
@@ -203,6 +205,7 @@
 				93fbc423f4e65cba8a20f613 /* MoveAllTransactionsView.swift */,
 				e81840588cd05eec8525384e /* PresetCategoriesView.swift */,
 				7c74bce7fa425c03942f8c4c /* ProfileEditView.swift */,
+				8edf1bd152d1552a846af5ab /* ReconciliationShareCard.swift */,
 				aca9531efb715bcca0a6ed69 /* ReconciliationStatementView.swift */,
 				79ace7319d6955619bef9c0d /* RootView.swift */,
 				3eee32060bec5375b8d67600 /* SessionsView.swift */,
@@ -348,6 +351,7 @@
 				5796c59537205f95b42bb9c8 /* MoveAllTransactionsView.swift in Sources */,
 				de1134197e295f29b40c1832 /* PresetCategoriesView.swift in Sources */,
 				62685a5156795bc3b514dff5 /* ProfileEditView.swift in Sources */,
+				bffbd7c8d7865cd8bdfb14ef /* ReconciliationShareCard.swift in Sources */,
 				ea634148d9e85cf580c47620 /* ReconciliationStatementView.swift in Sources */,
 				df3d8fb2acd85116a0144ac1 /* RootView.swift in Sources */,
 				442ed9f9a15357e284f38184 /* SessionsView.swift in Sources */,
