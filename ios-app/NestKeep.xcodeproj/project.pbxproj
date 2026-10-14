@@ -48,6 +48,7 @@
 		e6880a9091d1535dbb277219 /* DataManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */; };
 		db87de37176e58aaa3fae295 /* ExchangeRatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */; };
 		d05b03a73fc157b783b92671 /* HomeBackgroundSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = b79e7aa166c155b1968cb283 /* HomeBackgroundSettingsView.swift */; };
+		1f19fa48d8555af58a0f42dd /* ImportWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ad52a76e9bc5f00b21b3fff /* ImportWizardView.swift */; };
 		97ddf3e9a8a1500889d8736b /* InstallmentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */; };
 		626f0041400a53a883a137a8 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05ab3cea5ec1581abdbae577 /* LoginView.swift */; };
 		e869f36a7d0151d28dc5e201 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 059dd156c8605c2183b56209 /* MainTabView.swift */; };
@@ -114,6 +115,7 @@
 		a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DataManagementView.swift; sourceTree = "<group>"; };
 		58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ExchangeRatesView.swift; sourceTree = "<group>"; };
 		b79e7aa166c155b1968cb283 /* HomeBackgroundSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeBackgroundSettingsView.swift; sourceTree = "<group>"; };
+		5ad52a76e9bc5f00b21b3fff /* ImportWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ImportWizardView.swift; sourceTree = "<group>"; };
 		8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/InstallmentDetailView.swift; sourceTree = "<group>"; };
 		05ab3cea5ec1581abdbae577 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/LoginView.swift; sourceTree = "<group>"; };
 		059dd156c8605c2183b56209 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
@@ -194,6 +196,7 @@
 				a345fbeb96a75cd89c3e6720 /* DataManagementView.swift */,
 				58067137f08e5a8d8044e45e /* ExchangeRatesView.swift */,
 				b79e7aa166c155b1968cb283 /* HomeBackgroundSettingsView.swift */,
+				5ad52a76e9bc5f00b21b3fff /* ImportWizardView.swift */,
 				8d17b288690b5119a42bd219 /* InstallmentDetailView.swift */,
 				05ab3cea5ec1581abdbae577 /* LoginView.swift */,
 				059dd156c8605c2183b56209 /* MainTabView.swift */,
@@ -338,6 +341,7 @@
 				e6880a9091d1535dbb277219 /* DataManagementView.swift in Sources */,
 				db87de37176e58aaa3fae295 /* ExchangeRatesView.swift in Sources */,
 				d05b03a73fc157b783b92671 /* HomeBackgroundSettingsView.swift in Sources */,
+				1f19fa48d8555af58a0f42dd /* ImportWizardView.swift in Sources */,
 				97ddf3e9a8a1500889d8736b /* InstallmentDetailView.swift in Sources */,
 				626f0041400a53a883a137a8 /* LoginView.swift in Sources */,
 				e869f36a7d0151d28dc5e201 /* MainTabView.swift in Sources */,
