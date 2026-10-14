@@ -21,10 +21,12 @@ struct TransactionFilter: Equatable {
     var accountIds: [String] = []
     var startDate: Date?
     var endDate: Date?
-    /// 金额筛选（后端格式）：""=不限；lt,v / gt,v / bt,v1,v2 —— 单位分
-    var amountFilter: String = ""
+    /// 排序字段：""=默认（数字关键词搜索时后端金额精确命中置顶），time / amount 为显式排序
+    var sortBy: String = ""
     /// 排序方向：asc / desc
     var sortOrder: String = "desc"
+    /// 金额筛选（后端格式）：""=不限；lt,v / gt,v / bt,v1,v2 —— 单位分
+    var amountFilter: String = ""
 
     var isActive: Bool {
         type > 0 || !categoryIds.isEmpty || !accountIds.isEmpty || startDate != nil || endDate != nil || !amountFilter.isEmpty
