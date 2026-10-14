@@ -27,6 +27,7 @@ var CreateScheduledTransactionJob = &CronJob{
 		Second: 0,
 	},
 	Run: func(c *core.CronContext) error {
-		return services.Transactions.CreateScheduledTransactions(c, time.Now().Unix(), c.GetInterval())
+		_, _, err := services.Transactions.CreateScheduledTransactions(c, time.Now().Unix(), c.GetInterval())
+		return err
 	},
 }

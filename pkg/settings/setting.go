@@ -394,6 +394,7 @@ type Config struct {
 	// Cron
 	EnableRemoveExpiredTokens        bool
 	EnableCreateScheduledTransaction bool
+	NotifyAppriseURL                  string
 
 	// Secret
 	SecretKeyNoSet                        bool
@@ -1240,6 +1241,7 @@ func loadDuplicateCheckerConfiguration(config *Config, configFile *ini.File, sec
 func loadCronConfiguration(config *Config, configFile *ini.File, sectionName string) error {
 	config.EnableRemoveExpiredTokens = getConfigItemBoolValue(configFile, sectionName, "enable_remove_expired_tokens", false)
 	config.EnableCreateScheduledTransaction = getConfigItemBoolValue(configFile, sectionName, "enable_create_scheduled_transaction", false)
+	config.NotifyAppriseURL = getConfigItemStringValue(configFile, sectionName, "notify_apprise_url", "")
 
 	return nil
 }

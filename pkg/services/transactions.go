@@ -748,7 +748,8 @@ func (s *TransactionService) BatchCreateTransactions(c core.Context, uid int64, 
 }
 
 // CreateScheduledTransactions saves all scheduled transactions that should be created now
-func (s *TransactionService) CreateScheduledTransactions(c core.Context, currentUnixTime int64, interval time.Duration) error {
+// 返回（成功笔数, 成功明细串（模板名，换行分隔）, error）
+func (s *TransactionService) CreateScheduledTransactions(c core.Context, currentUnixTime int64, interval time.Duration) (int, string, error) {
 	var allTemplates []*models.TransactionTemplate
 	intervalMinute := int(interval / time.Minute)
 	currentTime := time.Unix(currentUnixTime, 0)
@@ -783,14 +784,14 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 			maxScheduledAt).Find(&templates)
 
 		if err != nil {
-			return err
+			return 0, "", err
 		}
 
 		allTemplates = append(allTemplates, templates...)
 	}
 
 	if len(allTemplates) < 1 {
-		return nil
+		return 0, "", nil
 	}
 
 	log.Infof(c, "[transactions.CreateScheduledTransactions] should process %d scheduled transaction templates now (scheduled at from %d to %d)", len(allTemplates), minScheduledAt, maxScheduledAt)
@@ -798,6 +799,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 	successCount := 0
 	skipCount := 0
 	failedCount := 0
+	createdDetails := make([]string, 0)
 
 	for i := 0; i < len(allTemplates); i++ {
 		template := allTemplates[i]
@@ -906,6 +908,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 
 		if err == nil {
 			successCount++
+			createdDetails = append(createdDetails, template.Name)
 			log.Infof(c, "[transactions.CreateScheduledTransactions] transaction template \"id:%d\" has created a new trasaction \"id:%d\"", template.TemplateId, transaction.TransactionId)
 		} else {
 			failedCount++
@@ -915,7 +918,7 @@ func (s *TransactionService) CreateScheduledTransactions(c core.Context, current
 
 	log.Infof(c, "[transactions.CreateScheduledTransactions] %d transactions has been created successfully, %d templates does not need to create transactions and %d transactions failed to create", successCount, skipCount, failedCount)
 
-	return nil
+	return successCount, strings.Join(createdDetails, "\n"), nil
 }
 
 // ModifyTransaction saves an existed transaction to database
