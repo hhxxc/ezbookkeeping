@@ -21,13 +21,13 @@ struct TransactionFilter: Equatable {
     var accountIds: [String] = []
     var startDate: Date?
     var endDate: Date?
-    /// 排序字段：""=默认（数字关键词搜索时后端金额精确命中置顶），time / amount 为显式排序
-    var sortBy: String = ""
+    /// 金额筛选（后端格式）：""=不限；lt,v / gt,v / bt,v1,v2 —— 单位分
+    var amountFilter: String = ""
     /// 排序方向：asc / desc
     var sortOrder: String = "desc"
 
     var isActive: Bool {
-        type > 0 || !categoryIds.isEmpty || !accountIds.isEmpty || startDate != nil || endDate != nil
+        type > 0 || !categoryIds.isEmpty || !accountIds.isEmpty || startDate != nil || endDate != nil || !amountFilter.isEmpty
     }
 
     /// 生效条件数量（用于筛选按钮角标）
@@ -441,6 +441,9 @@ final class TransactionsViewModel: ObservableObject {
         }
         if !filter.accountIds.isEmpty {
             query.append(URLQueryItem(name: "account_ids", value: filter.accountIds.joined(separator: ",")))
+        }
+        if !filter.amountFilter.isEmpty {
+            query.append(URLQueryItem(name: "amount_filter", value: filter.amountFilter))
         }
         // 日期范围：后端 max_time / min_time 是**毫秒级**时间序列 id（Unix 秒 × 1000）；
         // 结束日取当日 23:59:59.999，起始日取当日 00:00:00.000
@@ -2384,6 +2387,15 @@ struct TransactionFilterSheet: View {
                     }
                 }
 
+                Section(header: Text("金额"), footer: Text("快捷区间一键筛选；明细金额为「元」。")) {
+                    HStack(spacing: 8) {
+                        amountChip("<100", filterValue: "lt,10000")
+                        amountChip("100-500", filterValue: "bt,10000,50000")
+                        amountChip("500-2000", filterValue: "bt,50000,200000")
+                        amountChip(">2000", filterValue: "gt,200000")
+                    }
+                }
+
                 Section(header: Text("账户")) {
                     ForEach(accounts, id: \.id) { acc in
                         checkRow(acc.name, isOn: filter.accountIds.contains(acc.id)) {
@@ -2432,6 +2444,24 @@ struct TransactionFilterSheet: View {
                 }
             }
         }
+    }
+
+    /// 金额快捷区间 chip：再次点击同一 chip 取消筛选
+    private func amountChip(_ title: String, filterValue: String) -> some View {
+        let active = filter.amountFilter == filterValue
+        return Button {
+            filter.amountFilter = active ? "" : filterValue
+        } label: {
+            Text(title)
+                .font(.footnote)
+                .foregroundColor(active ? .white : .primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background(active ? Theme.brand : Color(.tertiarySystemFill))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func checkRow(_ title: String, isOn: Bool, tap: @escaping () -> Void) -> some View {
