@@ -671,9 +671,21 @@ struct StatisticsView: View {
             await vm.loadCachedStatsIfAny()
             await vm.load()
             await budgetVM.load(year: vm.year, month: vm.month)
+            WidgetDataStore.saveSnapshot(
+                expenseCents: vm.totalExpenseCents,
+                incomeCents: vm.totalIncomeCents,
+                budgetCents: budgetVM.budget?.totalAmount ?? 0
+            )
         }
         .onChange(of: vm.month) { _ in
-            Task { await budgetVM.load(year: vm.year, month: vm.month) }
+            Task {
+                await budgetVM.load(year: vm.year, month: vm.month)
+                WidgetDataStore.saveSnapshot(
+                    expenseCents: vm.totalExpenseCents,
+                    incomeCents: vm.totalIncomeCents,
+                    budgetCents: budgetVM.budget?.totalAmount ?? 0
+                )
+            }
         }
         .onChange(of: vm.year) { _ in
             Task { await budgetVM.load(year: vm.year, month: vm.month) }

@@ -73,7 +73,33 @@
 		0b5eb5dade485496b08ac6c9 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0495932aeb51539792929ea7 /* TransactionsView.swift */; };
 		175a2669d54959038bcfb935 /* TwoFactorAuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */; };
 		dbc1a5d2300d5d06b902e001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = f6b51b49f5ab5537a189796d /* Assets.xcassets */; };
+		e2cf5f83277152b89e9b0f64 /* NestKeepWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8785eee3a2ae59869fb7de5e /* NestKeepWidgetBundle.swift */; };
+		6899cf15efb159079cb07812 /* NestKeepWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = c14e96265fbb5ee5893d1722 /* NestKeepWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		d1ec238dad2d57d88d9073ab /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = a17f40863d4a5c93b4102858 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 857d572b57685a70be04a82d;
+			remoteInfo = NestKeepWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		b7fb29c28d12594f874e4cfd /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6899cf15efb159079cb07812 /* NestKeepWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5edc27394655519881da9e5e /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/APIClient.swift; sourceTree = "<group>"; };
@@ -142,11 +168,20 @@
 		0495932aeb51539792929ea7 /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TransactionsView.swift; sourceTree = "<group>"; };
 		fdcdf67c06e85319afc31123 /* TwoFactorAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TwoFactorAuthView.swift; sourceTree = "<group>"; };
 		97a32b6869505131847b6e7b /* NestKeep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestKeep.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		c14e96265fbb5ee5893d1722 /* NestKeepWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NestKeepWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8785eee3a2ae59869fb7de5e /* NestKeepWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestKeepWidget/NestKeepWidgetBundle.swift; sourceTree = "<group>"; };
 		f6b51b49f5ab5537a189796d /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		03f934da01b85ca5b31f0284 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		e75394fd0ab559b2bf1f0f57 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -229,11 +264,21 @@
 			path = NestKeep;
 			sourceTree = "<group>";
 		};
+		806968365f615019805bcea9 /* NestKeepWidget */ = {
+			isa = PBXGroup;
+			children = (
+				8785eee3a2ae59869fb7de5e /* NestKeepWidgetBundle.swift */,
+			);
+			path = NestKeepWidget;
+			sourceTree = "<group>";
+		};
 		53ebd12fa21250d88d83a005 = {
 			isa = PBXGroup;
 			children = (
 				02dbd39461e85fa5a817b082 /* NestKeep */,
+				806968365f615019805bcea9 /* NestKeepWidget */,
 				97a32b6869505131847b6e7b /* NestKeep.app */,
+				c14e96265fbb5ee5893d1722 /* NestKeepWidget.appex */,
 			);
 			sourceTree = "<group>";
 		};
@@ -247,15 +292,33 @@
 				0f824d16deea5deb9cf9167c /* Sources */,
 				03f934da01b85ca5b31f0284 /* Frameworks */,
 				8b8a1ebd2cef5f69bcfbfc44 /* Resources */,
+				b7fb29c28d12594f874e4cfd /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9bd32e0d614751c4a2b5573d /* PBXTargetDependency */,
 			);
 			name = NestKeep;
 			productName = NestKeep;
 			productReference = 97a32b6869505131847b6e7b /* NestKeep.app */;
 			productType = "com.apple.product-type.application";
+		};
+		857d572b57685a70be04a82d /* NestKeepWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 14ef8913bef15a37907a3cb7 /* Build configuration list for PBXNativeTarget "NestKeepWidget" */;
+			buildPhases = (
+				ca621bd5d0cf51378c9042d7 /* Sources */,
+				e75394fd0ab559b2bf1f0f57 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NestKeepWidget;
+			productName = NestKeepWidget;
+			productReference = c14e96265fbb5ee5893d1722 /* NestKeepWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -268,6 +331,9 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					d478a1d858af50e9bfa2b17f = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					857d572b57685a70be04a82d = {
 						CreatedOnToolsVersion = 15.0;
 					};
 				};
@@ -286,6 +352,7 @@
 			projectRoot = "";
 			targets = (
 				d478a1d858af50e9bfa2b17f /* NestKeep */,
+				857d572b57685a70be04a82d /* NestKeepWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -374,7 +441,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ca621bd5d0cf51378c9042d7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				e2cf5f83277152b89e9b0f64 /* NestKeepWidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9bd32e0d614751c4a2b5573d /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 857d572b57685a70be04a82d /* NestKeepWidget */;
+			targetProxy = d1ec238dad2d57d88d9073ab /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		af7691fbfa1451b580510089 /* Debug */ = {
@@ -418,6 +501,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				DEVELOPMENT_LANGUAGE = en;
+				CODE_SIGN_ENTITLEMENTS = NestKeep/NestKeep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -444,6 +528,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = YES;
 				DEVELOPMENT_LANGUAGE = en;
+				CODE_SIGN_ENTITLEMENTS = NestKeep/NestKeep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
@@ -458,6 +543,56 @@
 				MARKETING_VERSION = 1.6.3;
 				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5cbea436ea3f5e6d86774b9b /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NestKeepWidget/NestKeepWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NestKeepWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.6.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app.dev.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8519a50d0ef0516ea74a3874 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NestKeepWidget/NestKeepWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NestKeepWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.6.3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app.dev.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -481,6 +616,15 @@
 			buildConfigurations = (
 				31c9825cb6fb56e7b2091cf4 /* Debug */,
 				119856b3883552908d826dc2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		14ef8913bef15a37907a3cb7 /* Build configuration list for PBXNativeTarget "NestKeepWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5cbea436ea3f5e6d86774b9b /* Debug */,
+				8519a50d0ef0516ea74a3874 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

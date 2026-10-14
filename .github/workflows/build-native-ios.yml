@@ -210,7 +210,18 @@ jobs:
           cp "$ICONSET/icon-1024x1024@1x.png" Payload/NestKeep.app/AppIcon1024x1024.png
           ls -la Payload/NestKeep.app/ | grep -i appicon
 
-          codesign --force --sign - Payload/NestKeep.app
+          # 桌面小组件 extension：从 derivedData 拷进 PlugIns，带 entitlements 各自 ad-hoc 签
+          WIDGET="build/dd/Build/Products/Release-iphoneos/NestKeepWidget.appex"
+          if [ -d "$WIDGET" ]; then
+            mkdir -p Payload/NestKeep.app/PlugIns
+            cp -r "$WIDGET" Payload/NestKeep.app/PlugIns/
+            codesign --force --sign - --entitlements NestKeepWidget/NestKeepWidget.entitlements "Payload/NestKeep.app/PlugIns/NestKeepWidget.appex"
+            echo "widget appex embedded"
+          else
+            echo "WARN: widget appex not found"
+          fi
+
+          codesign --force --sign - --entitlements NestKeep/NestKeep.entitlements Payload/NestKeep.app
           rm -rf build/dd
           zip -r "$IPA_NAME" Payload
           rm -rf Payload

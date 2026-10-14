@@ -1137,6 +1137,17 @@ struct TransactionsView: View {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 await StatisticsViewModel.prefetchCurrentPeriodStatsCache()
             }
+            // 桌面小组件快照：本月收支（预算沿用上次快照值，统计页加载时更新）
+            var widgetBudgetCents: Int64 = 0
+            if let data = WidgetDataStore.sharedDefaults?.data(forKey: WidgetDataStore.snapshotKey),
+               let snapshot = try? JSONDecoder().decode(WidgetSnapshot.self, from: data) {
+                widgetBudgetCents = snapshot.budgetCents
+            }
+            WidgetDataStore.saveSnapshot(
+                expenseCents: vm.monthExpenseCents,
+                incomeCents: vm.monthIncomeCents,
+                budgetCents: widgetBudgetCents
+            )
             await bgSync
         }
         .onReceive(NotificationCenter.default.publisher(for: .homeBackgroundChanged)) { _ in
