@@ -148,7 +148,7 @@ struct ImportWizardView: View {
             }
             .fileImporter(
                 isPresented: $vm.showFilePicker,
-                allowedContentTypes: [.commaDelimitedText, .tabDelimitedText, .plainText],
+                allowedContentTypes: [Self.csvType, Self.tsvType, .plainText],
                 allowsMultipleSelection: false
             ) { result in
                 vm.handlePickedFile(result)
@@ -157,6 +157,10 @@ struct ImportWizardView: View {
         }
         .navigationViewStyle(.stack)
     }
+
+    // 某些 SDK 无 UTType.commaDelimitedText 静态成员，用 UTI 字符串构造更稳
+    static let csvType = UTType("public.comma-separated-values-text") ?? .plainText
+    static let tsvType = UTType("public.tab-separated-values-text") ?? .plainText
 
     // MARK: - 展示辅助
 
