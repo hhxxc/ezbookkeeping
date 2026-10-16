@@ -386,6 +386,9 @@ private struct EditKeyStyle: ButtonStyle {
 /// 金额支持 12+34.5-3 形式的顺序表达式；「再记」保存后不关页继续记下一笔。
 struct TransactionEditView: View {
     @StateObject private var vm: TransactionEditViewModel
+    /// 当前编辑的交易：sheet(item:) 复用本视图时用于感知切换（VM 随之 retarget 重载）
+    var transaction: Transaction?
+    var mode: TransactionEditMode = .add
     @Environment(\.dismiss) private var dismiss
 
     @State private var showAccountSheet = false
@@ -953,6 +956,7 @@ struct TransactionEditView: View {
                 .foregroundColor(amountColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                .animation(.easeOut(duration: 0.12), value: displayAmount)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
@@ -1080,9 +1084,16 @@ struct TransactionEditView: View {
         }
     }
 
+    /// 触感生成器缓存复用：每次新建实例首次触发有明显延迟（预热 + 实例化开销），
+    /// 复用 + prepare 是按键「跟手」的关键
+    private static let lightHaptic = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumHaptic = UIImpactFeedbackGenerator(style: .medium)
+
     private func tapKey(_ key: EditKey) {
         // 按键触感：普通键轻反馈，保存键稍重
-        UIImpactFeedbackGenerator(style: key == .save ? .medium : .light).impactOccurred()
+        let generator = key == .save ? Self.mediumHaptic : Self.lightHaptic
+        generator.prepare()
+        generator.impactOccurred()
         switch key {
         case .digit(let d):
             appendDigit(d)
