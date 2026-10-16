@@ -15,10 +15,10 @@ enum TransactionEditMode {
 /// 支持 支出 / 收入 / 转账 / 余额调整 四种类型（对齐手机端 Web）。
 @MainActor
 final class TransactionEditViewModel: ObservableObject {
-    let mode: TransactionEditMode
-    let originalId: String?
+    var mode: TransactionEditMode
+    var originalId: String?
     /// 待回填的原始交易（复制模式不带 id 保存）
-    private let pending: Transaction?
+    private var pending: Transaction?
 
     @Published var type: TransactionType = .expense
     @Published var amountText = ""
@@ -66,6 +66,23 @@ final class TransactionEditViewModel: ObservableObject {
         self.mode = mode
         self.pending = transaction
         self.installmentEnabled = defaultInstallment
+    }
+
+    /// sheet(item:) 复用同一 @StateObject VM 时按新交易重置状态。
+    /// 不重置的话 didSave 残留 true：二次保存成功后 onChange 不再触发 → 页面不跳转（已实测的 bug）
+    func retarget(transaction: Transaction?, mode: TransactionEditMode) {
+        guard self.originalId != transaction?.id || self.mode != mode else { return }
+        self.originalId = transaction?.id
+        self.mode = mode
+        self.pending = transaction
+        didSave = false
+        error = nil
+        clientSessionId = UUID().uuidString
+    }
+
+    /// 保存标记复位：dismiss 后调用，保证同一 VM 的下一次保存仍能触发 onChange
+    func resetSaveFlag() {
+        didSave = false
     }
 
     var navigationTitle: String {
@@ -461,7 +478,14 @@ struct TransactionEditView: View {
             if saved {
                 dismiss()
                 onSaved?()
+                // 立即复位：sheet(item:) 复用 VM 时，下一次保存才能再次触发本回调
+                vm.resetSaveFlag()
             }
+        }
+        .onChange(of: transaction?.id ?? "") { _ in
+            // sheet(item:) 换了交易（VM 复用）：按新交易重置并重载
+            vm.retarget(transaction: transaction, mode: mode)
+            Task { await vm.load() }
         }
         .sheet(isPresented: $showAccountSheet) {
             EditAccountPickerSheet(
