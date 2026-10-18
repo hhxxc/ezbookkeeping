@@ -25,6 +25,8 @@ final class StatisticsViewModel: ObservableObject {
     @Published var isYearMode = false
 
     private var categories: [TransactionCategory] = []
+    /// 每次 load 递增：用于丢弃「过期请求」的结果（快速切月/切年时旧响应可能后到）
+    private var loadGeneration = 0
     /// 账户列表（用于账户过滤）
     @Published var accounts: [Account] = []
     /// 标签列表（用于标签过滤）
@@ -145,12 +147,18 @@ final class StatisticsViewModel: ObservableObject {
     }
 
     func load() async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         isLoading = true
         error = nil
         do {
-            // 引用数据走共享缓存（冷启动只拉一次）
-            categories = (try? await AppDataStore.shared.getCategories()) ?? []
-            accounts = (try? await AppDataStore.shared.getAccounts()) ?? []
+            // 引用数据走共享缓存（冷启动只拉一次）；两者并行取，别串成两个 RTT
+            // （先在主 actor 上取到单例引用，async let 子任务里只 await 其方法）
+            let store = AppDataStore.shared
+            async let cachedCategories = store.getCategories()
+            async let cachedAccounts = store.getAccounts()
+            categories = (try? await cachedCategories) ?? []
+            accounts = (try? await cachedAccounts) ?? []
             guard let start = Calendar.current.date(from: DateComponents(
                       year: year,
                       month: isYearMode ? 1 : month,
@@ -197,6 +205,10 @@ final class StatisticsViewModel: ObservableObject {
             let stats = try await statResp
             let daily = (try? await dailyResp) ?? []
 
+            // 期间又切了月份/年模式或改了筛选：本次结果作废，避免慢的旧响应覆盖新周期
+            // （快速连点月份箭头时很常见，表现为数字停在上个月）
+            guard generation == loadGeneration else { return }
+
             // 缓存原始响应：solo「只看某分类」切换时本地重算，不重复请求
             lastStatItems = stats.items
             lastDailyItems = daily
@@ -207,6 +219,7 @@ final class StatisticsViewModel: ObservableObject {
             hasLoadedOnce = true
             isLoading = false
         } catch {
+            guard generation == loadGeneration else { return }
             isLoading = false
             self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
         }
