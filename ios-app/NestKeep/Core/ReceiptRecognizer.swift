@@ -11,7 +11,7 @@ enum ReceiptRecognizer {
 
     /// 后端返回的单条识别结果。字段语义与 Go 侧同名结构体一致：
     /// type/time/categoryId/sourceAccountId/destinationAccountId/sourceAmount/destinationAmount/tagIds/comment
-    struct Recognized: Codable, Identifiable {
+    struct Recognized: Codable, Identifiable, Sendable {
         var id = UUID()
         let type: Int
         let time: Int64?
@@ -70,6 +70,19 @@ enum ReceiptRecognizer {
         }
     }
 
+    /// 识图专用会话（复用连接池）：多图并发识别时共享长连接，避免每张图重建
+    /// TLS 握手；超时单独放宽（与 Web 的 DEFAULT_LLM_API_TIMEOUT 对齐）。
+    /// ⚠️ 必须用这个 config 建 session：URLSession.shared 不吃 configuration（默认 60s，
+    /// 之前一直用它导致 120s 配置形同虚设，弱网大图必超时）
+    private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 200
+        config.timeoutIntervalForResource = 300
+        // 与调用方并发上限 4 对齐，留一条余量避免队头阻塞
+        config.httpMaximumConnectionsPerHost = 4
+        return URLSession(configuration: config)
+    }()
+
     /// 上传图片并识别。失败时抛 `APIError`（含后端中文错误信息，如「图片中没有交易信息」）。
     static func recognize(imageData: Data, fileName: String = "receipt.jpg") async throws -> [Recognized] {
         let boundary = "----NestKeepAIBoundary\(UUID().uuidString)"
@@ -98,14 +111,7 @@ enum ReceiptRecognizer {
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         req.httpBody = body
 
-        // 识图较慢，单独放宽超时（与 Web 的 DEFAULT_LLM_API_TIMEOUT 对齐）。
-        // ⚠️ 必须用这个 config 建 session：URLSession.shared 不吃 configuration（默认 60s，
-        // 之前一直用它导致 120s 配置形同虚设，弱网大图必超时）
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 200
-        config.timeoutIntervalForResource = 300
-        let session = URLSession(configuration: config)
-        let (data, _) = try await session.data(for: req)
+        let (data, _) = try await Self.session.data(for: req)
 
         let decoder = JSONDecoder()
         if let envelope = try? decoder.decode(APIEnvelope<[Recognized]>.self, from: data) {

@@ -49,16 +49,62 @@ final class AIReceiptViewModel: ObservableObject {
         await recognizeAll(lastImages)
     }
 
-    /// 识别失败自动重试一次（超时/网络抖动；识别本身较慢，只重试一次避免久等）
-    private func recognizeWithRetry(_ data: Data) async throws -> [ReceiptRecognizer.Recognized] {
+    /// 只有传输层 / 服务端临时故障才值得再等一次：后端已明确返回的业务错误
+    /// （如「图片中没有交易信息」「额度不足」）重试只是让用户白等一个来回
+    private nonisolated static func shouldRetry(_ error: Error) -> Bool {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .http(let status):
+                return status >= 500 || status == 408 || status == 429
+            case .invalidResponse, .decoding:
+                return true
+            case .server, .notAuthenticated, .twoFactorRequired, .invalidURL:
+                return false
+            }
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return false
+        }
+        return true
+    }
+
+    /// 错误文案统一口径（后端业务错误带中文 message）
+    private nonisolated static func describe(_ error: Error) -> String {
+        (error as? APIError)?.errorDescription ?? error.localizedDescription
+    }
+
+    /// 单张图片的识别结果（结构体满足 Sendable，才能作为 TaskGroup 的子任务返回值；
+    /// 不用 Result<_, Error> 是因为 Swift.Error 本身不是 Sendable）
+    private struct RecognitionOutcome: Sendable {
+        let index: Int
+        let items: [ReceiptRecognizer.Recognized]
+        let message: String?
+    }
+
+    /// 单张识别（含一次条件重试）。独立于主 actor 运行，供多图并发调用
+    private nonisolated static func recognizeOne(index: Int, data: Data) async -> RecognitionOutcome {
         do {
-            return try await ReceiptRecognizer.recognize(imageData: data)
+            return RecognitionOutcome(index: index,
+                                      items: try await ReceiptRecognizer.recognize(imageData: data),
+                                      message: nil)
         } catch {
-            return try await ReceiptRecognizer.recognize(imageData: data)
+            guard shouldRetry(error) else {
+                return RecognitionOutcome(index: index, items: [], message: describe(error))
+            }
+            do {
+                return RecognitionOutcome(index: index,
+                                          items: try await ReceiptRecognizer.recognize(imageData: data),
+                                          message: nil)
+            } catch {
+                return RecognitionOutcome(index: index, items: [], message: describe(error))
+            }
         }
     }
 
-    /// 识别多张图片（顺序识别，结果合并；单张失败不中断，最后汇总提示）
+    /// 识别多张图片（限并发 4，结果仍按选图顺序合并；单张失败不中断，最后汇总提示）。
+    /// 原来是逐张串行：LLM 单张 3~8 秒，选满 9 张要等一分多钟。Web 端本就是全并发
+    /// （Promise.allSettled），后端扛得住；这里限 4 是为了别把 8Mbps 隧道上行和上游
+    /// 模型限流一次打满（总上传字节不变，并发只让「模型等待」重叠）
     func recognizeAll(_ images: [Data]) async {
         guard !images.isEmpty else { return }
         lastImages = images
@@ -69,22 +115,38 @@ final class AIReceiptViewModel: ObservableObject {
         previewImage = images.first.flatMap { UIImage(data: $0) }
         previewCount = images.count
 
-        var all: [ReceiptRecognizer.Recognized] = []
-        var firstError: String?
+        let total = images.count
+        // 按图片下标回填：并发完成顺序不定，最终展示顺序仍与选图一致
+        var perImage: [[ReceiptRecognizer.Recognized]] = Array(repeating: [], count: total)
+        var failureMessages = [String?](repeating: nil, count: total)
+        var finished = 0
 
-        for (index, data) in images.enumerated() {
-            progressText = images.count > 1 ? "识别中 \(index + 1)/\(images.count)…" : "识别中…"
-            do {
-                all += try await recognizeWithRetry(data)
-            } catch {
-                if firstError == nil {
-                    firstError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        let maxConcurrent = min(4, total)
+        await withTaskGroup(of: RecognitionOutcome.self) { group in
+            var nextIndex = 0
+            while nextIndex < maxConcurrent {
+                let index = nextIndex
+                group.addTask { await AIReceiptViewModel.recognizeOne(index: index, data: images[index]) }
+                nextIndex += 1
+            }
+            while let outcome = await group.next() {
+                perImage[outcome.index] = outcome.items
+                failureMessages[outcome.index] = outcome.message
+                finished += 1
+                progressText = total > 1 ? "已识别 \(finished)/\(total)…" : "识别中…"
+                if nextIndex < total {
+                    let index = nextIndex
+                    nextIndex += 1
+                    group.addTask { await AIReceiptViewModel.recognizeOne(index: index, data: images[index]) }
                 }
             }
         }
 
         isLoading = false
         progressText = ""
+
+        let all = perImage.flatMap { $0 }
+        let firstError = failureMessages.compactMap { $0 }.first
 
         results = all
         // 默认全部添加（对齐 Web 端识图 Sheet 的全选行为）
