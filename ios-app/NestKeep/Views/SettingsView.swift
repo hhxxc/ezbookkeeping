@@ -5,9 +5,12 @@ import UIKit
 struct SettingsView: View {
     @EnvironmentObject private var auth: AuthManager
     @ObservedObject private var updateStore = UpdateStore.shared
+    @ObservedObject private var settings = AppSettings.shared
 
     @State private var showUpdateSheet = false
     @State private var showLogoutConfirm = false
+    @State private var showServerSheet = false
+    @State private var serverDraft = ""
 
     var body: some View {
         NavigationView {
@@ -45,6 +48,23 @@ struct SettingsView: View {
                     } label: {
                         Label("个人资料", systemImage: "person.text.rectangle")
                     }
+                    // 服务器地址：已登录也可查看/修改（地址脏了不必退出登录才能修，
+                    // 也是排查「hostname could not be found」类问题的第一入口）
+                    Button {
+                        serverDraft = settings.serverURL.absoluteString
+                        showServerSheet = true
+                    } label: {
+                        HStack {
+                            Label("服务器地址", systemImage: "server.rack")
+                            Spacer()
+                            Text(settings.serverURL.absoluteString)
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                    .foregroundColor(.primary)
                 }
 
                 // 数据管理
@@ -219,6 +239,11 @@ struct SettingsView: View {
             .sheet(isPresented: $showUpdateSheet) {
                 UpdateResultSheet(updateStore: updateStore)
             }
+            .sheet(isPresented: $showServerSheet) {
+                ServerAddressSheet(serverURL: $serverDraft) { newValue in
+                    settings.setServerURL(newValue)
+                }
+            }
             .confirmationDialog("确认退出登录？", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
                 Button("退出登录", role: .destructive) { auth.logout() }
                 Button("取消", role: .cancel) {}
@@ -243,6 +268,50 @@ struct SettingsView: View {
         }
         .frame(width: 44, height: 44)
         .clipShape(Circle())
+    }
+}
+
+/// 服务器地址编辑弹层（设置页「服务器地址」行呼出）。
+/// 保存按钮在地址不合法时禁用（normalizeServerURL 会拒绝含全角符号等
+/// 脏字符的地址——它们能过 URL 解析但 DNS 永远失败），避免存进坏值。
+struct ServerAddressSheet: View {
+    @Binding var serverURL: String
+    let onSave: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    /// 归一化后的结果（非法为 nil，用于禁用保存按钮）
+    private var normalized: URL? { AppSettings.normalizeServerURL(serverURL) }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(footer: Text("修改后立即生效。地址错误（如粘贴时混入全角符号）会导致所有请求失败：A server with the specified hostname could not be found。")) {
+                    TextField("https://example.com", text: $serverURL)
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                }
+            }
+            .navigationTitle("服务器地址")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        if let url = normalized {
+                            onSave(url.absoluteString)
+                        }
+                        dismiss()
+                    }
+                    .disabled(normalized == nil)
+                }
+            }
+        }
+        // 与外层一致：iOS 15 默认 DoubleColumn 在 sheet 里也会出现安全区异常
+        .navigationViewStyle(.stack)
     }
 }
 
