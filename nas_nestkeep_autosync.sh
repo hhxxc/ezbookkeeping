@@ -207,8 +207,15 @@ if [ "$CHECK_OK" -ne 1 ]; then
 fi
 
 # 4. 发布：暂存内容覆盖进正式目录
+#    ⚠️ 必须 -r（群晖 cp 对 "$SRC"/. 目录源无 -r 会拒绝复制整个目录）；
+#    cp 失败必须拦截——否则基线被消费但内容没发布，该版本就永远丢了
 mkdir -p "$DATA_DIR"
-cp -f "$STAGING"/. "$DATA_DIR"/ >> "$LOG" 2>&1
+if ! cp -rf "$STAGING"/. "$DATA_DIR"/ >> "$LOG" 2>&1; then
+    log "ERROR: 发布复制失败，基线未更新，下轮重试"
+    mark_fail "发布复制失败"
+    rm -rf "$STAGING"
+    exit 1
+fi
 rm -rf "$STAGING"
 # docker cp 以 root 执行后文件属主变 root，会挡住以后 hhxxc 手动发版脚本的覆盖写；
 # 只归还第一层文件（清单/IPA），不动 proxy-cache 子目录——容器（uid 1000）对它有写权限
