@@ -167,28 +167,60 @@ if [ -n "$DATA_OWNER" ]; then
     find "$DATA_DIR" -maxdepth 1 ! -name "$(basename "$DATA_DIR")" -exec chown "$DATA_OWNER" {} + 2>/dev/null
 fi
 
-# 3. 校验：至少一份清单 + 最新 IPA 是 zip 头（防镜像/解包异常污染发布目录）
-if ! ls "$DATA_DIR"/latest-*.json >/dev/null 2>&1; then
-    log "ERROR: 解包后找不到 latest-*.json，基线未更新，下轮重试"
+# 3. 校验：至少一份清单 + 每份清单引用的 IPA 存在且为 zip 头
+#    （防镜像/解包异常污染发布目录）
+#    ⚠️ 以清单引用为准，不看目录里"最新的 .ipa"——2026-10-20 教训：
+#    同目录曾混入非 IPA 内容的 .ipa 后缀文件（manifest-trilium.ipa，实为
+#    JSON 清单），按 mtime 取最新校验每轮必失败 → 基线不更新 → 死循环。
+#    ⚠️ glob 用 latest*.json（含无横杠的 latest.json，dev 主清单），
+#    latest-*.json 会漏掉它。
+if ! ls "$DATA_DIR"/latest*.json >/dev/null 2>&1; then
+    log "ERROR: 解包后找不到 latest*.json 清单，基线未更新，下轮重试"
     mark_fail "解包后找不到更新清单"
     exit 1
 fi
 
-NEWEST_IPA=$(ls -t "$DATA_DIR"/*.ipa 2>/dev/null | head -1)
-if [ -n "$NEWEST_IPA" ]; then
-    if ! head -c 2 "$NEWEST_IPA" | grep -q "PK"; then
-        log "ERROR: IPA 文件头校验失败（$NEWEST_IPA），基线未更新，下轮重试"
-        mark_fail "IPA 文件头校验失败"
-        exit 1
+# 从清单 ipaUrl 提取文件名（容忍带/不带空格、URL 查询串）
+manifest_ipa_names() {
+    grep -h -o '"ipaUrl": *"[^"]*"' "$DATA_DIR"/latest*.json 2>/dev/null \
+        | sed 's/.*\/\([^\/"?]*\)"/\1/' | sort -u
+}
+
+CHECK_OK=1
+while IFS= read -r ipa_name; do
+    [ -n "$ipa_name" ] || continue
+    ipa_file="$DATA_DIR/$ipa_name"
+    if [ ! -f "$ipa_file" ]; then
+        log "ERROR: 清单引用的 $ipa_name 不存在，基线未更新，下轮重试"
+        CHECK_OK=0
+        break
     fi
+    if ! head -c 2 "$ipa_file" | grep -q "PK"; then
+        log "ERROR: 清单引用的 $ipa_name 文件头非 PK，基线未更新，下轮重试"
+        CHECK_OK=0
+        break
+    fi
+done <<< "$(manifest_ipa_names)"
+if [ "$CHECK_OK" -ne 1 ]; then
+    mark_fail "清单引用的 IPA 缺失或损坏"
+    exit 1
 fi
 
-# 4. 清理旧 IPA：按修改时间只保留最近 5 个（每个 ~2-5MB）
-ls -t "$DATA_DIR"/*.ipa 2>/dev/null | tail -n +6 | xargs -r rm -f
+# 4. 清理旧 IPA：未被清单引用的按修改时间只保留最近 5 个（每个 ~2-5MB）；
+#    清单引用的永不删（否则 App 更新直链 404，只能走反代兜底）
+ls -t "$DATA_DIR"/*.ipa 2>/dev/null | while IFS= read -r f; do
+    base=$(basename "$f")
+    case "
+$(manifest_ipa_names)" in *"
+$base"*) continue ;; esac
+    KEEP=$(( ${KEEP:-0} + 1 ))
+    [ "$KEEP" -le 5 ] && continue
+    rm -f "$f"
+done
 
 mark_ok
 echo "$REMOTE" > "$DIGEST_FILE"
-VERSIONS=$(grep -h -o '"version": *"[^"]*"' "$DATA_DIR"/latest-*.json 2>/dev/null | tr '\n' ' ')
+VERSIONS=$(grep -h -o '"version": *"[^"]*"' "$DATA_DIR"/latest*.json 2>/dev/null | tr '\n' ' ')
 log "同步完成，已更新基线。当前清单版本：$VERSIONS"
 
 # 日志只留最近 500 行
