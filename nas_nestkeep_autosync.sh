@@ -157,9 +157,59 @@ if [ -z "$CID" ]; then
     exit 1
 fi
 
-mkdir -p "$DATA_DIR"
-"$DOCKER_BIN" cp "$CID":/data/. "$DATA_DIR/" >> "$LOG" 2>&1
+# 从清单 ipaUrl 提取文件名（容忍带/不带空格、URL 查询串）。
+# ⚠️ glob 用 latest*.json（含无横杠的 latest.json，dev 主清单），
+# latest-*.json 会漏掉它。
+# $1=清单所在目录（缺省 $DATA_DIR）
+manifest_ipa_names() {
+    grep -h -o '"ipaUrl": *"[^"]*"' "${1:-$DATA_DIR}"/latest*.json 2>/dev/null \
+        | sed 's/.*\/\([^\/"?]*\)"/\1/' | sort -u
+}
+
+# 3. 先解包到暂存目录并校验「镜像自身内容」，通过才发布到正式目录：
+#    - 防镜像/解包异常污染发布目录（校验失败时正式目录原样未动）
+#    - 不受发布目录里历史遗留清单影响（2026-10-20 教训：目录里旧的
+#      latest-pro.json 引用的 IPA 已被历史清理删掉，若按目录校验会
+#      卡住与本次镜像无关的同步；另曾混入非 IPA 内容的 .ipa 后缀文件
+#      manifest-trilium.ipa，按 mtime 取最新 .ipa 校验也会死循环）
+STAGING="$STATE_DIR/.nk_staging"
+rm -rf "$STAGING"
+mkdir -p "$STAGING"
+"$DOCKER_BIN" cp "$CID":/data/. "$STAGING/" >> "$LOG" 2>&1
 "$DOCKER_BIN" rm "$CID" >/dev/null 2>&1
+
+if ! ls "$STAGING"/latest*.json >/dev/null 2>&1; then
+    log "ERROR: 镜像内无 latest*.json 清单，基线未更新，下轮重试"
+    mark_fail "镜像内无更新清单"
+    rm -rf "$STAGING"
+    exit 1
+fi
+
+CHECK_OK=1
+while IFS= read -r ipa_name; do
+    [ -n "$ipa_name" ] || continue
+    ipa_file="$STAGING/$ipa_name"
+    if [ ! -f "$ipa_file" ]; then
+        log "ERROR: 镜像清单引用的 $ipa_name 不在镜像内，基线未更新，下轮重试"
+        CHECK_OK=0
+        break
+    fi
+    if ! head -c 2 "$ipa_file" | grep -q "PK"; then
+        log "ERROR: 镜像清单引用的 $ipa_name 文件头非 PK，基线未更新，下轮重试"
+        CHECK_OK=0
+        break
+    fi
+done <<< "$(manifest_ipa_names "$STAGING")"
+if [ "$CHECK_OK" -ne 1 ]; then
+    mark_fail "镜像清单引用的 IPA 缺失或损坏"
+    rm -rf "$STAGING"
+    exit 1
+fi
+
+# 4. 发布：暂存内容覆盖进正式目录
+mkdir -p "$DATA_DIR"
+cp -f "$STAGING"/. "$DATA_DIR"/ >> "$LOG" 2>&1
+rm -rf "$STAGING"
 # docker cp 以 root 执行后文件属主变 root，会挡住以后 hhxxc 手动发版脚本的覆盖写；
 # 只归还第一层文件（清单/IPA），不动 proxy-cache 子目录——容器（uid 1000）对它有写权限
 DATA_OWNER=$(stat -c '%U:%G' "$DATA_DIR" 2>/dev/null)
@@ -167,51 +217,20 @@ if [ -n "$DATA_OWNER" ]; then
     find "$DATA_DIR" -maxdepth 1 ! -name "$(basename "$DATA_DIR")" -exec chown "$DATA_OWNER" {} + 2>/dev/null
 fi
 
-# 3. 校验：至少一份清单 + 每份清单引用的 IPA 存在且为 zip 头
-#    （防镜像/解包异常污染发布目录）
-#    ⚠️ 以清单引用为准，不看目录里"最新的 .ipa"——2026-10-20 教训：
-#    同目录曾混入非 IPA 内容的 .ipa 后缀文件（manifest-trilium.ipa，实为
-#    JSON 清单），按 mtime 取最新校验每轮必失败 → 基线不更新 → 死循环。
-#    ⚠️ glob 用 latest*.json（含无横杠的 latest.json，dev 主清单），
-#    latest-*.json 会漏掉它。
-if ! ls "$DATA_DIR"/latest*.json >/dev/null 2>&1; then
-    log "ERROR: 解包后找不到 latest*.json 清单，基线未更新，下轮重试"
-    mark_fail "解包后找不到更新清单"
-    exit 1
-fi
-
-# 从清单 ipaUrl 提取文件名（容忍带/不带空格、URL 查询串）
-manifest_ipa_names() {
-    grep -h -o '"ipaUrl": *"[^"]*"' "$DATA_DIR"/latest*.json 2>/dev/null \
-        | sed 's/.*\/\([^\/"?]*\)"/\1/' | sort -u
-}
-
-CHECK_OK=1
+# 5. 历史遗留体检（仅告警不拦截）：发布目录中清单引用的 IPA 若缺失，
+#    对应变体 App 更新将走反代/GitHub 兜底，下次该变体发版会自愈
 while IFS= read -r ipa_name; do
     [ -n "$ipa_name" ] || continue
-    ipa_file="$DATA_DIR/$ipa_name"
-    if [ ! -f "$ipa_file" ]; then
-        log "ERROR: 清单引用的 $ipa_name 不存在，基线未更新，下轮重试"
-        CHECK_OK=0
-        break
-    fi
-    if ! head -c 2 "$ipa_file" | grep -q "PK"; then
-        log "ERROR: 清单引用的 $ipa_name 文件头非 PK，基线未更新，下轮重试"
-        CHECK_OK=0
-        break
-    fi
-done <<< "$(manifest_ipa_names)"
-if [ "$CHECK_OK" -ne 1 ]; then
-    mark_fail "清单引用的 IPA 缺失或损坏"
-    exit 1
-fi
+    [ -f "$DATA_DIR/$ipa_name" ] || \
+        log "WARN: 发布目录清单引用的 $ipa_name 缺失（历史遗留，App 走兜底下载）"
+done <<< "$(manifest_ipa_names "$DATA_DIR")"
 
-# 4. 清理旧 IPA：未被清单引用的按修改时间只保留最近 5 个（每个 ~2-5MB）；
+# 6. 清理旧 IPA：未被清单引用的按修改时间只保留最近 5 个（每个 ~2-5MB）；
 #    清单引用的永不删（否则 App 更新直链 404，只能走反代兜底）
 ls -t "$DATA_DIR"/*.ipa 2>/dev/null | while IFS= read -r f; do
     base=$(basename "$f")
     case "
-$(manifest_ipa_names)" in *"
+$(manifest_ipa_names "$DATA_DIR")" in *"
 $base"*) continue ;; esac
     KEEP=$(( ${KEEP:-0} + 1 ))
     [ "$KEEP" -le 5 ] && continue
