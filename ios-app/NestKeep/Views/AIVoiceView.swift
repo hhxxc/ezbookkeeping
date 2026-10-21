@@ -20,9 +20,9 @@ final class AIVoiceViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    /// 录音中实时上屏转写；松开后以手动编辑为优先
+    /// 录音中/收尾中实时上屏转写；完全结束后以手动编辑为优先
     var displayText: String {
-        if transcriber.isRecording { return transcriber.transcript }
+        if transcriber.isRecording || transcriber.isFinalizing { return transcriber.transcript }
         if let manual = manualText, !manual.isEmpty { return manual }
         return transcriber.transcript
     }
@@ -51,7 +51,7 @@ final class AIVoiceViewModel: ObservableObject {
 
     /// 提交解析（提交按钮触发）
     func parseIfNeeded() async {
-        guard hasText, !isParsing, !transcriber.isRecording else { return }
+        guard hasText, !isParsing, !transcriber.isRecording, !transcriber.isFinalizing else { return }
         isParsing = true
         error = nil
         do {
@@ -183,17 +183,21 @@ struct AIVoiceView: View {
         }
         .onAppear {
             vm.onParsed = onParsed
+            // 进入即预热语音识别（提前弹授权、建 recognizer），按住说话时零冷启动
+            vm.transcriber.prepare()
         }
         .onDisappear {
             vm.transcriber.stop()
         }
     }
 
-    /// 录音中：只读实时转写；空闲：可编辑（绑定手动编辑，空时显示占位提示）
+    /// 录音中：只读实时转写；收尾中：等 final 定格；空闲：可编辑（绑定手动编辑，空时显示占位提示）
     private var transcriptEditor: some View {
         ZStack(alignment: .topLeading) {
-            if vm.transcriber.isRecording {
-                Text(vm.displayText.isEmpty ? "正在听…" : vm.displayText)
+            if vm.transcriber.isRecording || vm.transcriber.isFinalizing {
+                Text(vm.displayText.isEmpty
+                     ? (vm.transcriber.isFinalizing ? "正在转写…" : "正在听…")
+                     : vm.displayText)
                     .font(.system(size: 20, weight: .medium))
                     .foregroundColor(HomePalette.ink)
                     .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
@@ -224,9 +228,9 @@ struct AIVoiceView: View {
         .frame(maxWidth: .infinity)
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(16)
-        // 一键清除：清掉识别+手动编辑的全部内容（录音中/解析中不显示，防止误触丢转写）
+        // 一键清除：清掉识别+手动编辑的全部内容（录音/收尾/解析中不显示，防止误触丢转写）
         .overlay(alignment: .topTrailing) {
-            if vm.hasText && !vm.transcriber.isRecording && !vm.isParsing {
+            if vm.hasText && !vm.transcriber.isRecording && !vm.transcriber.isFinalizing && !vm.isParsing {
                 Button {
                     vm.clearText()
                 } label: {
@@ -242,6 +246,7 @@ struct AIVoiceView: View {
 
     private var statusText: String {
         if vm.isParsing { return "正在解析…" }
+        if vm.transcriber.isFinalizing { return "正在转写…" }
         if vm.transcriber.isRecording { return "正在听…松开结束" }
         if vm.hasText { return "确认或修改文字后点上方按钮提交；按住麦克风可继续补充" }
         return "按住麦克风说话，松开结束"
@@ -249,15 +254,16 @@ struct AIVoiceView: View {
 
     /// 按住说话的麦克风按钮：按下开始录音、松开停止（不自动解析）
     private var micButton: some View {
-        ZStack {
-            // 录音中的发散光圈：三圈错峰从按钮向外扩散并淡出（雷达式）
+        let active = vm.transcriber.isRecording || vm.transcriber.isFinalizing
+        return ZStack {
+            // 录音/收尾中的发散光圈：三圈错峰从按钮向外扩散并淡出（雷达式）
             ForEach(0..<3, id: \.self) { index in
-                RippleRing(isActive: vm.transcriber.isRecording, delay: Double(index) * 0.66)
+                RippleRing(isActive: active, delay: Double(index) * 0.66)
             }
             Circle()
-                .fill(vm.transcriber.isRecording ? Theme.expense : Theme.brand)
+                .fill(active ? Theme.expense : Theme.brand)
                 .frame(width: 72, height: 72)
-            Image(systemName: vm.transcriber.isRecording ? "waveform" : "mic.fill")
+            Image(systemName: active ? "waveform" : "mic.fill")
                 .font(.system(size: 28))
                 .foregroundColor(.white)
         }
@@ -271,7 +277,7 @@ struct AIVoiceView: View {
                 vm.endHold()
             }
         }, perform: {})
-        .disabled(vm.isParsing)
+        .disabled(vm.isParsing || vm.transcriber.isFinalizing)
     }
 
     private var submitButton: some View {
@@ -289,13 +295,13 @@ struct AIVoiceView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 13)
             .background(
-                Capsule().fill(vm.hasText && !vm.transcriber.isRecording
+                Capsule().fill(vm.hasText && !vm.transcriber.isRecording && !vm.transcriber.isFinalizing
                                ? Theme.brand
                                : Color(.systemFill))
             )
         }
-        .foregroundColor(vm.hasText && !vm.transcriber.isRecording ? .white : Color(.placeholderText))
-        .disabled(!vm.hasText || vm.isParsing || vm.transcriber.isRecording)
+        .foregroundColor(vm.hasText && !vm.transcriber.isRecording && !vm.transcriber.isFinalizing ? .white : Color(.placeholderText))
+        .disabled(!vm.hasText || vm.isParsing || vm.transcriber.isRecording || vm.transcriber.isFinalizing)
     }
 }
 
