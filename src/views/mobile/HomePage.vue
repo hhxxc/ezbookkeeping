@@ -558,6 +558,34 @@ function onAIImagePicked(event: Event): void {
     showAIReceiptImageRecognitionSheet.value = true;
 }
 
+let statisticsPagePrefetched = false;
+
+/**
+ * 空闲时预取统计页（懒加载路由，chunk 约 97KB：页面 + statistics store）。
+ * 点底部「统计」tab 时就不必再等下载；延迟 5s 触发，避免和首屏预热抢带宽。
+ * 失败无副作用——真点进去时仍会正常按需加载。
+ */
+function prefetchStatisticsPage(): void {
+    if (statisticsPagePrefetched) {
+        return;
+    }
+
+    statisticsPagePrefetched = true;
+
+    const run = (): void => {
+        void import('@/views/mobile/statistics/TransactionPage.vue');
+    };
+    const idleCallback = (window as Window & {
+        requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
+    }).requestIdleCallback;
+
+    if (typeof idleCallback === 'function') {
+        idleCallback(run, { timeout: 6000 });
+    } else {
+        setTimeout(run, 3000);
+    }
+}
+
 function init(): void {
     if (isUserLogined() && isUserUnlocked()) {
         // 当天缓存先顶上（首屏接口在外网隧道下要几百毫秒，不必让用户盯着骨架屏），
@@ -567,6 +595,7 @@ function init(): void {
         // Load overview first for fast initial paint, then warm caches in background
         overviewStore.loadTransactionOverview({ force: false, loadLast11Months: true }).then(() => {
             loading.value = false;
+            prefetchStatisticsPage();
         }).catch(error => {
             loading.value = false;
 
