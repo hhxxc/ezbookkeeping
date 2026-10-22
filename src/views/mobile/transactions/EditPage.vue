@@ -663,7 +663,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, useTemplateRef } from 'vue';
+import { ref, computed, watch, useTemplateRef, onMounted } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
 import { useI18n } from '@/locales/helpers.ts';
@@ -815,6 +815,27 @@ const pictureBrowser = useTemplateRef<PhotoBrowser.PhotoBrowser>('pictureBrowser
 const pictureInput = useTemplateRef<HTMLInputElement>('pictureInput');
 
 const isSupportClipboard = !!navigator.clipboard;
+
+// 页面进来后空闲时预取三个记账必用弹层（分类 / 账户 / 日期）。
+// 它们都是 defineAsyncComponent，首次点开才下载 chunk，外网隧道下有明显等待感；
+// 这里只是提前把同样的 chunk 拉下来（模块缓存命中，不会重复请求），失败无副作用。
+onMounted(() => {
+    const prefetch = (): void => {
+        void import('@/components/mobile/TreeViewSelectionSheet.vue');
+        void import('@/components/mobile/TwoColumnListItemSelectionSheet.vue');
+        void import('@/components/mobile/DateSelectionSheet.vue');
+    };
+
+    const idleCallback = (window as Window & {
+        requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
+    }).requestIdleCallback;
+
+    if (typeof idleCallback === 'function') {
+        idleCallback(prefetch, { timeout: 3000 });
+    } else {
+        setTimeout(prefetch, 1500);
+    }
+});
 
 const loadingError = ref<unknown | null>(null);
 const removingPictureId = ref<string | null>(null);

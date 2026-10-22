@@ -281,9 +281,25 @@ export const useOverviewStore = defineStore('overview', () => {
         return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
     }
 
+    /**
+     * 清空所有用户的概览缓存。
+     * 登出流程里 currentUserBasicInfo 可能已被清空，此时按当前 key 删不到真实用户那份，
+     * 所以这里按前缀遍历删——缓存体积很小（几 KB），全清代价可忽略。
+     */
     function clearOverviewCache(): void {
         try {
-            localStorage.removeItem(getOverviewCacheKey());
+            const prefix = `${OVERVIEW_CACHE_KEY_PREFIX}_`;
+            const keysToRemove: string[] = [];
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+
+                if (key && key.startsWith(prefix)) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            keysToRemove.forEach(key => localStorage.removeItem(key));
         } catch {
             // 存储不可用时忽略
         }
@@ -295,6 +311,11 @@ export const useOverviewStore = defineStore('overview', () => {
      * 注意：不清除 transactionOverviewStateInvalid —— 请求仍要照发，缓存只是过渡态。
      */
     function loadCachedTransactionOverview(): boolean {
+        // 没有当前用户信息时读到的 key 是占位值，宁可不用缓存
+        if (!userStore.currentUserBasicInfo) {
+            return false;
+        }
+
         try {
             const raw = localStorage.getItem(getOverviewCacheKey());
 
