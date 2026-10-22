@@ -47,6 +47,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, useTemplateRef } from 'vue';
 import { type MenuView, VueDatePicker } from '@vuepic/vue-datepicker';
+// 样式随本组件（异步 chunk）加载：Vite 会在执行模块前先注入 CSS，不会闪变；
+// 放在 mobile-main 里静态引入会把整个 datepicker 依赖链拉进首屏
+import '@vuepic/vue-datepicker/dist/main.css';
 
 import { useI18n } from '@/locales/helpers.ts';
 

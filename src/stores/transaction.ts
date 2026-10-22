@@ -6,9 +6,9 @@ import { useUserStore } from './user.ts';
 import { useAccountsStore } from './account.ts';
 import { useTransactionCategoriesStore } from './transactionCategory.ts';
 import { useOverviewStore } from './overview.ts';
-import { useStatisticsStore } from './statistics.ts';
-import { useExplorersStore } from '@/stores/explorer.ts';
 import { useExchangeRatesStore } from './exchangeRates.ts';
+
+import { emitDataInvalidated } from '@/lib/invalidation.ts';
 
 import { type BeforeResolveFunction, itemAndIndex, entries, keys } from '@/core/base.ts';
 import { type TextualYearMonth, DateRange } from '@/core/datetime.ts';
@@ -112,8 +112,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     const accountsStore = useAccountsStore();
     const transactionCategoriesStore = useTransactionCategoriesStore();
     const overviewStore = useOverviewStore();
-    const statisticsStore = useStatisticsStore();
-    const explorersStore = useExplorersStore();
     const exchangeRatesStore = useExchangeRatesStore();
 
     const transactionDraft = ref<TransactionDraft | null>(getUserTransactionDraft());
@@ -1169,13 +1167,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
-
-                if (!explorersStore.transactionExplorerStateInvalid) {
-                    explorersStore.updateTransactionExplorerInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(transaction);
             }).catch(error => {
@@ -1218,13 +1210,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
-
-                if (!explorersStore.transactionExplorerStateInvalid) {
-                    explorersStore.updateTransactionExplorerInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {
@@ -1267,13 +1253,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
-
-                if (!explorersStore.transactionExplorerStateInvalid) {
-                    explorersStore.updateTransactionExplorerInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {
@@ -1328,13 +1308,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
-
-                if (!explorersStore.transactionExplorerStateInvalid) {
-                    explorersStore.updateTransactionExplorerInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {

@@ -9,9 +9,9 @@ import { useTransactionTagsStore } from './transactionTag.ts';
 import { useTransactionTemplatesStore } from './transactionTemplate.ts';
 import { useTransactionsStore } from './transaction.ts';
 import { useOverviewStore } from './overview.ts';
-import { useStatisticsStore } from './statistics.ts';
-import { useExplorersStore } from './explorer.ts';
 import { useExchangeRatesStore } from './exchangeRates.ts';
+
+import { emitDataInvalidated } from '@/lib/invalidation.ts';
 
 import type { AuthResponse, RegisterResponse } from '@/models/auth_response.ts';
 import type {
@@ -49,8 +49,6 @@ export const useRootStore = defineStore('root', () => {
     const transactionTemplatesStore = useTransactionTemplatesStore();
     const transactionsStore = useTransactionsStore();
     const overviewStore = useOverviewStore();
-    const statisticsStore = useStatisticsStore();
-    const explorersStore = useExplorersStore();
     const exchangeRatesStore = useExchangeRatesStore();
 
     const currentNotification = ref<string | null>(null);
@@ -62,8 +60,9 @@ export const useRootStore = defineStore('root', () => {
 
         setNotificationContent(null);
 
-        explorersStore.resetTransactionExplorers();
-        statisticsStore.resetTransactionStatistics();
+        // 统计 / 数据探查 store 只在统计页、桌面 Insights 页用到，这里用广播重置，
+        // 避免根 store 静态依赖它们（否则移动端首屏会一起下载）
+        emitDataInvalidated('user-data-reset');
         overviewStore.resetTransactionOverview();
         transactionsStore.resetTransactions();
         transactionTagsStore.resetTransactionTags();
@@ -468,9 +467,7 @@ export const useRootStore = defineStore('root', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 if (data.result.user && data.result.user.defaultCurrency !== userDefaultCurrency) {
                     exchangeRatesStore.resetLatestExchangeRates();
@@ -537,9 +534,7 @@ export const useRootStore = defineStore('root', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {
@@ -576,9 +571,7 @@ export const useRootStore = defineStore('root', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {
@@ -623,9 +616,7 @@ export const useRootStore = defineStore('root', () => {
                     overviewStore.updateTransactionOverviewInvalidState(true);
                 }
 
-                if (!statisticsStore.transactionStatisticsStateInvalid) {
-                    statisticsStore.updateTransactionStatisticsInvalidState(true);
-                }
+                emitDataInvalidated('transaction-data-changed');
 
                 resolve(data.result);
             }).catch(error => {

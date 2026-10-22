@@ -7,6 +7,8 @@ import { useAccountsStore } from './account.ts';
 import { useTransactionCategoriesStore } from './transactionCategory.ts';
 import { useExchangeRatesStore } from './exchangeRates.ts';
 
+import { onDataInvalidated } from '@/lib/invalidation.ts';
+
 import { entries, values } from '@/core/base.ts';
 import { type DateTime, type TextualYearMonth, type TimeRangeAndDateType, DateRangeScene, DateRange } from '@/core/datetime.ts';
 import { TimezoneTypeForStatistics } from '@/core/timezone.ts';
@@ -195,6 +197,17 @@ export const useStatisticsStore = defineStore('statistics', () => {
     const transactionCategoryTrendsData = ref<TransactionStatisticTrendsResponseItem[]>([]);
     const transactionAssetTrendsData = ref<TransactionStatisticAssetTrendsResponseItem[]>([]);
     const transactionStatisticsStateInvalid = ref<boolean>(true);
+
+    // 交易被增删改（transaction store）时标记统计缓存失效；不直接依赖 transaction store，
+    // 否则移动端首屏会把它一起下载
+    onDataInvalidated('transaction-data-changed', () => {
+        if (!transactionStatisticsStateInvalid.value) {
+            transactionStatisticsStateInvalid.value = true;
+        }
+    });
+    onDataInvalidated('user-data-reset', () => {
+        resetTransactionStatistics();
+    });
 
     const categoricalAnalysisChartDataCategory = computed<string>(() => {
         if (transactionStatisticsFilter.value.chartDataType === ChartDataType.OutflowsByAccount.type ||

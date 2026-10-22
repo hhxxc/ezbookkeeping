@@ -252,10 +252,11 @@ export default defineConfig(() => {
                             // 仅桌面端 ExportDialog 引用（Excel 导出）。独立成块，
                             // 不进导出对话框就永不加载；jszip 是 exceljs 的依赖，一并处理。
                             return 'vendor-export';
-                        } else if (/[\\/]node_modules[\\/]@vuepic[\\/]vue-datepicker[\\/]/i.test(id)) {
-                            // 日期选择器独立按需块：仅 DateTimePicker/MonthPicker（异步注册组件）
-                            // 静态引用它。若走 vendor-common 兜底规则，首屏会被迫加载 ~45KB gzip
-                            return null;
+                        } else if (/[\\/]node_modules[\\/](@vuepic[\\/]vue-datepicker|date-fns|@date-fns|@vueuse|@floating-ui)[\\/]/i.test(id)) {
+                            // 日期选择器及其依赖（date-fns / @vueuse / floating-ui）只在
+                            // DateTimePicker、MonthPicker 里用，两者都是异步组件。
+                            // 归入 vendor-common 会让移动端首屏多背 date-fns 约 43KB。
+                            return 'vendor-datepicker';
                         } else if (/[\\/]node_modules[\\/]chardet[\\/]/i.test(id)) {
                             // 仅桌面端 ImportDialog 经 src/lib/file.ts 的 detectFileEncoding 动态 import
                             // 使用。若归入 vendor-common（兜底规则）会被移动端首屏强制加载，故脱离之，
@@ -263,8 +264,17 @@ export default defineConfig(() => {
                             return null;
                         } else if (/[\\/]node_modules[\\/]/i.test(id)) {
                             return 'vendor-common';
+                        } else if (/[\\/]src[\\/]stores[\\/](statistics|explorer|desktopPage)\.ts$/i.test(id)) {
+                            // 统计 / 数据探查 / 桌面分页 store 只被统计页、桌面 Insights 页引用
+                            // （都是路由懒加载）。归入 common 会让移动端首屏白下载约 200KB 源码，
+                            // 因此交给 rollup 拆成按需 chunk。transaction store 通过
+                            // lib/invalidation.ts 的失效广播通知它们，不再静态 import。
+                            return null;
                         } else if (/[\\/]src[\\/](core|consts|models|stores)[\\/]/i.test(id)) {
                             return 'common';
+                        } else if (/[\\/]src[\\/]lib[\\/](contributors|licenses)\.(js|ts)$/i.test(id)) {
+                            // 只在「关于」页（懒加载路由）用到，不必进首屏 common
+                            return null;
                         } else if (/[\\/]src[\\/]lib[\\/](map[\\/]|ui[\\/]common|[a-zA-Z0-9-_]+\.(js|ts))/i.test(id)) {
                             return 'common';
                         } else if (/[\\/]src[\\/]components[\\/]common[\\/](MapView|DateTimePicker|MonthPicker|TransactionCalendar)\.vue/i.test(id)) {

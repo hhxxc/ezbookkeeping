@@ -49,15 +49,12 @@
                                  @click="selectSubCategory(subCategory)">{{ subCategory.name }}</f7-chip>
                     </div>
                     <div class="quick-edit-pictures" v-if="transaction.pictures && transaction.pictures.length > 0">
-                        <swiper-container
-                            :pagination="false"
-                            :space-between="10"
-                            :slides-per-view="'auto'"
-                            class="transaction-pictures"
-                        >
-                            <swiper-slide class="transaction-picture-container" :key="picIdx"
-                                          v-for="(pictureInfo, picIdx) in transaction.pictures"
-                                          @click="viewOrRemovePicture(pictureInfo)">
+                        <!-- 原生横向滚动（CSS scroll-snap）替代 swiper：只为图片横滑引入 180KB 的
+                             swiper 会让首屏 vendor-mobile 增大 27%，而这里没有任何 swiper JS 控制逻辑 -->
+                        <div class="transaction-pictures">
+                            <div class="transaction-picture-container" :key="picIdx"
+                                 v-for="(pictureInfo, picIdx) in transaction.pictures"
+                                 @click="viewOrRemovePicture(pictureInfo)">
                                 <div class="transaction-picture">
                                     <div class="display-flex justify-content-center align-items-center transaction-picture-control-backdrop">
                                         <f7-icon class="picture-control-icon picture-remove-icon" f7="trash" v-if="pictureInfo.pictureId !== removingPictureId"></f7-icon>
@@ -65,8 +62,8 @@
                                     </div>
                                     <img alt="picture" :src="getTransactionPictureUrl(pictureInfo, true)"/>
                                 </div>
-                            </swiper-slide>
-                        </swiper-container>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -459,15 +456,10 @@
             >
                 <template #footer>
                     <f7-block class="margin-top-half no-padding no-margin" :class="{ 'readonly': submitting || uploadingPicture || removingPictureId }">
-                        <swiper-container
-                            :pagination="false"
-                            :space-between="10"
-                            :slides-per-view="'auto'"
-                            class="transaction-pictures"
-                        >
-                            <swiper-slide class="transaction-picture-container" :key="picIdx"
-                                          v-for="(pictureInfo, picIdx) in transaction.pictures"
-                                          @click="viewOrRemovePicture(pictureInfo)">
+                        <div class="transaction-pictures">
+                            <div class="transaction-picture-container" :key="picIdx"
+                                 v-for="(pictureInfo, picIdx) in transaction.pictures"
+                                 @click="viewOrRemovePicture(pictureInfo)">
                                 <div class="transaction-picture">
                                     <div class="display-flex justify-content-center align-items-center transaction-picture-control-backdrop"
                                          v-if="mode === TransactionEditPageMode.Add || mode === TransactionEditPageMode.Edit">
@@ -476,14 +468,14 @@
                                     </div>
                                     <img alt="picture" :src="getTransactionPictureUrl(pictureInfo, true)"/>
                                 </div>
-                            </swiper-slide>
-                            <swiper-slide @click="showOpenPictureDialog" v-if="canAddTransactionPicture">
+                            </div>
+                            <div class="transaction-picture-container" @click="showOpenPictureDialog" v-if="canAddTransactionPicture">
                                 <div class="display-flex justify-content-center align-items-center transaction-picture transaction-picture-add">
                                     <f7-icon class="picture-control-icon" f7="plus" v-if="!uploadingPicture"></f7-icon>
                                     <f7-preloader :size="28" v-if="uploadingPicture" />
                                 </div>
-                            </swiper-slide>
-                        </swiper-container>
+                            </div>
+                        </div>
                     </f7-block>
                 </template>
             </f7-list-item>
@@ -2053,12 +2045,28 @@ init();
 
 .transaction-pictures {
     height: var(--ebk-transaction-picture-size);
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.transaction-pictures::-webkit-scrollbar {
+    display: none;
 }
 
 .transaction-picture-container,
 .transaction-picture {
     width: var(--ebk-transaction-picture-size);
     height: var(--ebk-transaction-picture-size);
+}
+
+.transaction-picture-container {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
 }
 
 .transaction-picture .transaction-picture-control-backdrop {

@@ -92,9 +92,9 @@ import f7View from 'framework7-vue/components/view.js';
 import 'framework7-icons';
 import 'line-awesome/dist/line-awesome/css/line-awesome.css';
 
-// VueDatePicker 改为异步注册（见下方），样式保留在首屏 CSS 避免闪变
-import '@vuepic/vue-datepicker/dist/main.css';
-
+// VueDatePicker 及其样式都随异步组件加载（见 DateTimePicker.vue / MonthPicker.vue）。
+// 注意：不要在这里静态 import vue-datepicker 的 CSS——那会让整个包（含 date-fns /
+// vueuse / floating-ui，约 63KB gzip）变成首屏静态依赖，凭空多下载 60KB+。
 import { getI18nOptions, preloadInitialLanguageContent } from '@/locales/helpers.ts';
 
 // 以下四个组件在首屏链路（登录页/解锁页/应用锁页/账单列表）使用，保留静态注册；

@@ -8,6 +8,8 @@ import { useTransactionCategoriesStore } from './transactionCategory.ts';
 import { useTransactionTagsStore } from './transactionTag.ts';
 import { useExchangeRatesStore } from './exchangeRates.ts';
 
+import { onDataInvalidated } from '@/lib/invalidation.ts';
+
 import { type BeforeResolveFunction, itemAndIndex, keys, values } from '@/core/base.ts';
 import { NumeralSystem } from '@/core/numeral.ts';
 import { type DateTime, DateRangeScene, DateRange } from '@/core/datetime.ts';
@@ -902,6 +904,17 @@ export const useExplorersStore = defineStore('explorers', () => {
 
     const transactionExplorerAllData = ref<TransactionInfoResponse[]>([]);
     const transactionExplorerStateInvalid = ref<boolean>(true);
+
+    // 交易被增删改（transaction store）时标记探查缓存失效；不直接依赖 transaction store，
+    // 否则移动端首屏会把它一起下载
+    onDataInvalidated('transaction-data-changed', () => {
+        if (!transactionExplorerStateInvalid.value) {
+            transactionExplorerStateInvalid.value = true;
+        }
+    });
+    onDataInvalidated('user-data-reset', () => {
+        resetTransactionExplorers();
+    });
 
     const allInsightsExplorerBasicInfos = ref<InsightsExplorerBasicInfo[]>([]);
     const allInsightsExplorerBasicInfosMap = ref<Record<string, InsightsExplorerBasicInfo>>({});
