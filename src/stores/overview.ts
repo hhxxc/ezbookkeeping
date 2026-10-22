@@ -259,11 +259,84 @@ export const useOverviewStore = defineStore('overview', () => {
         transactionOverviewStateInvalid.value = invalidState;
     }
 
+    // ---- 首页概览本地缓存（stale-while-revalidate）----
+    // 冷启动时先用上一次的数据把首页画出来，请求回来后静默覆盖。
+    // 外网是 8Mbps 的隧道链路，首屏接口一来一回通常 300~800ms，
+    // 这段时间原来只能看骨架屏，现在直接显示昨天的记忆里也还有的数字（当天有效）。
+    const OVERVIEW_CACHE_KEY_PREFIX = 'ebk_home_overview_cache_v1';
+
+    interface OverviewCachePayload {
+        date: string;
+        loadLast11Months: boolean;
+        data: TransactionAmountsResponse;
+    }
+
+    function getOverviewCacheKey(): string {
+        const uid = userStore.currentUserBasicInfo ? userStore.currentUserBasicInfo.username : '';
+        return `${OVERVIEW_CACHE_KEY_PREFIX}_${uid}`;
+    }
+
+    function getLocalDateString(): string {
+        const now = new Date();
+        return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    }
+
+    function clearOverviewCache(): void {
+        try {
+            localStorage.removeItem(getOverviewCacheKey());
+        } catch {
+            // 存储不可用时忽略
+        }
+    }
+
+    /**
+     * 读取当日缓存填充概览数据。
+     * 返回 true 表示命中，调用方可以立即结束 loading 状态。
+     * 注意：不清除 transactionOverviewStateInvalid —— 请求仍要照发，缓存只是过渡态。
+     */
+    function loadCachedTransactionOverview(): boolean {
+        try {
+            const raw = localStorage.getItem(getOverviewCacheKey());
+
+            if (!raw) {
+                return false;
+            }
+
+            const cached = JSON.parse(raw) as OverviewCachePayload;
+
+            if (!cached || cached.date !== getLocalDateString() || !cached.data) {
+                // 跨天缓存不可用：today / thisWeek / thisMonth 的统计口径已经变了
+                return false;
+            }
+
+            transactionOverviewData.value = cached.data;
+            transactionOverviewOptions.value.loadLast11Months = !!cached.loadLast11Months;
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function writeOverviewCache(): void {
+        try {
+            const payload: OverviewCachePayload = {
+                date: getLocalDateString(),
+                loadLast11Months: transactionOverviewOptions.value.loadLast11Months,
+                data: transactionOverviewData.value
+            };
+            localStorage.setItem(getOverviewCacheKey(), JSON.stringify(payload));
+        } catch {
+            // 隐私模式 / 配额满：静默降级为纯网络加载
+        }
+    }
+
     function resetTransactionOverview(): void {
         updateTransactionDateRange();
         transactionOverviewOptions.value.loadLast11Months = false;
         transactionOverviewData.value = {};
         transactionOverviewStateInvalid.value = true;
+        clearOverviewCache();
     }
 
     function loadTransactionOverview({ force, loadLast11Months }: { force: boolean, loadLast11Months?: boolean }): Promise<TransactionAmountsResponse> {
@@ -331,6 +404,7 @@ export const useOverviewStore = defineStore('overview', () => {
 
                 transactionOverviewData.value = data.result;
                 transactionOverviewOptions.value.loadLast11Months = !!loadLast11Months;
+                writeOverviewCache();
 
                 resolve(data.result);
             }).catch(error => {
@@ -394,6 +468,7 @@ export const useOverviewStore = defineStore('overview', () => {
         // functions
         updateTransactionOverviewInvalidState,
         resetTransactionOverview,
+        loadCachedTransactionOverview,
         loadTransactionOverview,
         getTransactionListPageParams
     };

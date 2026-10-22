@@ -560,7 +560,9 @@ function onAIImagePicked(event: Event): void {
 
 function init(): void {
     if (isUserLogined() && isUserUnlocked()) {
-        loading.value = true;
+        // 当天缓存先顶上（首屏接口在外网隧道下要几百毫秒，不必让用户盯着骨架屏），
+        // 随后照常发请求，数据回来后静默覆盖
+        loading.value = !overviewStore.loadCachedTransactionOverview();
 
         // Load overview first for fast initial paint, then warm caches in background
         overviewStore.loadTransactionOverview({ force: false, loadLast11Months: true }).then(() => {
