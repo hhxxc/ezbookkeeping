@@ -184,7 +184,35 @@ export default defineConfig(() => {
                     ],
                     maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
                 }
-            })
+            }),
+            {
+                // 中文语言包是首屏关键路径上唯一的大 chunk（约 37KB gzip）：
+                // mobile-main 在 app.mount 之前 await preloadInitialLanguageContent()，
+                // 等于串行多等一个 RTT 才开始下载它。构建后把它的 hash 文件名注入
+                // modulepreload，让它和主 bundle 并行加载（await 时直接命中）。
+                name: 'preload-initial-language',
+                apply: 'build',
+                transformIndexHtml: {
+                    order: 'post',
+                    handler(html, ctx) {
+                        const bundle = ctx.bundle;
+
+                        if (!bundle) {
+                            return html;
+                        }
+
+                        const languageChunk = Object.keys(bundle).find(file => /(^|\/)zh_Hans-[^/]+\.js$/.test(file));
+
+                        if (!languageChunk) {
+                            return html;
+                        }
+
+                        // 必须带 crossorigin：主 bundle 的 module 脚本是 CORS 模式加载的，
+                        // preload 不带该属性会被视为另一个请求，反而重复下载
+                        return html.replace('</head>', `    <link rel="modulepreload" crossorigin href="./${languageChunk}">\n</head>`);
+                    }
+                }
+            }
         ],
         build: {
             target: [
