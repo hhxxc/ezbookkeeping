@@ -23,6 +23,8 @@ type AppInstance = {
     useModule?: (name: string, params?: unknown) => void;
 };
 
+let photoBrowserReady = false;
+
 // 整个注册过程包一层 try/catch：最坏情况是图片浏览器不可用（点图看大图无反应），
 // 绝不能让异常冒出去把记账页这个 chunk 带崩。
 try {
@@ -46,9 +48,17 @@ try {
 
         app.useModule('swiper', app.params.swiper);
         app.useModule('photoBrowser', app.params.photoBrowser);
+
+        photoBrowserReady = !!app.params.photoBrowser;
     }
 } catch (e) {
     console.error('[f7_photo_browser] failed to register photo-browser modules', e);
 }
+
+/**
+ * 注册是否成功。调用方用 v-if 挂载 `<F7PhotoBrowser>`：该组件 mounted 时会调用
+ * f7.photoBrowser.create()，模块没注册上就会抛错并带崩整个记账页。
+ */
+export const isPhotoBrowserReady: boolean = photoBrowserReady;
 
 export default F7PhotoBrowserComponent;

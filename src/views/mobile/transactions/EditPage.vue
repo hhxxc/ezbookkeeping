@@ -655,7 +655,9 @@
             </f7-list>
         </f7-popover>
 
-        <F7PhotoBrowser ref="pictureBrowser" type="popup" navbar-of-text="/"
+        <!-- 模块注册失败时（极罕见）不挂载：该组件 mounted 会调 f7.photoBrowser.create()，
+             抛错会带崩整个记账页；不挂载只是看大图不可用 -->
+        <F7PhotoBrowser v-if="isPhotoBrowserReady" ref="pictureBrowser" type="popup" navbar-of-text="/"
                         :navbar-show-count="true" :exposition="false"
                         :photos="transactionPictures" :thumbs="transactionThumbs" />
         <input ref="pictureInput" type="file" style="display: none" :accept="`${SUPPORTED_IMAGE_EXTENSIONS};capture=camera`" @change="uploadPicture($event)" />
@@ -667,7 +669,7 @@ import { ref, computed, watch, useTemplateRef, onMounted } from 'vue';
 import type { PhotoBrowser, Router } from 'framework7/types';
 
 // photo-browser + swiper 随本页（懒加载 chunk）按需注册，不再占首屏
-import F7PhotoBrowser from '@/lib/f7_photo_browser.ts';
+import F7PhotoBrowser, { isPhotoBrowserReady } from '@/lib/f7_photo_browser.ts';
 
 import { useI18n } from '@/locales/helpers.ts';
 import { useI18nUIComponents, isiOS, showLoading, hideLoading } from '@/lib/ui/mobile.ts';
