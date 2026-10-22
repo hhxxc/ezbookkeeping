@@ -297,6 +297,13 @@ export default defineConfig(() => {
                             // 使用。若归入 vendor-common（兜底规则）会被移动端首屏强制加载，故脱离之，
                             // 由 rollup 拆成按需异步 chunk：移动端永不加载，桌面端仅导入对话框打开时才拉取。
                             return null;
+                        } else if (/[\\/]node_modules[\\/]vue[\\/](index\.js|dist[\\/]vue\.cjs)/i.test(id)) {
+                            // vuedraggable 的 UMD 版内部 require('vue')，会解析到 Vue 的 CJS 完整版
+                            // （vue.cjs.prod.js → @vue/compiler-dom → compiler-core，约 70KB 运行时编译器）。
+                            // 它只被 vuedraggable（仅桌面端拖拽排序）引用，一旦落进 vendor-common 这个
+                            // 兜底 chunk，移动端首屏就白背了整套编译器。返回 null 让它跟随 vuedraggable
+                            // 进 vendor-desktop。
+                            return null;
                         } else if (/[\\/]node_modules[\\/]/i.test(id)) {
                             return 'vendor-common';
                         } else if (/[\\/]src[\\/]stores[\\/](statistics|explorer|desktopPage)\.ts$/i.test(id)) {
@@ -344,6 +351,11 @@ export default defineConfig(() => {
         resolve: {
             alias: {
                 '@': SRC_DIR,
+                // vuedraggable（仅桌面端拖拽排序）的 UMD 版内部 require('vue')，默认会解析到
+                // Vue 的 CJS 完整版（vue.cjs.prod.js → @vue/compiler-dom → compiler-core，
+                // 约 70KB 运行时编译器），并因兜底规则落进首屏必载的 vendor-common。
+                // 项目全部是 SFC、没有任何 template 字符串，显式钉到 runtime-only 构建。
+                vue: resolve(__dirname, 'node_modules/vue/dist/vue.runtime.esm-bundler.js'),
             },
         },
         server: {
