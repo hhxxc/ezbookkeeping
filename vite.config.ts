@@ -264,7 +264,14 @@ export default defineConfig(() => {
                             // common（locales 懒加载也在用），vendor-common 反向 import common
                             // 形成 chunk 循环，顶层 axios 配置触发 TDZ 白屏（2026-10-06 事故）
                             return 'capacitor';
-                        } else if (/[\\/]node_modules[\\/](dom7|framework7.*|skeleton-elements|swiper)[\\/]/i.test(id)) {
+                        } else if (/[\\/]node_modules[\\/]framework7[\\/]components[\\/](swiper|photo-browser)[\\/]/i.test(id)) {
+                            // F7 的 swiper / photo-browser 模块只被记账页（懒加载）的
+                            // 图片浏览器使用，交给 rollup 跟随 src/lib/f7_photo_browser.ts
+                            return null;
+                        } else if (/[\\/]node_modules[\\/]swiper[\\/]/i.test(id)) {
+                            // swiper 包本身（约 183KB）只服务 photo-browser
+                            return null;
+                        } else if (/[\\/]node_modules[\\/](dom7|framework7[^\\/]*|skeleton-elements)[\\/]/i.test(id)) {
                             return 'vendor-mobile';
                         } else if (/[\\/]node_modules[\\/](vuetify|vue-router|vue3-perfect-scrollbar|perfect-scrollbar|vuedraggable|sortablejs|@mdi.*|tslib)[\\/]/i.test(id)) {
                             // tslib 跟 vuetify 同块：vuetify/exceljs 都依赖它，放这里避免
@@ -300,6 +307,10 @@ export default defineConfig(() => {
                             return null;
                         } else if (/[\\/]src[\\/](core|consts|models|stores)[\\/]/i.test(id)) {
                             return 'common';
+                        } else if (/[\\/]src[\\/]lib[\\/]f7_photo_browser\.(js|ts)$/i.test(id)) {
+                            // 记账页图片浏览器的 F7 模块安装器：只有 EditPage 引用，
+                            // 归入 common 会把 swiper 一起拖进首屏
+                            return null;
                         } else if (/[\\/]src[\\/]lib[\\/](contributors|licenses)\.(js|ts)$/i.test(id)) {
                             // 只在「关于」页（懒加载路由）用到，不必进首屏 common
                             return null;

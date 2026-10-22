@@ -558,6 +558,22 @@ function onAIImagePicked(event: Event): void {
     showAIReceiptImageRecognitionSheet.value = true;
 }
 
+let transactionEditPagePrefetched = false;
+
+/**
+ * 记账页已改为懒加载路由：首屏不再背它（页面自身约 47KB + 图片浏览器所需的
+ * swiper/photo-browser 约 240KB）。首页出数后立刻预取——记账是最高频操作，
+ * 用户通常看到余额后 1~2 秒才点 + 号，那时 chunk 已经下载完，点开即入。
+ */
+function prefetchTransactionEditPage(): void {
+    if (transactionEditPagePrefetched) {
+        return;
+    }
+
+    transactionEditPagePrefetched = true;
+    void import('@/views/mobile/transactions/EditPage.vue');
+}
+
 let statisticsPagePrefetched = false;
 
 /**
@@ -595,6 +611,7 @@ function init(): void {
         // Load overview first for fast initial paint, then warm caches in background
         overviewStore.loadTransactionOverview({ force: false, loadLast11Months: true }).then(() => {
             loading.value = false;
+            prefetchTransactionEditPage();
             prefetchStatisticsPage();
         }).catch(error => {
             loading.value = false;

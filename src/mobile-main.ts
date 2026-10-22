@@ -34,9 +34,7 @@ import Framework7Tooltip from 'framework7/components/tooltip';
 import Framework7Skeleton from 'framework7/components/skeleton';
 import Framework7Treeview from 'framework7/components/treeview';
 import Framework7Typography from 'framework7/components/typography';
-import Framework7Swiper from 'framework7/components/swiper';
 import Framework7VirtualList from 'framework7/components/virtual-list';
-import Framework7PhotoBrowser from 'framework7/components/photo-browser';
 import Framework7Vue from 'framework7-vue';
 // f7-vue 按需注册：原 framework7-vue/bundle 全量注册 90 个组件（其主入口静态聚合全部组件且
 // 无 sideEffects 声明无法 tree-shake），改为逐组件文件导入，只注册手机端模板实际用到的 48 个
@@ -71,7 +69,6 @@ import f7NavTitle from 'framework7-vue/components/nav-title.js';
 import f7Navbar from 'framework7-vue/components/navbar.js';
 import f7Page from 'framework7-vue/components/page.js';
 import f7PageContent from 'framework7-vue/components/page-content.js';
-import f7PhotoBrowser from 'framework7-vue/components/photo-browser.js';
 import f7Popover from 'framework7-vue/components/popover.js';
 import f7Popup from 'framework7-vue/components/popup.js';
 import f7Preloader from 'framework7-vue/components/preloader.js';
@@ -160,9 +157,7 @@ Framework7.use([
     Framework7Skeleton,
     Framework7Treeview,
     Framework7Typography,
-    Framework7Swiper,
     Framework7VirtualList,
-    Framework7PhotoBrowser,
     Framework7Vue
 ]);
 
@@ -201,7 +196,6 @@ app.component('f7-nav-title', f7NavTitle);
 app.component('f7-navbar', f7Navbar);
 app.component('f7-page', f7Page);
 app.component('f7-page-content', f7PageContent);
-app.component('f7-photo-browser', f7PhotoBrowser);
 app.component('f7-popover', f7Popover);
 app.component('f7-popup', f7Popup);
 app.component('f7-preloader', f7Preloader);

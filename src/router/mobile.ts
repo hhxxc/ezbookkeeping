@@ -12,7 +12,6 @@ import SignUpPage from '@/views/mobile/SignupPage.vue';
 import UnlockPage from '@/views/mobile/UnlockPage.vue';
 
 import TransactionListPage from '@/views/mobile/transactions/ListPage.vue';
-import TransactionEditPage from '@/views/mobile/transactions/EditPage.vue';
 
 function asyncResolve(component: unknown): (ctx: Router.RouteCallbackCtx) => void {
     return function({ resolve }: { resolve: ({ component }: { component: unknown }) => void }): void {
@@ -31,6 +30,11 @@ function lazyResolve(loader: () => Promise<{ default: unknown }>): (ctx: Router.
         });
     } as unknown as (ctx: Router.RouteCallbackCtx) => void;
 }
+
+// 记账页改为懒加载：它是首屏 entry chunk 里最重的一页（页面自身约 47KB，还带着
+// 图片浏览器所需的 swiper + photo-browser 约 240KB）。首页会在出数后立刻预取，
+// 用户点 + 号时通常已经就绪。
+const lazyTransactionEditPage = (): Promise<{ default: unknown }> => import('@/views/mobile/transactions/EditPage.vue');
 
 function checkLogin({ router, resolve, reject }: { router: Router.Router, resolve: () => void, reject: () => void }): void {
     if (!isUserLogined()) {
@@ -138,17 +142,17 @@ const routes: Router.RouteParameters[] = [
     },
     {
         path: '/transaction/add',
-        async: asyncResolve(TransactionEditPage),
+        async: lazyResolve(lazyTransactionEditPage),
         beforeEnter: [checkLogin]
     },
     {
         path: '/transaction/edit',
-        async: asyncResolve(TransactionEditPage),
+        async: lazyResolve(lazyTransactionEditPage),
         beforeEnter: [checkLogin]
     },
     {
         path: '/transaction/detail',
-        async: asyncResolve(TransactionEditPage),
+        async: lazyResolve(lazyTransactionEditPage),
         beforeEnter: [checkLogin]
     },
     {
@@ -318,12 +322,12 @@ const routes: Router.RouteParameters[] = [
     },
     {
         path: '/template/add',
-        async: asyncResolve(TransactionEditPage),
+        async: lazyResolve(lazyTransactionEditPage),
         beforeEnter: [checkLogin]
     },
     {
         path: '/template/edit',
-        async: asyncResolve(TransactionEditPage),
+        async: lazyResolve(lazyTransactionEditPage),
         beforeEnter: [checkLogin]
     },
     {
