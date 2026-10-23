@@ -304,6 +304,11 @@ export default defineConfig(() => {
                             // 兜底 chunk，移动端首屏就白背了整套编译器。返回 null 让它跟随 vuedraggable
                             // 进 vendor-desktop。
                             return null;
+                        } else if (/[\\/]node_modules[\\/]ua-parser-js[\\/]/i.test(id)) {
+                            // ua-parser-js（17.5KB）只被 index-main.ts（根路径设备判断）和
+                            // lib/session.ts（设置页会话列表）使用，移动端运行期完全不需要。
+                            // 兜底到 vendor-common 会被首屏强行加载。
+                            return null;
                         } else if (/[\\/]node_modules[\\/]/i.test(id)) {
                             return 'vendor-common';
                         } else if (/[\\/]src[\\/]stores[\\/](statistics|explorer|desktopPage)\.ts$/i.test(id)) {
@@ -317,6 +322,9 @@ export default defineConfig(() => {
                         } else if (/[\\/]src[\\/]lib[\\/]f7_photo_browser\.(js|ts)$/i.test(id)) {
                             // 记账页图片浏览器的 F7 模块安装器：只有 EditPage 引用，
                             // 归入 common 会把 swiper 一起拖进首屏
+                            return null;
+                        } else if (/[\\/]src[\\/]lib[\\/]session\.(js|ts)$/i.test(id)) {
+                            // 只有设置页的会话列表用（内部引 ua-parser-js），别并入首屏 common
                             return null;
                         } else if (/[\\/]src[\\/]lib[\\/](contributors|licenses)\.(js|ts)$/i.test(id)) {
                             // 只在「关于」页（懒加载路由）用到，不必进首屏 common
