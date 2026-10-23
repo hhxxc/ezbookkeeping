@@ -13,7 +13,6 @@ import Framework7Notification from 'framework7/components/notification';
 import Framework7Toast from 'framework7/components/toast';
 import Framework7Preloader from 'framework7/components/preloader';
 import Framework7Progressbar from 'framework7/components/progressbar';
-import Framework7Sortable from 'framework7/components/sortable';
 import Framework7Swipeout from 'framework7/components/swipeout';
 import Framework7Accordion from 'framework7/components/accordion';
 import Framework7Card from 'framework7/components/card';
@@ -24,10 +23,7 @@ import Framework7Checkbox from 'framework7/components/checkbox';
 import Framework7Radio from 'framework7/components/radio';
 import Framework7Toggle from 'framework7/components/toggle';
 import Framework7Range from 'framework7/components/range';
-import Framework7Grid from 'framework7/components/grid';
-import Framework7Picker from 'framework7/components/picker';
 import Framework7Fab from 'framework7/components/fab';
-import Framework7InfiniteScroll from 'framework7/components/infinite-scroll';
 import Framework7PullToRefresh from 'framework7/components/pull-to-refresh';
 import Framework7Searchbar from 'framework7/components/searchbar';
 import Framework7Tooltip from 'framework7/components/tooltip';
@@ -136,7 +132,6 @@ Framework7.use([
     Framework7Toast,
     Framework7Preloader,
     Framework7Progressbar,
-    Framework7Sortable,
     Framework7Swipeout,
     Framework7Accordion,
     Framework7Card,
@@ -147,10 +142,7 @@ Framework7.use([
     Framework7Radio,
     Framework7Toggle,
     Framework7Range,
-    Framework7Grid,
-    Framework7Picker,
     Framework7Fab,
-    Framework7InfiniteScroll,
     Framework7PullToRefresh,
     Framework7Searchbar,
     Framework7Tooltip,
