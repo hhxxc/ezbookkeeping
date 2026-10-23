@@ -81,12 +81,57 @@ const missing = [...used].filter(name => !keptNames.has(name) && /^[a-z0-9]+(-[a
 //    （并按 assetFileNames 规则输出带 hash 的 fonts/xxx）
 const withFontPath = pruned.replace(/url\("\.\.\/fonts\//g, 'url("../../node_modules/line-awesome/dist/line-awesome/fonts/');
 
-fs.writeFileSync(OUTPUT_CSS, withFontPath, 'utf8');
+// 5. @font-face：指向仓库内的子集字体；regular（lar- 前缀）全项目未使用，整条删掉
+let finalCss = withFontPath;
+const faces = [...finalCss.matchAll(/@font-face \{[^}]*\}/g)].reverse();
+
+for (const face of faces) {
+    const block = face[0];
+    let replacement = null;
+
+    if (block.includes("'Line Awesome Brands'")) {
+        replacement = `@font-face {
+  font-family: 'Line Awesome Brands';
+  font-style: normal;
+  font-weight: normal;
+  font-display: swap;
+  src: url("../assets/fonts/la-brands-400-subset.woff2") format("woff2"); }`;
+    } else if (block.includes('font-weight: 900;')) {
+        replacement = `@font-face {
+  font-family: 'Line Awesome Free';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("../assets/fonts/la-solid-900-subset.woff2") format("woff2"); }`;
+    } else if (block.includes('font-weight: 400;')) {
+        replacement = '';
+    }
+
+    if (replacement !== null) {
+        finalCss = finalCss.slice(0, face.index) + replacement + finalCss.slice(face.index + block.length);
+    }
+}
+
+fs.writeFileSync(OUTPUT_CSS, finalCss, 'utf8');
 
 const kb = size => `${(size / 1024).toFixed(1)}KB`;
+
+// 同时导出 codepoint 列表，供字体子集化使用（pyftsubset --unicodes-file）
+const codes = [...pruned.matchAll(/\.la-([a-z0-9-]+):before\s*\{\s*content:\s*"\\([0-9a-f]+)"\s*;\s*\}/g)]
+    .map(m => 'U+' + m[2]);
+const CODES_FILE = path.join(SRC_DIR, 'assets/fonts/la-codepoints.txt');
+
+fs.writeFileSync(CODES_FILE, codes.join('\n'), 'utf8');
 
 console.log(`扫描文件: ${files.length}`);
 console.log(`源码中出现的图标名: ${used.size}`);
 console.log(`CSS 中共有图标规则: ${totalIcons}，保留 ${keptIcons}，删除 ${totalIcons - keptIcons}`);
 console.log(`输出: ${path.relative(ROOT, OUTPUT_CSS)}  ${kb(Buffer.byteLength(source))} -> ${kb(Buffer.byteLength(withFontPath))}`);
+console.log(`字符集: ${path.relative(ROOT, CODES_FILE)}  ${codes.length} 个 codepoint`);
 console.log(`白名单中不在 CSS 里的名字（修饰类/误匹配，可忽略）: ${missing.length ? missing.slice(0, 10).join(', ') : '无'}`);
+console.log('');
+console.log('⚠️ 图标有增减时，除了本脚本还要重新生成子集字体（否则新图标没有字形）：');
+console.log('   uvx --from fonttools --with brotli pyftsubset node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.woff2 \\');
+console.log('     --unicodes-file=src/assets/fonts/la-codepoints.txt --flavor=woff2 --output-file=src/assets/fonts/la-solid-900-subset.woff2');
+console.log('   （brands 同理，把 la-solid-900 换成 la-brands-400）');
+console.log('   子集字体只保留 CSS 里出现的字符，solid 覆盖约 236 个、brands 约 44 个，两者互补。');

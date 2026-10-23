@@ -3269,19 +3269,12 @@ readers do not read off random characters that represent icons */
   font-family: 'Line Awesome Brands';
   font-style: normal;
   font-weight: normal;
-  font-display: auto;
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.eot");
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.eot?#iefix") format("embedded-opentype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.woff2") format("woff2"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.woff") format("woff"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.ttf") format("truetype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-brands-400.svg#lineawesome") format("svg"); }
+  font-display: swap;
+  src: url("../assets/fonts/la-brands-400-subset.woff2") format("woff2"); }
 
 .lab {
   font-family: 'Line Awesome Brands'; }
-@font-face {
-  font-family: 'Line Awesome Free';
-  font-style: normal;
-  font-weight: 400;
-  font-display: auto;
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.eot");
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.eot?#iefix") format("embedded-opentype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.woff2") format("woff2"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.woff") format("woff"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.ttf") format("truetype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-regular-400.svg#lineawesome") format("svg"); }
+
 
 .lar {
   font-family: 'Line Awesome Free';
@@ -3290,9 +3283,8 @@ readers do not read off random characters that represent icons */
   font-family: 'Line Awesome Free';
   font-style: normal;
   font-weight: 900;
-  font-display: auto;
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.eot");
-  src: url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.eot?#iefix") format("embedded-opentype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.woff2") format("woff2"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.woff") format("woff"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.ttf") format("truetype"), url("../../node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.svg#lineawesome") format("svg"); }
+  font-display: swap;
+  src: url("../assets/fonts/la-solid-900-subset.woff2") format("woff2"); }
 
 .la,
 .las {

@@ -235,7 +235,9 @@ export default defineConfig(() => {
                 },
                 output: {
                     assetFileNames: assetInfo => {
-                        const fileExt = assetInfo.names[0]?.split('.')[1];
+                        // 用最后一个点后的扩展名：文件名里带点（如 la-solid-900.subset.woff2）时
+                        // split('.')[1] 会取到中间的片段，把产物塞进错误目录
+                        const fileExt = assetInfo.names[0]?.split('.').pop();
 
                         if (!fileExt) {
                             throw new Error('Invalid asset file name.');
