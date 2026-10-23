@@ -121,7 +121,8 @@ const codes = [...pruned.matchAll(/\.la-([a-z0-9-]+):before\s*\{\s*content:\s*"\
     .map(m => 'U+' + m[2]);
 const CODES_FILE = path.join(SRC_DIR, 'assets/fonts/la-codepoints.txt');
 
-fs.writeFileSync(CODES_FILE, codes.join('\n'), 'utf8');
+// 逗号分隔单行：Windows 下 git 会把换行转成 CRLF，pyftsubset 读到 \r 会解析失败
+fs.writeFileSync(CODES_FILE, codes.join(','), 'utf8');
 
 console.log(`扫描文件: ${files.length}`);
 console.log(`源码中出现的图标名: ${used.size}`);
@@ -132,6 +133,6 @@ console.log(`白名单中不在 CSS 里的名字（修饰类/误匹配，可忽�
 console.log('');
 console.log('⚠️ 图标有增减时，除了本脚本还要重新生成子集字体（否则新图标没有字形）：');
 console.log('   uvx --from fonttools --with brotli pyftsubset node_modules/line-awesome/dist/line-awesome/fonts/la-solid-900.woff2 \\');
-console.log('     --unicodes-file=src/assets/fonts/la-codepoints.txt --flavor=woff2 --output-file=src/assets/fonts/la-solid-900-subset.woff2');
+console.log('     --unicodes=\"$(cat src/assets/fonts/la-codepoints.txt)\" --flavor=woff2 --output-file=src/assets/fonts/la-solid-900-subset.woff2');
 console.log('   （brands 同理，把 la-solid-900 换成 la-brands-400）');
 console.log('   子集字体只保留 CSS 里出现的字符，solid 覆盖约 236 个、brands 约 44 个，两者互补。');
