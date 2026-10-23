@@ -74,7 +74,7 @@ import {
 } from 'echarts/components';
 import VChart from 'vue-echarts';
 
-import 'line-awesome/dist/line-awesome/css/line-awesome.css';
+import '@/styles/line-awesome-pruned.css';
 
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar';
 

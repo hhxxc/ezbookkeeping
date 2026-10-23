@@ -87,7 +87,7 @@ import f7TreeviewItem from 'framework7-vue/components/treeview-item.js';
 import f7View from 'framework7-vue/components/view.js';
 
 import 'framework7-icons';
-import 'line-awesome/dist/line-awesome/css/line-awesome.css';
+import '@/styles/line-awesome-pruned.css';
 
 // VueDatePicker 及其样式都随异步组件加载（见 DateTimePicker.vue / MonthPicker.vue）。
 // 注意：不要在这里静态 import vue-datepicker 的 CSS——那会让整个包（含 date-fns /
