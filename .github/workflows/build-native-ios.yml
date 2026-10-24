@@ -112,6 +112,41 @@ jobs:
           echo "==> pbxproj:"
           grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' NestKeep.xcodeproj/project.pbxproj
 
+      - name: Inject server URL into AppSettings.swift
+        working-directory: ios-app
+        env:
+          API_BASE: ${{ vars.IOS_API_BASE_URL }}
+        run: |
+          # 真实服务器地址不进源码（隐私整改），构建期从仓库变量注入。
+          # 漏注入的后果极隐蔽：App 装上去默认地址是占位符 example-server.invalid，
+          # 所有请求 DNS 解析失败 → 首页白屏，而服务端日志一条请求都收不到，
+          # 看上去像「服务器崩了」（2026-10-24 实例）。原生线必须和壳线
+          # build-ios-ipa.yml 一样注入，不能只靠用户手动改设置。
+          #
+          # 地址必须是纯域名根：APIClient 用 baseURL.appendingPathComponent("/api/v1/...")
+          # 拼接，带 /mobile 会变成 /mobile/api/v1/... 直接 404。
+          if [ -z "$API_BASE" ]; then
+            echo "::warning::IOS_API_BASE_URL 未配置，本次 IPA 将内置占位符地址（装后需手动改服务器地址）"
+            exit 0
+          fi
+          python3 - NestKeep/Core/AppSettings.swift "$API_BASE" <<'PY'
+          import pathlib
+          import sys
+
+          path = pathlib.Path(sys.argv[1])
+          base = sys.argv[2].strip().rstrip('/')
+          placeholder = 'https://example-server.invalid'
+
+          source = path.read_text(encoding='utf-8')
+          if placeholder not in source:
+              print('::error::AppSettings.swift 中找不到占位符，注入逻辑需同步更新')
+              sys.exit(1)
+
+          path.write_text(source.replace(placeholder, base), encoding='utf-8')
+          print(f'==> 已注入服务器地址: {base}')
+          PY
+          grep -n 'URL(string:' NestKeep/Core/AppSettings.swift
+
       - name: Compute app version (auto patch+1 on push, or manual on dispatch)
         id: version
         env:
