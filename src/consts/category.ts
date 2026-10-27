@@ -53,37 +53,37 @@ export const DEFAULT_EXPENSE_CATEGORIES: PresetCategory[] = [
     {
         name: 'Housing & Houseware',
         categoryIconId: '200',
-        color: '000000',
+        color: '795548',
         subCategories: [
             {
                 name: 'Houseware',
                 categoryIconId: '210',
-                color: '000000'
+                color: '795548'
             },
             {
                 name: 'Electronics',
                 categoryIconId: '230',
-                color: '000000'
+                color: '795548'
             },
             {
                 name: 'Repairs & Maintenance',
                 categoryIconId: '250',
-                color: '000000'
+                color: '795548'
             },
             {
                 name: 'Housekeeping Services',
                 categoryIconId: '260',
-                color: '000000'
+                color: '795548'
             },
             {
                 name: 'Utilities Expense',
                 categoryIconId: '270',
-                color: '000000'
+                color: '795548'
             },
             {
                 name: 'Rent & Mortgage',
                 categoryIconId: '290',
-                color: '000000'
+                color: '795548'
             }
         ]
     },

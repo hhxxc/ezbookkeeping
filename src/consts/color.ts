@@ -11,6 +11,7 @@ export const DEFAULT_COLOR_STYLE_VARIABLE: ColorStyleValue = 'var(--default-icon
 const allAvailableColors: ColorValue[] = [
     '000000', // black
     '8e8e93', // gray
+    '795548', // brown
     'ff3b30', // red
     'ff2d55', // pink
     'ff6b22', // deep orange
