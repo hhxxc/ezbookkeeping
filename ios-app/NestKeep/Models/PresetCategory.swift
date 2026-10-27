@@ -63,13 +63,13 @@ enum PresetCategoryCatalog {
             PresetSubCategory(name: "化妆品", icon: 180, color: "673ab7"),
             PresetSubCategory(name: "美容美发", icon: 190, color: "673ab7"),
         ]),
-        PresetCategory(name: "住宅家居", icon: 200, color: "000000", subCategories: [
-            PresetSubCategory(name: "家居用品", icon: 210, color: "000000"),
-            PresetSubCategory(name: "电子产品", icon: 230, color: "000000"),
-            PresetSubCategory(name: "维修保养", icon: 250, color: "000000"),
-            PresetSubCategory(name: "家政服务", icon: 260, color: "000000"),
-            PresetSubCategory(name: "水电煤气", icon: 270, color: "000000"),
-            PresetSubCategory(name: "租金贷款", icon: 290, color: "000000"),
+        PresetCategory(name: "住宅家居", icon: 200, color: "795548", subCategories: [
+            PresetSubCategory(name: "家居用品", icon: 210, color: "795548"),
+            PresetSubCategory(name: "电子产品", icon: 230, color: "795548"),
+            PresetSubCategory(name: "维修保养", icon: 250, color: "795548"),
+            PresetSubCategory(name: "家政服务", icon: 260, color: "795548"),
+            PresetSubCategory(name: "水电煤气", icon: 270, color: "795548"),
+            PresetSubCategory(name: "租金贷款", icon: 290, color: "795548"),
         ]),
         PresetCategory(name: "交通出行", icon: 300, color: "009688", subCategories: [
             PresetSubCategory(name: "公共交通", icon: 310, color: "009688"),
