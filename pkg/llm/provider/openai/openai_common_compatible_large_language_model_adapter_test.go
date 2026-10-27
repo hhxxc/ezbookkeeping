@@ -2,6 +2,7 @@ package openai
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,10 @@ func TestCommonOpenAIChatCompletionsAPILargeLanguageModelAdapter_buildJsonReques
 	err = json.Unmarshal(bodyBytes, &body)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "{\"model\":\"test\",\"stream\":false,\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant.\"},{\"role\":\"user\",\"content\":\"Hello, how are you?\"}],\"response_format\":{\"type\":\"json_object\"}}", string(bodyBytes))
+	// No response_format is sent when the caller does not provide an explicit json schema: forcing
+	// "json_object" makes models return a single object and therefore drop all but the first
+	// transaction of a multi-transaction receipt.
+	assert.Equal(t, "{\"model\":\"test\",\"stream\":false,\"messages\":[{\"role\":\"system\",\"content\":\"You are a helpful assistant.\"},{\"role\":\"user\",\"content\":\"Hello, how are you?\"}]}", string(bodyBytes))
 }
 
 func TestCommonOpenAIChatCompletionsAPILargeLanguageModelAdapter_buildJsonRequestBody_ImageUserPrompt(t *testing.T) {
@@ -53,7 +57,37 @@ func TestCommonOpenAIChatCompletionsAPILargeLanguageModelAdapter_buildJsonReques
 	err = json.Unmarshal(bodyBytes, &body)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "{\"model\":\"test\",\"stream\":false,\"messages\":[{\"role\":\"system\",\"content\":\"What's in this image?\"},{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,ZmFrZWRhdGE=\"}}]}],\"response_format\":{\"type\":\"json_object\"}}", string(bodyBytes))
+	assert.Equal(t, "{\"model\":\"test\",\"stream\":false,\"messages\":[{\"role\":\"system\",\"content\":\"What's in this image?\"},{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,ZmFrZWRhdGE=\"}}]}]}", string(bodyBytes))
+}
+
+func TestCommonOpenAIChatCompletionsAPILargeLanguageModelAdapter_buildJsonRequestBody_WithJsonSchema(t *testing.T) {
+	adapter := &CommonOpenAIChatCompletionsAPILargeLanguageModelAdapter{
+		apiProvider: &OpenAIOfficialChatCompletionsAPIProvider{
+			OpenAIModelID: "test",
+		},
+	}
+
+	type testResult struct {
+		Type   string `json:"type" jsonschema:"enum=income,enum=expense"`
+		Amount string `json:"amount"`
+	}
+
+	request := &data.LargeLanguageModelRequest{
+		SystemPrompt:           "You are a helpful assistant.",
+		UserPrompt:             []byte("Hello"),
+		ResponseJsonObjectType: reflect.TypeOf(testResult{}),
+	}
+
+	bodyBytes, err := adapter.buildJsonRequestBody(core.NewNullContext(), 0, request, data.LARGE_LANGUAGE_MODEL_RESPONSE_FORMAT_JSON)
+	assert.Nil(t, err)
+
+	var body map[string]interface{}
+	err = json.Unmarshal(bodyBytes, &body)
+	assert.Nil(t, err)
+
+	responseFormat, ok := body["response_format"].(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, "json_schema", responseFormat["type"])
 }
 
 func TestCommonOpenAIChatCompletionsAPILargeLanguageModelAdapter_ParseTextualResponse_ValidJsonResponse(t *testing.T) {

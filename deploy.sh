@@ -47,14 +47,19 @@ RESTART_POLICY="${RESTART_POLICY:-unless-stopped}"
 # 外网入口（反代/隧道域名），留空则只输出局域网地址
 SHELL_BASE_URL="${SHELL_BASE_URL:-}"
 
-# 识图大模型：主模型 + 备用模型（按轮询顺序自动故障切换）
+# 识图大模型：主模型 + 备用模型
+# 实测（2026-10-27，单笔小票 / 6 笔账单截图，1280px）：
+#   Qwen3-VL-8B   2.5~3.2s / 9.5~11.5s   ← 最快，字段完整
+#   Qwen3-VL-30B-A3B  7.7~8.2s / 20~24s  ← 准确率兜底，硅基流动上吞吐仅 ~15 tok/s
+#   GLM-5.3-Flash 12~19s / 15~16s        ← 输出啰嗦（token 数是 8B 的两倍）
 LLM_PROVIDER="${LLM_PROVIDER:-openai_compatible}"
 LLM_BASE_URL="${LLM_BASE_URL:-https://api.siliconflow.cn/v1}"
-LLM_MODEL_ID="${LLM_MODEL_ID:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
-LLM_FALLBACK_MODELS="${LLM_FALLBACK_MODELS:-model=Qwen/Qwen3-VL-8B-Instruct;model=Qwen/Qwen3-VL-32B-Instruct}"
+LLM_MODEL_ID="${LLM_MODEL_ID:-Qwen/Qwen3-VL-8B-Instruct}"
+LLM_FALLBACK_MODELS="${LLM_FALLBACK_MODELS:-model=Qwen/Qwen3-VL-30B-A3B-Instruct}"
 LLM_REQUEST_TIMEOUT="${LLM_REQUEST_TIMEOUT:-120000}"
 LLM_REQUEST_TIMEOUT_PER_MODEL="${LLM_REQUEST_TIMEOUT_PER_MODEL:-30000}"
-LLM_ROTATE_MODELS="${LLM_ROTATE_MODELS:-true}"
+# 不再轮询多模型：轮询会随机撞上慢模型，个人使用希望每次都走同一个最快模型
+LLM_ROTATE_MODELS="${LLM_ROTATE_MODELS:-false}"
 
 # 尝试的镜像代理源（按顺序），国内网络下 docker hub 直连经常失败
 MIRRORS=(

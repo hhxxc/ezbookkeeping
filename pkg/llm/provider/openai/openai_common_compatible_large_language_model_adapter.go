@@ -180,25 +180,25 @@ func (p *CommonOpenAIChatCompletionsAPILargeLanguageModelAdapter) buildJsonReque
 		}
 	}
 
-	if responseType == data.LARGE_LANGUAGE_MODEL_RESPONSE_FORMAT_JSON {
-		if request.ResponseJsonObjectType != nil {
-			schemeGenerator := jsonschema.Reflector{
-				Anonymous:      true,
-				DoNotReference: true,
-				ExpandedStruct: true,
-			}
+	// Only send response_format when an explicit json schema is requested.
+	//
+	// Forcing "json_object" while the prompt asks for a JSON *array* makes the model emit a single
+	// object instead, i.e. only the first transaction of a multi-transaction receipt. Sending no
+	// response_format lets the model follow the prompt and return the array, and the response parser
+	// strips code fences and extracts the JSON payload, so a stray sentence is still tolerated.
+	if responseType == data.LARGE_LANGUAGE_MODEL_RESPONSE_FORMAT_JSON && request.ResponseJsonObjectType != nil {
+		schemeGenerator := jsonschema.Reflector{
+			Anonymous:      true,
+			DoNotReference: true,
+			ExpandedStruct: true,
+		}
 
-			schema := schemeGenerator.ReflectFromType(request.ResponseJsonObjectType)
-			schema.Version = ""
+		schema := schemeGenerator.ReflectFromType(request.ResponseJsonObjectType)
+		schema.Version = ""
 
-			chatCompletionsRequest.ResponseFormat = &OpenAIChatCompletionsRequestResponseFormat{
-				Type:       OpenAIChatCompletionsRequestResponseFormatTypeJsonSchema,
-				JsonSchema: schema,
-			}
-		} else {
-			chatCompletionsRequest.ResponseFormat = &OpenAIChatCompletionsRequestResponseFormat{
-				Type: OpenAIChatCompletionsRequestResponseFormatTypeJsonObject,
-			}
+		chatCompletionsRequest.ResponseFormat = &OpenAIChatCompletionsRequestResponseFormat{
+			Type:       OpenAIChatCompletionsRequestResponseFormatTypeJsonSchema,
+			JsonSchema: schema,
 		}
 	}
 

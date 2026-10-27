@@ -153,9 +153,55 @@ func (a *LargeLanguageModelsApi) renderTransactionParseSystemPrompt(c *core.WebC
 	return strings.ReplaceAll(bodyBuffer.String(), "\r\n", "\n"), nil
 }
 
+// extractJsonPayload returns the JSON payload contained in the llm response content.
+//
+// Models occasionally wrap the payload in a markdown code fence or add a sentence before or after
+// it, even when the prompt asks for JSON only. Cutting the payload out keeps the parser working
+// without a second round trip to the model.
+func extractJsonPayload(content string) string {
+	trimmed := strings.TrimSpace(content)
+
+	if strings.HasPrefix(trimmed, "```") {
+		if idx := strings.IndexByte(trimmed, '\n'); idx >= 0 {
+			trimmed = strings.TrimSpace(trimmed[idx+1:])
+		} else {
+			trimmed = strings.TrimPrefix(trimmed, "```json")
+			trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "```"))
+		}
+
+		if strings.HasSuffix(trimmed, "```") {
+			trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, "```"))
+		}
+	}
+
+	if strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{") {
+		return trimmed
+	}
+
+	start := strings.IndexAny(trimmed, "[{")
+
+	if start < 0 {
+		return trimmed
+	}
+
+	closingChar := byte('}')
+
+	if trimmed[start] == '[' {
+		closingChar = ']'
+	}
+
+	end := strings.LastIndexByte(trimmed, closingChar)
+
+	if end <= start {
+		return trimmed
+	}
+
+	return trimmed[start : end+1]
+}
+
 // parseRecognizedTransactionsContent parses the llm response content into recognized transaction responses
 func (a *LargeLanguageModelsApi) parseRecognizedTransactionsContent(c *core.WebContext, uid int64, clientTimezone *time.Location, content string, context *transactionParseContext) ([]*models.RecognizedReceiptImageResponse, *errs.Error) {
-	trimmedContent := strings.TrimSpace(content)
+	trimmedContent := extractJsonPayload(content)
 
 	// Try parsing as array first (new format)
 	if strings.HasPrefix(trimmedContent, "[") {
