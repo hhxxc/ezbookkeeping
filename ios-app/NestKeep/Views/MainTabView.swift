@@ -134,21 +134,6 @@ struct MainTabView: View {
         }
         .environment(\.mainTabBarInset, Self.barContentHeight)
         .ignoresSafeArea(.keyboard, edges: .bottom)
-        // ⚠️ 临时诊断横幅：显示截屏监听的实时状态，真机定位「截图不弹提示」断点用。
-        // 验证通过后删除此 overlay 与 ScreenshotWatcher.lastDiagnosis 字段。
-        .overlay(alignment: .top) {
-            if !screenshotWatcher.lastDiagnosis.isEmpty {
-                Text("🔍 \(screenshotWatcher.lastDiagnosis)")
-                    .font(.caption2.monospaced())
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.75))
-                    .cornerRadius(8)
-                    .padding(.top, 4)
-                    .allowsHitTesting(false)
-            }
-        }
         // 新增交易（短按加号 / 各页里的新增入口共用）
         .sheet(isPresented: $showAdd) {
             TransactionEditView(transaction: nil)
