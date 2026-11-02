@@ -13,7 +13,7 @@ import Photos
 ///   3. `PHPhotoLibraryChangeObserver` —— 截屏写入相册时系统派发变化通知，最可靠。
 ///
 /// ## 关键实现（对齐业界验证过的方案）
-/// - **精确过滤截图**：predicate 加 `mediaSubtypes & photoScreenshot != 0`，只认截图
+/// - **精确过滤截图**：predicate 加 `mediaSubtype & photoScreenshot != 0`，只认截图
 ///   资产，不会把相册里最近的普通照片误认成「刚截的」；
 /// - **有界重试**：截图写入相册与通知/回前台之间存在竞态（assets 可能还没落盘），
 ///   第一次查不到就延时 750ms 再查一次，而不是只查一次就放弃；
@@ -158,9 +158,12 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         let since = Date().addingTimeInterval(-foregroundScanWindow)
-        // 关键：精确过滤「截图」资产，避免误扫普通照片
+        // 关键：精确过滤「截图」资产，避免误扫普通照片。
+        // ⚠️ PHAsset 的查询 key 是「mediaSubtype」(单数)——PHFetchOptions 的 predicate
+        //    走 Core Data 键值，写错成 mediaSubtypes(复数) 会导致查询恒返回空集，
+        //    这是之前「截屏后完全没反应」的根因。
         options.predicate = NSPredicate(
-            format: "(mediaSubtypes & %d) != 0 AND creationDate >= %@",
+            format: "(mediaSubtype & %d) != 0 AND creationDate >= %@",
             PHAssetMediaSubtype.photoScreenshot.rawValue, since as NSDate
         )
 
