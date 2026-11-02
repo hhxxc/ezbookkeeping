@@ -73,6 +73,8 @@ struct MainTabView: View {
     /// 语音记账流程（语音页 → 结果确认页）
     @StateObject private var voiceFlow = AIVoiceFlow()
     @ObservedObject private var serverSettings = ServerSettings.shared
+    /// 截屏监听（ObservableObject，订阅 pendingBatch 弹提示）
+    @ObservedObject private var screenshotWatcher = ScreenshotWatcher.shared
     @Environment(\.scenePhase) private var scenePhase
     /// 截屏收集到的图片批次（非空时弹「识别刚截的图？」提示）
     @State private var pendingScreenshots: [Data] = []
@@ -180,13 +182,13 @@ struct MainTabView: View {
             }
         }
         // 启动时静默检查更新（有间隔节流，失败不打扰）
-        .onAppear {
-            StartupMetrics.shared.markOnce("main-first-frame")
-            ScreenshotWatcher.shared.onBatchCollected = { datas in
-                guard !datas.isEmpty else { return }
-                pendingScreenshots = datas
-                showScreenshotPrompt = true
-            }
+        .onAppear { StartupMetrics.shared.markOnce("main-first-frame") }
+        // 订阅截屏批次：非空时弹「识别刚截的图？」提示
+        .onReceive(screenshotWatcher.$pendingBatch) { batch in
+            guard !batch.isEmpty else { return }
+            pendingScreenshots = batch
+            showScreenshotPrompt = true
+            screenshotWatcher.clearPending()
         }
         .task {
             await ServerSettings.shared.loadIfNeeded()

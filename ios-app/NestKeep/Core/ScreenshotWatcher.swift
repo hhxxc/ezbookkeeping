@@ -6,29 +6,34 @@ import Photos
 ///
 /// iOS 没有「读取当前屏幕画面」的公开能力，`userDidTakeScreenshotNotification`
 /// 也**不携带截图数据**，且只在 App **前台**时送达——用户在微信/支付宝里截屏时
-/// 收不到通知。本组件通过「截屏通知 + 回前台扫相册」两条路径拼出闭环：
+/// 收不到通知。本组件用三条触发路径拼出闭环：
 ///   1. `UIApplication.userDidTakeScreenshotNotification` —— App 前台截屏时即时感知；
 ///   2. `UIApplication.willEnterForegroundNotification` —— 回前台时扫相册最近窗口内
-///      新增的截图，兜底「在别的 App 截屏后切回」这一主场景（通知是否补触发因 iOS
-///      版本而异，不能依赖，扫相册才可靠）。
+///      新增的截图，兜底「在别的 App 截屏后切回」这一主场景；
+///   3. `PHPhotoLibraryChangeObserver` —— 截屏写入相册时系统派发变化通知，最可靠。
 ///
-/// ## 连续截屏与去重
-/// 用户连截多张时通知/扫描会连着触发，若每次立刻取图会「取错图」或「同一张识别
-/// 多遍」。做法：
-///   - 静默窗口：触发后进入可延长窗口，窗口内再有截屏就重置计时，把连拍聚合一批；
-///   - 时间戳去重：记录已回调过的批次时间点，回前台扫描时跳过已处理的截图。
+/// ## 关键实现（对齐业界验证过的方案）
+/// - **精确过滤截图**：predicate 加 `mediaSubtypes & photoScreenshot != 0`，只认截图
+///   资产，不会把相册里最近的普通照片误认成「刚截的」；
+/// - **有界重试**：截图写入相册与通知/回前台之间存在竞态（assets 可能还没落盘），
+///   第一次查不到就延时 750ms 再查一次，而不是只查一次就放弃；
+/// - **assetID 精确去重**：记录已回调过的截图 localIdentifier，避免同一张反复弹。
 @MainActor
 final class ScreenshotWatcher: NSObject, ObservableObject {
     static let shared = ScreenshotWatcher()
 
-    /// 截屏批次收集完成后的回调（主线程）。参数为本次批次的图片数据（可能为空）。
-    var onBatchCollected: (([Data]) -> Void)?
+    /// 收集到的截图批次（@Published 供 SwiftUI 订阅，避免 struct 闭包捕获 self 的坑）。
+    /// 值为非空数组时表示有一批新截图待处理；上层消费后调用 clearPending() 复位。
+    @Published private(set) var pendingBatch: [Data] = []
+
+    /// 统一交付批次：发布 @Published。
+    private func deliver(_ datas: [Data]) {
+        NSLog("[ScreenshotWatch] 交付批次 count=%d", datas.count)
+        pendingBatch = datas
+    }
 
     /// 静默窗口时长：这段时间内再有截屏就重置计时，把连拍合并成一批。
-    private let debounceInterval: TimeInterval = 1.5
-
-    /// 截屏后等相册落盘再查新增的延时（截图写入相册是异步的）。
-    private let photoSettleDelay: TimeInterval = 0.4
+    private let debounceInterval: TimeInterval = 1.2
 
     /// 回前台扫描时，认「最近多少秒内」新增的截图。
     private let foregroundScanWindow: TimeInterval = 120
@@ -39,11 +44,12 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
     /// 是否正在收集（防止连续触发重叠）。
     private var isCollecting = false
 
-    /// 已回调过的批次时间戳（去重：回前台扫描跳过此时间点之前的截图）。
-    private var lastHandledDate: Date = .distantPast
+    /// 已回调过的截图 localIdentifier（精确去重，替代模糊的时间戳）。
+    private var handledIdentifiers: Set<String> = []
 
     private override init() {
         super.init()
+        NSLog("[ScreenshotWatch] init - 注册通知")
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleScreenshot),
@@ -56,21 +62,30 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
             name: UIApplication.willEnterForegroundNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleForeground),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+        PHPhotoLibrary.shared().register(self)
     }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+        PHPhotoLibrary.shared().unregisterChangeObserver(self)
     }
 
     // MARK: - 触发源
 
     @objc private func handleScreenshot() {
+        NSLog("[ScreenshotWatch] 收到截屏通知")
         scheduleDebounce()
     }
 
     /// 回前台：扫相册最近窗口内新增的截图，兜底「别的 App 截屏后切回」场景。
     @objc private func handleForeground() {
-        // 回前台也走静默窗口：切回 App 到相册可读之间可能还有新截图落盘
+        NSLog("[ScreenshotWatch] 收到回前台通知")
         scheduleDebounce()
     }
 
@@ -99,17 +114,21 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
 
         switch status {
         case .authorized, .limited:
-            queryRecentScreenshots()
+            fetchScreenshots(retry: true)
         case .notDetermined:
             requestAndCollect()
         case .denied, .restricted:
-            // 无权限：清空并回调空数组，上层无需弹提示（授权需用户去系统设置开启）
             isCollecting = false
-            onBatchCollected?([])
+            deliver([])
         @unknown default:
             isCollecting = false
-            onBatchCollected?([])
+            deliver([])
         }
+    }
+
+    /// 上层消费完批次后复位（供下次截屏重新发布）。
+    func clearPending() {
+        pendingBatch = []
     }
 
     private func requestAndCollect() {
@@ -118,9 +137,9 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
                 guard let self else { return }
                 self.isCollecting = false
                 if status == .authorized || status == .limited {
-                    self.queryRecentScreenshots()
+                    self.fetchScreenshots(retry: true)
                 } else {
-                    self.onBatchCollected?([])
+                    self.deliver([])
                 }
             }
         }
@@ -131,34 +150,30 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
         }
     }
 
-    /// 查相册「最近窗口期内」新增的截图（按创建时间过滤，并跳过已处理的）。
-    private func queryRecentScreenshots() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + photoSettleDelay) { [weak self] in
-            guard let self else { return }
-            self.fetchScreenshots { datas in
-                self.isCollecting = false
-                self.onBatchCollected?(datas)
-            }
-        }
-    }
+    // MARK: - 扫相册
 
-    /// 从相册取「上次处理后到现在」新增的截图，转成 Data（长边压缩对齐识图口径）。
-    /// 回前台扫描窗口比静默窗口长（用户可能在别的 App 里截屏后隔一会儿才切回）。
-    private func fetchScreenshots(completion: @escaping ([Data]) -> Void) {
+    /// 扫相册最近窗口内**新增的截图**（精确过滤 + assetID 去重 + 有界重试）。
+    /// - Parameter retry: 查不到时是否延时重试一次（截图落盘竞态）。
+    private func fetchScreenshots(retry: Bool) {
         let options = PHFetchOptions()
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        // 起始点 = 上次处理时刻；但回前台场景上次处理可能很久以前，用扫描窗口兜底，
-        // 避免把几小时前无关截图误认成「刚截的」
-        let floor = Date().addingTimeInterval(-foregroundScanWindow)
-        let since = max(lastHandledDate, floor)
-        options.predicate = NSPredicate(format: "creationDate >= %@", since as NSDate)
+        let since = Date().addingTimeInterval(-foregroundScanWindow)
+        // 关键：精确过滤「截图」资产，避免误扫普通照片
+        options.predicate = NSPredicate(
+            format: "(mediaSubtypes & %d) != 0 AND creationDate >= %@",
+            PHAssetMediaSubtype.photoScreenshot.rawValue, since as NSDate
+        )
 
         let assets = PHAsset.fetchAssets(with: .image, options: options)
+        NSLog("[ScreenshotWatch] 扫描到截图资产数=%d", assets.count)
 
-        // 最多 9 张（对齐识图多选上限），fetch 默认降序，反转为升序（连截顺序）
+        // 收集「未处理过的」截图，按创建时间升序（连截顺序），最多 9 张
         var collected: [PHAsset] = []
         assets.enumerateObjects { asset, _, stop in
-            collected.append(asset)
+            let id = asset.localIdentifier
+            if !self.handledIdentifiers.contains(id) {
+                collected.append(asset)
+            }
             if collected.count >= 9 {
                 stop.pointee = true
             }
@@ -166,13 +181,27 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
         collected.reverse()
 
         guard !collected.isEmpty else {
-            completion([])
+            // 截图落盘竞态：第一次查不到，延时再查一次（有界重试）
+            if retry {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { [weak self] in
+                    self?.fetchScreenshots(retry: false)
+                }
+            } else {
+                isCollecting = false
+                deliver([])
+            }
             return
         }
 
-        // 无论最终是否回调非空，先把「本次扫描基准」推进到最新截图时间，避免重复扫
-        let latestDate = collected.map { $0.creationDate ?? Date() }.max() ?? Date()
-        lastHandledDate = latestDate
+        // 立即登记为「已处理」，防止重试/下次扫描重复收集
+        for asset in collected {
+            handledIdentifiers.insert(asset.localIdentifier)
+        }
+
+        // 防止去重集合无限增长：超过 1000 条时清理（保留最近的行为依赖，这里简单重置）
+        if handledIdentifiers.count > 1000 {
+            handledIdentifiers.removeAll()
+        }
 
         let manager = PHImageManager.default()
         let reqOptions = PHImageRequestOptions()
@@ -197,8 +226,10 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
             }
         }
 
-        group.notify(queue: .main) {
-            completion(slots.compactMap { $0 })
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            self.isCollecting = false
+            self.deliver(slots.compactMap { $0 })
         }
     }
 
@@ -219,5 +250,19 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
             return scaled.jpegData(compressionQuality: 0.75)
         }
         return image.jpegData(compressionQuality: 0.75)
+    }
+}
+
+// MARK: - PHPhotoLibraryChangeObserver
+
+extension ScreenshotWatcher: PHPhotoLibraryChangeObserver {
+    /// 截屏写入相册时系统派发的变化通知——比截屏通知/回前台更可靠的触发源。
+    /// 该方法在非主线程回调（类本身是 @MainActor），故标 nonisolated 并在内部
+    /// 转到主线程走静默窗口聚合。
+    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
+        // 非主线程回调，转到主线程（MainActor）再走静默窗口聚合
+        Task { @MainActor [weak self] in
+            self?.scheduleDebounce()
+        }
     }
 }
