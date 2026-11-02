@@ -18,7 +18,13 @@ import Photos
 /// - **有界重试**：截图写入相册与通知/回前台之间存在竞态（assets 可能还没落盘），
 ///   第一次查不到就延时 750ms 再查一次，而不是只查一次就放弃；
 /// - **assetID 精确去重**：记录已回调过的截图 localIdentifier，避免同一张反复弹。
-@MainActor
+///
+/// ## 为什么不用 @MainActor
+/// 之前标了 @MainActor，`static let shared` 变成 MainActor 隔离的静态属性，在
+/// `MainTabView`(struct) 的默认成员初始化器（非隔离上下文）里惰性访问会触发
+/// 隐式跳转/延迟初始化，导致单例可能没真正注册通知——真机「截屏完全没反应、
+/// 诊断横幅都不显示」的根因。改成普通 final class，所有 @Published 更新统一
+/// 在主线程（通知本身主线程派发，PHPhotoLibraryChangeObserver 回调手动 main.async）。
 final class ScreenshotWatcher: NSObject, ObservableObject {
     static let shared = ScreenshotWatcher()
 
@@ -273,11 +279,10 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
 
 extension ScreenshotWatcher: PHPhotoLibraryChangeObserver {
     /// 截屏写入相册时系统派发的变化通知——比截屏通知/回前台更可靠的触发源。
-    /// 该方法在非主线程回调（类本身是 @MainActor），故标 nonisolated 并在内部
-    /// 转到主线程走静默窗口聚合。
-    nonisolated func photoLibraryDidChange(_ changeInstance: PHChange) {
-        // 非主线程回调，转到主线程（MainActor）再走静默窗口聚合
-        Task { @MainActor [weak self] in
+    /// 该方法在**非主线程**回调，手动转到主线程走静默窗口聚合（@Published 更新
+    /// 必须在主线程）。
+    func photoLibraryDidChange(_ changeInstance: PHChange) {
+        DispatchQueue.main.async { [weak self] in
             self?.scheduleDebounce()
         }
     }
