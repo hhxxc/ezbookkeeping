@@ -182,10 +182,10 @@ struct MainTabView: View {
         // 启动时静默检查更新（有间隔节流，失败不打扰）
         .onAppear {
             StartupMetrics.shared.markOnce("main-first-frame")
-            ScreenshotWatcher.shared.onBatchCollected = { [weak self] datas in
-                guard let self, !datas.isEmpty else { return }
-                self.pendingScreenshots = datas
-                self.showScreenshotPrompt = true
+            ScreenshotWatcher.shared.onBatchCollected = { datas in
+                guard !datas.isEmpty else { return }
+                pendingScreenshots = datas
+                showScreenshotPrompt = true
             }
         }
         .task {
