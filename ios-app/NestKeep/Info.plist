@@ -88,5 +88,8 @@
     <string>用于把你说的话转成文字，自动填入记账信息。语音在设备本地识别。</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>用于语音记账时录入你的声音并转成文字。</string>
+    <!-- 截屏记账：截屏后自动收集刚截的图供识别入账，需读取相册里的截图 -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>用于在你截屏后自动读取刚截的图片，识别票据信息并记一笔。</string>
 </dict>
 </plist>

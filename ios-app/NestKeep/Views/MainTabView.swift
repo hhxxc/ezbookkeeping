@@ -74,6 +74,10 @@ struct MainTabView: View {
     @StateObject private var voiceFlow = AIVoiceFlow()
     @ObservedObject private var serverSettings = ServerSettings.shared
     @Environment(\.scenePhase) private var scenePhase
+    /// 截屏收集到的图片批次（非空时弹「识别刚截的图？」提示）
+    @State private var pendingScreenshots: [Data] = []
+    /// 是否正在展示截屏识别提示
+    @State private var showScreenshotPrompt = false
 
     /// 底部导航条内容高度（不含底部安全区）。
     /// 通过环境值下发，供从页面内推入的二级页 / sheet 复用（它们自身在 tab 层级之外）。
@@ -150,6 +154,21 @@ struct MainTabView: View {
         .modifier(AIVoiceFlowModifier(flow: voiceFlow, onResultsDismiss: {
             NotificationCenter.default.post(name: .transactionsChanged, object: nil)
         }))
+        // 截屏记账：截屏批次收集完成后弹「识别刚截的图？」提示，确认后直接进识图页
+        .alert("识别刚截的图？", isPresented: $showScreenshotPrompt) {
+            Button("识别") {
+                let datas = pendingScreenshots
+                pendingScreenshots = []
+                aiFlow.startWithImages(datas)
+            }
+            Button("取消", role: .cancel) {
+                pendingScreenshots = []
+            }
+        } message: {
+            Text(pendingScreenshots.count > 1
+                 ? "检测到 \(pendingScreenshots.count) 张截图，识别并核对后入账。"
+                 : "检测到 1 张截图，识别并核对后入账。")
+        }
         .sheet(isPresented: $showTemplates) {
             NavigationView {
                 TemplatesView()
@@ -161,7 +180,14 @@ struct MainTabView: View {
             }
         }
         // 启动时静默检查更新（有间隔节流，失败不打扰）
-        .onAppear { StartupMetrics.shared.markOnce("main-first-frame") }
+        .onAppear {
+            StartupMetrics.shared.markOnce("main-first-frame")
+            ScreenshotWatcher.shared.onBatchCollected = { [weak self] datas in
+                guard let self, !datas.isEmpty else { return }
+                self.pendingScreenshots = datas
+                self.showScreenshotPrompt = true
+            }
+        }
         .task {
             await ServerSettings.shared.loadIfNeeded()
             StartupMetrics.shared.markOnce("server-settings")

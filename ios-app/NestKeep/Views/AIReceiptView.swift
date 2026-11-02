@@ -696,6 +696,15 @@ final class AIReceiptFlow: ObservableObject {
             self?.showReceipt = true
         }
     }
+
+    /// 直接带图进识别页（跳过相册）。供截屏批次等外部已拿到图片的入口复用：
+    /// 不弹相册、直接进 AIReceiptView 识别确认。
+    func startWithImages(_ datas: [Data]) {
+        guard !datas.isEmpty else { return }
+        images = datas
+        showPicker = false
+        showReceipt = true
+    }
 }
 
 /// 两个入口（首页 AI 卡片 / 加号长按菜单）共用的 sheet 组合：
