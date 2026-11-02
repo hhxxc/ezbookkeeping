@@ -24,6 +24,17 @@ struct NestKeepApp: App {
             RootView()
                 .environmentObject(auth)
                 .environmentObject(settings)
+                // 深链：Share Extension 通过 nestkeep://receipt 唤醒，读 App Group
+                // 待识别图片 → 中转给 MainTabView 进识图页。
+                .onOpenURL { url in
+                    handleOpenURL(url)
+                }
         }
+    }
+
+    /// 处理 nestkeep://receipt 深链（Share Extension 分享截图/图片唤醒）。
+    private func handleOpenURL(_ url: URL) {
+        guard url.scheme == "nestkeep", url.host == "receipt" else { return }
+        ShareReceiptRelay.shared.deliverFromShareExtension()
     }
 }

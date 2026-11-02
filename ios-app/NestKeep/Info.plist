@@ -72,6 +72,19 @@
     <array>
         <string>apple-magnifier</string>
     </array>
+    <!-- 分享扩展深链：用户在相册/截图点「分享 → 巢记」，扩展用 nestkeep://receipt
+         唤醒主 App 进识图页。CFBundleURLSchemes 声明本 App 响应的 scheme。 -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.nestkeep.app.dev.receipt</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>nestkeep</string>
+            </array>
+        </dict>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

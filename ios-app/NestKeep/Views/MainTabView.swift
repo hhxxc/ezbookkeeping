@@ -75,6 +75,8 @@ struct MainTabView: View {
     @ObservedObject private var serverSettings = ServerSettings.shared
     /// 截屏监听（ObservableObject，订阅 pendingBatch 弹提示）
     @ObservedObject private var screenshotWatcher = ScreenshotWatcher.shared
+    /// 分享扩展深链中转（订阅待识别图片，非空时进识图页）
+    @ObservedObject private var shareRelay = ShareReceiptRelay.shared
     @Environment(\.scenePhase) private var scenePhase
     /// 截屏收集到的图片批次（非空时弹「识别刚截的图？」提示）
     @State private var pendingScreenshots: [Data] = []
@@ -205,6 +207,12 @@ struct MainTabView: View {
             showScreenshotPrompt = true
             screenshotWatcher.clearPending()
         }
+        // 订阅分享扩展深链：非空时直接进识图页（用户已在分享菜单点了「巢记」，无需再确认）
+        .onReceive(shareRelay.$pendingImages) { datas in
+            guard !datas.isEmpty else { return }
+            shareRelay.clear()
+            aiFlow.startWithImages(datas)
+        }
         .task {
             await ServerSettings.shared.loadIfNeeded()
             StartupMetrics.shared.markOnce("server-settings")
@@ -220,6 +228,14 @@ struct MainTabView: View {
             if phase == .active {
                 Task { await ServerSettings.shared.refreshIfNeeded() }
                 Task { await UpdateStore.shared.autoCheckIfNeeded() }
+                // 分享扩展写完图后无法主动唤醒 App（iOS 限制），用户切回巢记时
+                // 在这里消费 App Group 里的待识别图片进识图页。
+                if ShareReceiptStore.hasPendingImages() {
+                    let datas = ShareReceiptStore.consumePendingImages()
+                    if !datas.isEmpty {
+                        aiFlow.startWithImages(datas)
+                    }
+                }
             }
         }
     }

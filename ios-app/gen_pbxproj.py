@@ -32,6 +32,15 @@ WIDGET_SWIFT_FILES = sorted(
     if name.endswith(".swift")
 )
 
+# Share Extension 源文件（NestKeepShare 目录）
+_SHARE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "NestKeepShare")
+SHARE_SWIFT_FILES = sorted(
+    os.path.relpath(os.path.join(dp, name), _SHARE_ROOT).replace("\\", "/")
+    for dp, _dirs, names in os.walk(_SHARE_ROOT)
+    for name in names
+    if name.endswith(".swift")
+)
+
 INFOPLIST = "Info.plist"
 # 资源目录（AppIcon 图标、颜色等）；作为 folder reference 加入 Resources 构建阶段
 ASSET_CATALOG = "Assets.xcassets"
@@ -69,6 +78,18 @@ widget_tgt_cl_id = oid("WidgetTargetConfigList")
 widget_embed_id = oid("EmbedAppExtensions")
 widget_proxy_id = oid("WidgetContainerItemProxy")
 widget_dep_id = oid("WidgetTargetDependency")
+# Share Extension target
+share_group_id = oid("NestKeepShareGroup")
+share_target_id = oid("ShareNativeTarget")
+share_product_id = oid("Product.NestKeepShare.appex")
+share_sources_id = oid("ShareSourcesBuildPhase")
+share_frameworks_id = oid("ShareFrameworksBuildPhase")
+share_tgt_dbg_id = oid("ShareTargetDebug")
+share_tgt_rel_id = oid("ShareTargetRelease")
+share_tgt_cl_id = oid("ShareTargetConfigList")
+share_embed_id = oid("EmbedShareAppExtensions")
+share_proxy_id = oid("ShareContainerItemProxy")
+share_dep_id = oid("ShareTargetDependency")
 
 file_ref_ids = {}      # path -> fileRef id
 build_file_ids = {}    # path -> buildFile id
@@ -80,6 +101,10 @@ for f in SWIFT_FILES:
 for f in WIDGET_SWIFT_FILES:
     file_ref_ids["widget/" + f] = oid("FileRef.Widget." + f)
     build_file_ids["widget/" + f] = oid("BuildFile.Widget." + f)
+
+for f in SHARE_SWIFT_FILES:
+    file_ref_ids["share/" + f] = oid("FileRef.Share." + f)
+    build_file_ids["share/" + f] = oid("BuildFile.Share." + f)
 
 # 资源目录 ID
 assets_ref_id = oid("FileRef." + ASSET_CATALOG)
@@ -103,9 +128,19 @@ for f in WIDGET_SWIFT_FILES:
     build_files_txt += (
         f'\t\t{build_file_ids[wf]} /* {name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref_ids[wf]} /* {name} */; }};\n'
     )
+for f in SHARE_SWIFT_FILES:
+    name = os.path.basename(f)
+    sf = "share/" + f
+    build_files_txt += (
+        f'\t\t{build_file_ids[sf]} /* {name} in Sources */ = {{isa = PBXBuildFile; fileRef = {file_ref_ids[sf]} /* {name} */; }};\n'
+    )
 widget_embed_build_id = oid("BuildFile.WidgetEmbed.appex")
 build_files_txt += (
     f'\t\t{widget_embed_build_id} /* NestKeepWidget.appex in Embed App Extensions */ = {{isa = PBXBuildFile; fileRef = {widget_product_id} /* NestKeepWidget.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};\n'
+)
+share_embed_build_id = oid("BuildFile.ShareEmbed.appex")
+build_files_txt += (
+    f'\t\t{share_embed_build_id} /* NestKeepShare.appex in Embed Share Extensions */ = {{isa = PBXBuildFile; fileRef = {share_product_id} /* NestKeepShare.appex */; settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};\n'
 )
 
 # ---- PBXFileReference ----
@@ -121,11 +156,20 @@ file_refs.append(
 file_refs.append(
     f'\t\t{widget_product_id} /* NestKeepWidget.appex */ = {{isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NestKeepWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; }};\n'
 )
+file_refs.append(
+    f'\t\t{share_product_id} /* NestKeepShare.appex */ = {{isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NestKeepShare.appex; sourceTree = BUILT_PRODUCTS_DIR; }};\n'
+)
 for f in WIDGET_SWIFT_FILES:
     name = os.path.basename(f)
     wf = "widget/" + f
     file_refs.append(
         f'\t\t{file_ref_ids[wf]} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {f}; sourceTree = "<group>"; }};\n'
+    )
+for f in SHARE_SWIFT_FILES:
+    name = os.path.basename(f)
+    sf = "share/" + f
+    file_refs.append(
+        f'\t\t{file_ref_ids[sf]} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {f}; sourceTree = "<group>"; }};\n'
     )
 # 资源目录引用（lastKnownFileType = folder.assetcatalog）
 file_refs.append(
@@ -145,6 +189,16 @@ widget_group = (
     f'\t\t\tsourceTree = "<group>";\n'
     f'\t\t}};\n'
 )
+share_children = ",\n".join(f"\t\t\t\t{file_ref_ids['share/' + f]} /* {os.path.basename(f)} */" for f in SHARE_SWIFT_FILES)
+share_group = (
+    f'\t\t{share_group_id} /* NestKeepShare */ = {{\n'
+    f'\t\t\tisa = PBXGroup;\n'
+    f'\t\t\tchildren = (\n{share_children},\n'
+    f'\t\t\t);\n'
+    f'\t\t\tpath = NestKeepShare;\n'
+    f'\t\t\tsourceTree = "<group>";\n'
+    f'\t\t}};\n'
+)
 group_children += f",\n\t\t\t\t{assets_ref_id} /* {ASSET_CATALOG} */"
 nestkeep_group = (
     f'\t\t{nestkeep_group_id} /* NestKeep */ = {{\n'
@@ -161,13 +215,15 @@ main_group = (
     f'\t\t\tchildren = (\n'
     f'\t\t\t\t{nestkeep_group_id} /* NestKeep */,\n'
     f'\t\t\t\t{widget_group_id} /* NestKeepWidget */,\n'
+    f'\t\t\t\t{share_group_id} /* NestKeepShare */,\n'
     f'\t\t\t\t{product_id} /* NestKeep.app */,\n'
     f'\t\t\t\t{widget_product_id} /* NestKeepWidget.appex */,\n'
+    f'\t\t\t\t{share_product_id} /* NestKeepShare.appex */,\n'
     f'\t\t\t);\n'
     f'\t\t\tsourceTree = "<group>";\n'
     f'\t\t}};\n'
 )
-groups_txt = nestkeep_group + widget_group + main_group
+groups_txt = nestkeep_group + widget_group + share_group + main_group
 
 # ---- PBXNativeTarget ----
 target_txt = (
@@ -179,11 +235,13 @@ target_txt = (
     f'\t\t\t\t{frameworks_id} /* Frameworks */,\n'
     f'\t\t\t\t{resources_id} /* Resources */,\n'
     f'\t\t\t\t{widget_embed_id} /* Embed App Extensions */,\n'
+    f'\t\t\t\t{share_embed_id} /* Embed Share Extensions */,\n'
     f'\t\t\t);\n'
     f'\t\t\tbuildRules = (\n'
     f'\t\t\t);\n'
     f'\t\t\tdependencies = (\n'
     f'\t\t\t\t{widget_dep_id} /* PBXTargetDependency */,\n'
+    f'\t\t\t\t{share_dep_id} /* PBXTargetDependency */,\n'
     f'\t\t\t);\n'
     f'\t\t\tname = NestKeep;\n'
     f'\t\t\tproductName = NestKeep;\n'
@@ -213,6 +271,27 @@ widget_target_txt = (
 )
 target_txt = target_txt + widget_target_txt
 
+# ---- Share NativeTarget ----
+share_target_txt = (
+    f'\t\t{share_target_id} /* NestKeepShare */ = {{\n'
+    f'\t\t\tisa = PBXNativeTarget;\n'
+    f'\t\t\tbuildConfigurationList = {share_tgt_cl_id} /* Build configuration list for PBXNativeTarget "NestKeepShare" */;\n'
+    f'\t\t\tbuildPhases = (\n'
+    f'\t\t\t\t{share_sources_id} /* Sources */,\n'
+    f'\t\t\t\t{share_frameworks_id} /* Frameworks */,\n'
+    f'\t\t\t);\n'
+    f'\t\t\tbuildRules = (\n'
+    f'\t\t\t);\n'
+    f'\t\t\tdependencies = (\n'
+    f'\t\t\t);\n'
+    f'\t\t\tname = NestKeepShare;\n'
+    f'\t\t\tproductName = NestKeepShare;\n'
+    f'\t\t\tproductReference = {share_product_id} /* NestKeepShare.appex */;\n'
+    f'\t\t\tproductType = "com.apple.product-type.app-extension";\n'
+    f'\t\t}};\n'
+)
+target_txt = target_txt + share_target_txt
+
 # ---- PBXProject ----
 project_txt = (
     f'\t\t{project_id} /* Project object */ = {{\n'
@@ -226,6 +305,9 @@ project_txt = (
     f'\t\t\t\t\t\tCreatedOnToolsVersion = 15.0;\n'
     f'\t\t\t\t\t}};\n'
     f'\t\t\t\t\t{widget_target_id} = {{\n'
+    f'\t\t\t\t\t\tCreatedOnToolsVersion = 15.0;\n'
+    f'\t\t\t\t\t}};\n'
+    f'\t\t\t\t\t{share_target_id} = {{\n'
     f'\t\t\t\t\t\tCreatedOnToolsVersion = 15.0;\n'
     f'\t\t\t\t\t}};\n'
     f'\t\t\t\t}};\n'
@@ -245,6 +327,7 @@ project_txt = (
     f'\t\t\ttargets = (\n'
     f'\t\t\t\t{target_id} /* NestKeep */,\n'
     f'\t\t\t\t{widget_target_id} /* NestKeepWidget */,\n'
+    f'\t\t\t\t{share_target_id} /* NestKeepShare */,\n'
     f'\t\t\t);\n'
     f'\t\t}};\n'
 )
@@ -275,6 +358,20 @@ widget_sources_txt = (
     f'\t\t}};\n'
 )
 
+# ---- Share Sources phase ----
+share_sources_children = ",\n".join(
+    f"\t\t\t\t{build_file_ids['share/' + f]} /* {os.path.basename(f)} in Sources */" for f in SHARE_SWIFT_FILES
+)
+share_sources_txt = (
+    f'\t\t{share_sources_id} /* Sources */ = {{\n'
+    f'\t\t\tisa = PBXSourcesBuildPhase;\n'
+    f'\t\t\tbuildActionMask = 2147483647;\n'
+    f'\t\t\tfiles = (\n{share_sources_children},\n'
+    f'\t\t\t);\n'
+    f'\t\t\trunOnlyForDeploymentPostprocessing = 0;\n'
+    f'\t\t}};\n'
+)
+
 # ---- Embed App Extensions（主 target CopyFiles）----
 embed_txt = (
     f'\t\t{widget_embed_id} /* Embed App Extensions */ = {{\n'
@@ -286,6 +383,20 @@ embed_txt = (
     f'\t\t\t\t{widget_embed_build_id} /* NestKeepWidget.appex in Embed App Extensions */,\n'
     f'\t\t\t);\n'
     f'\t\t\tname = "Embed App Extensions";\n'
+    f'\t\t\trunOnlyForDeploymentPostprocessing = 0;\n'
+    f'\t\t}};\n'
+)
+# ---- Embed Share Extensions（主 target CopyFiles，独立 phase）----
+share_embed_txt = (
+    f'\t\t{share_embed_id} /* Embed Share Extensions */ = {{\n'
+    f'\t\t\tisa = PBXCopyFilesBuildPhase;\n'
+    f'\t\t\tbuildActionMask = 2147483647;\n'
+    f'\t\t\tdstPath = "";\n'
+    f'\t\t\tdstSubfolderSpec = 13;\n'
+    f'\t\t\tfiles = (\n'
+    f'\t\t\t\t{share_embed_build_id} /* NestKeepShare.appex in Embed Share Extensions */,\n'
+    f'\t\t\t);\n'
+    f'\t\t\tname = "Embed Share Extensions";\n'
     f'\t\t\trunOnlyForDeploymentPostprocessing = 0;\n'
     f'\t\t}};\n'
 )
@@ -305,6 +416,22 @@ dep_txt = (
     f'\t\t\tisa = PBXTargetDependency;\n'
     f'\t\t\ttarget = {widget_target_id} /* NestKeepWidget */;\n'
     f'\t\t\ttargetProxy = {widget_proxy_id} /* PBXContainerItemProxy */;\n'
+    f'\t\t}};\n'
+)
+share_proxy_txt = (
+    f'\t\t{share_proxy_id} /* PBXContainerItemProxy */ = {{\n'
+    f'\t\t\tisa = PBXContainerItemProxy;\n'
+    f'\t\t\tcontainerPortal = {project_id} /* Project object */;\n'
+    f'\t\t\tproxyType = 1;\n'
+    f'\t\t\tremoteGlobalIDString = {share_target_id};\n'
+    f'\t\t\tremoteInfo = NestKeepShare;\n'
+    f'\t\t}};\n'
+)
+share_dep_txt = (
+    f'\t\t{share_dep_id} /* PBXTargetDependency */ = {{\n'
+    f'\t\t\tisa = PBXTargetDependency;\n'
+    f'\t\t\ttarget = {share_target_id} /* NestKeepShare */;\n'
+    f'\t\t\ttargetProxy = {share_proxy_id} /* PBXContainerItemProxy */;\n'
     f'\t\t}};\n'
 )
 
@@ -330,6 +457,15 @@ resources_txt = (
 )
 widget_frameworks_txt = (
     f'\t\t{widget_frameworks_id} /* Frameworks */ = {{\n'
+    f'\t\t\tisa = PBXFrameworksBuildPhase;\n'
+    f'\t\t\tbuildActionMask = 2147483647;\n'
+    f'\t\t\tfiles = (\n'
+    f'\t\t\t);\n'
+    f'\t\t\trunOnlyForDeploymentPostprocessing = 0;\n'
+    f'\t\t}};\n'
+)
+share_frameworks_txt = (
+    f'\t\t{share_frameworks_id} /* Frameworks */ = {{\n'
     f'\t\t\tisa = PBXFrameworksBuildPhase;\n'
     f'\t\t\tbuildActionMask = 2147483647;\n'
     f'\t\t\tfiles = (\n'
@@ -491,7 +627,62 @@ widget_tgt_release = (
     f'\t\t}};\n'
 )
 
-configs_txt = proj_debug + proj_release + target_debug + target_release + widget_tgt_debug + widget_tgt_release
+share_tgt_debug = (
+    f'\t\t{share_tgt_dbg_id} /* Debug */ = {{\n'
+    f'\t\t\tisa = XCBuildConfiguration;\n'
+    f'\t\t\tbuildSettings = {{\n'
+    f'\t\t\t\tCODE_SIGN_ENTITLEMENTS = NestKeepShare/NestKeepShare.entitlements;\n'
+    f'\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
+    f'\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
+    f'\t\t\t\tDEVELOPMENT_TEAM = "";\n'
+    f'\t\t\t\tGENERATE_INFOPLIST_FILE = NO;\n'
+    f'\t\t\t\tINFOPLIST_FILE = NestKeepShare/Info.plist;\n'
+    f'\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 15.0;\n'
+    f'\t\t\t\tLD_RUNPATH_SEARCH_PATHS = (\n'
+    f'\t\t\t\t\t"$(inherited)",\n'
+    f'\t\t\t\t\t"@executable_path/Frameworks",\n'
+    f'\t\t\t\t\t"@executable_path/../../Frameworks",\n'
+    f'\t\t\t\t);\n'
+    f'\t\t\t\tMARKETING_VERSION = 1.6.3;\n'
+    f'\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app.dev.share;\n'
+    f'\t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";\n'
+    f'\t\t\t\tSKIP_INSTALL = YES;\n'
+    f'\t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;\n'
+    f'\t\t\t\tSWIFT_VERSION = 5.0;\n'
+    f'\t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";\n'
+    f'\t\t\t}};\n'
+    f'\t\t\tname = Debug;\n'
+    f'\t\t}};\n'
+)
+share_tgt_release = (
+    f'\t\t{share_tgt_rel_id} /* Release */ = {{\n'
+    f'\t\t\tisa = XCBuildConfiguration;\n'
+    f'\t\t\tbuildSettings = {{\n'
+    f'\t\t\t\tCODE_SIGN_ENTITLEMENTS = NestKeepShare/NestKeepShare.entitlements;\n'
+    f'\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
+    f'\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
+    f'\t\t\t\tDEVELOPMENT_TEAM = "";\n'
+    f'\t\t\t\tGENERATE_INFOPLIST_FILE = NO;\n'
+    f'\t\t\t\tINFOPLIST_FILE = NestKeepShare/Info.plist;\n'
+    f'\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 15.0;\n'
+    f'\t\t\t\tLD_RUNPATH_SEARCH_PATHS = (\n'
+    f'\t\t\t\t\t"$(inherited)",\n'
+    f'\t\t\t\t\t"@executable_path/Frameworks",\n'
+    f'\t\t\t\t\t"@executable_path/../../Frameworks",\n'
+    f'\t\t\t\t);\n'
+    f'\t\t\t\tMARKETING_VERSION = 1.6.3;\n'
+    f'\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.nestkeep.app.dev.share;\n'
+    f'\t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";\n'
+    f'\t\t\t\tSKIP_INSTALL = YES;\n'
+    f'\t\t\t\tSWIFT_EMIT_LOC_STRINGS = YES;\n'
+    f'\t\t\t\tSWIFT_VERSION = 5.0;\n'
+    f'\t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";\n'
+    f'\t\t\t}};\n'
+    f'\t\t\tname = Release;\n'
+    f'\t\t}};\n'
+)
+
+configs_txt = proj_debug + proj_release + target_debug + target_release + widget_tgt_debug + widget_tgt_release + share_tgt_debug + share_tgt_release
 
 # ---- XCConfigurationList ----
 lists_txt = (
@@ -522,6 +713,15 @@ lists_txt = (
     f'\t\t\tdefaultConfigurationIsVisible = 0;\n'
     f'\t\t\tdefaultConfigurationName = Release;\n'
     f'\t\t}};\n'
+    f'\t\t{share_tgt_cl_id} /* Build configuration list for PBXNativeTarget "NestKeepShare" */ = {{\n'
+    f'\t\t\tisa = XCConfigurationList;\n'
+    f'\t\t\tbuildConfigurations = (\n'
+    f'\t\t\t\t{share_tgt_dbg_id} /* Debug */,\n'
+    f'\t\t\t\t{share_tgt_rel_id} /* Release */,\n'
+    f'\t\t\t);\n'
+    f'\t\t\tdefaultConfigurationIsVisible = 0;\n'
+    f'\t\t\tdefaultConfigurationName = Release;\n'
+    f'\t\t}};\n'
 )
 
 pbxproj = (
@@ -537,9 +737,11 @@ pbxproj = (
     '/* End PBXBuildFile section */\n\n'
     '/* Begin PBXContainerItemProxy section */\n'
     f'{proxy_txt}'
+    f'{share_proxy_txt}'
     '/* End PBXContainerItemProxy section */\n\n'
     '/* Begin PBXCopyFilesBuildPhase section */\n'
     f'{embed_txt}'
+    f'{share_embed_txt}'
     '/* End PBXCopyFilesBuildPhase section */\n\n'
     '/* Begin PBXFileReference section */\n'
     f'{file_refs_txt}'
@@ -547,6 +749,7 @@ pbxproj = (
     '/* Begin PBXFrameworksBuildPhase section */\n'
     f'{frameworks_txt}'
     f'{widget_frameworks_txt}'
+    f'{share_frameworks_txt}'
     '/* End PBXFrameworksBuildPhase section */\n\n'
     '/* Begin PBXGroup section */\n'
     f'{groups_txt}'
@@ -563,9 +766,11 @@ pbxproj = (
     '/* Begin PBXSourcesBuildPhase section */\n'
     f'{sources_txt}'
     f'{widget_sources_txt}'
+    f'{share_sources_txt}'
     '/* End PBXSourcesBuildPhase section */\n\n'
     '/* Begin PBXTargetDependency section */\n'
     f'{dep_txt}'
+    f'{share_dep_txt}'
     '/* End PBXTargetDependency section */\n\n'
     '/* Begin XCBuildConfiguration section */\n'
     f'{configs_txt}'

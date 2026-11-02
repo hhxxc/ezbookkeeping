@@ -256,6 +256,17 @@ jobs:
             echo "WARN: widget appex not found"
           fi
 
+          # 分享扩展 extension：同样拷进 PlugIns 并带 entitlements 签名
+          SHARE="build/dd/Build/Products/Release-iphoneos/NestKeepShare.appex"
+          if [ -d "$SHARE" ]; then
+            mkdir -p Payload/NestKeep.app/PlugIns
+            cp -r "$SHARE" Payload/NestKeep.app/PlugIns/
+            codesign --force --sign - --entitlements NestKeepShare/NestKeepShare.entitlements "Payload/NestKeep.app/PlugIns/NestKeepShare.appex"
+            echo "share appex embedded"
+          else
+            echo "WARN: share appex not found"
+          fi
+
           codesign --force --sign - --entitlements NestKeep/NestKeep.entitlements Payload/NestKeep.app
           rm -rf build/dd
           zip -r "$IPA_NAME" Payload
