@@ -26,6 +26,10 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
     /// 值为非空数组时表示有一批新截图待处理；上层消费后调用 clearPending() 复位。
     @Published private(set) var pendingBatch: [Data] = []
 
+    /// 诊断信息（临时调试用）：记录授权状态/通知/扫描/交付各节点，供真机定位断点。
+    /// 验证通过后应移除本字段及上层展示。
+    @Published private(set) var lastDiagnosis: String = "初始化"
+
     /// 统一交付批次：发布 @Published。
     private func deliver(_ datas: [Data]) {
         NSLog("[ScreenshotWatch] 交付批次 count=%d", datas.count)
@@ -80,12 +84,14 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
 
     @objc private func handleScreenshot() {
         NSLog("[ScreenshotWatch] 收到截屏通知")
+        lastDiagnosis = "收到截屏通知 \(Date().formatted(date: .omitted, time: .standard))"
         scheduleDebounce()
     }
 
     /// 回前台：扫相册最近窗口内新增的截图，兜底「别的 App 截屏后切回」场景。
     @objc private func handleForeground() {
         NSLog("[ScreenshotWatch] 收到回前台通知")
+        lastDiagnosis = "收到回前台通知 \(Date().formatted(date: .omitted, time: .standard))"
         scheduleDebounce()
     }
 
@@ -114,13 +120,17 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
 
         switch status {
         case .authorized, .limited:
+            lastDiagnosis = "授权=\(status.rawValue) 开始扫描"
             fetchScreenshots(retry: true)
         case .notDetermined:
+            lastDiagnosis = "授权未决定，请求中"
             requestAndCollect()
         case .denied, .restricted:
+            lastDiagnosis = "授权被拒(\(status.rawValue))"
             isCollecting = false
             deliver([])
         @unknown default:
+            lastDiagnosis = "授权未知状态"
             isCollecting = false
             deliver([])
         }
@@ -169,6 +179,7 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
 
         let assets = PHAsset.fetchAssets(with: .image, options: options)
         NSLog("[ScreenshotWatch] 扫描到截图资产数=%d", assets.count)
+        lastDiagnosis = "扫描到截图资产 \(assets.count) 张"
 
         // 收集「未处理过的」截图，按创建时间升序（连截顺序），最多 9 张
         var collected: [PHAsset] = []
@@ -232,7 +243,9 @@ final class ScreenshotWatcher: NSObject, ObservableObject {
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
             self.isCollecting = false
-            self.deliver(slots.compactMap { $0 })
+            let result = slots.compactMap { $0 }
+            self.lastDiagnosis = "交付批次 count=\(result.count)"
+            self.deliver(result)
         }
     }
 
