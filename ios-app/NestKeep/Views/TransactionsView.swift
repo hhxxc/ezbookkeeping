@@ -840,8 +840,28 @@ struct TransactionsView: View {
         showListPage = true
     }
 
-    /// 不打扰式更新提示卡片（首页顶部悬浮，5 秒自动消失）：
-    /// 渐变图标块 + 标题/NEW 角标 + 版本副标题 + 卡片阴影，点按进更新详情
+    /// 横幅副标题：跟随后台下载状态实况播报。
+    /// 用户最想知道的不是"有新版本"，而是"到底下没下、下到哪了"——
+    /// 把这层信息直接摆在横幅上，不用点进弹层才知道。
+    private var updateBannerSubtitle: String {
+        switch updateStore.downloadState {
+        case .downloading(let received, let total):
+            if let total, total > 0 {
+                let pct = min(100, max(0, Int(Double(received) / Double(total) * 100)))
+                return "v\(updateBannerVersion) · 后台下载中 \(pct)%"
+            }
+            return "v\(updateBannerVersion) · 后台下载中…"
+        case .downloaded:
+            return "v\(updateBannerVersion) · 已就绪，点此安装"
+        case .failed:
+            return "v\(updateBannerVersion) · 下载失败，点此重试"
+        case .idle:
+            return "v\(updateBannerVersion) · 点此查看更新内容"
+        }
+    }
+
+    /// 不打扰式更新提示卡片（首页顶部悬浮，常驻至用户点按）：
+    /// 渐变图标块 + 标题/NEW 角标 + 下载状态副标题 + 卡片阴影，点按进更新详情
     private var updateBanner: some View {
         Button {
             withAnimation(.easeIn(duration: 0.2)) { showUpdateBanner = false }
@@ -870,7 +890,7 @@ struct TransactionsView: View {
                             .padding(.vertical, 2)
                             .background(Capsule().fill(Theme.expense))
                     }
-                    Text(verbatim: "v\(updateBannerVersion) · 点此查看更新内容")
+                    Text(verbatim: updateBannerSubtitle)
                         .font(.system(size: 12))
                         .foregroundColor(HomePalette.secondary)
                 }
@@ -1084,10 +1104,11 @@ struct TransactionsView: View {
             withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { showUpdateBanner = true }
         }
         .task(id: showUpdateBanner) {
-            guard showUpdateBanner else { return }
-            // 5 秒后自动淡出；期间用户点按则 task 随状态变化取消
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            withAnimation(.easeIn(duration: 0.25)) { showUpdateBanner = false }
+            // 不再 5 秒自动淡出：后台自动下载是否生效、包有没有下好，全靠这条横幅传达，
+            // 一闪而过等于没提示（用户反馈"打开后还是干等下载"）。改为常驻，
+            // 用户点按进更新弹层时 showUpdateBanner 置 false 自然收起；
+            // 同版本持久化只提醒一次，不会每次启动反复打扰。
+            _ = showUpdateBanner
         }
         .sheet(isPresented: $showUpdateSheet) {
             UpdateResultSheet(updateStore: updateStore)
