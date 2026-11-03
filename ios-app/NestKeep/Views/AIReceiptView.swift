@@ -180,8 +180,65 @@ final class AIReceiptViewModel: ObservableObject {
         selectedIds.remove(item.id)
     }
 
+    /// 单条落库结果（结构体满足 Sendable，作 TaskGroup 子任务返回值；错误不跨 actor
+    /// 传递，只带成功标志 + 文案）
+    private struct AddOutcome: Sendable {
+        let item: ReceiptRecognizer.Recognized
+        let ok: Bool
+        let message: String?
+    }
+
+    /// 落库前在主 actor 预计算好的兜底字段（账户/分类依赖 accounts/categories，
+    /// 需在 actor 内先取好，再交给 nonisolated 子任务并发落库）。显式 Sendable
+    /// 以满足 withTaskGroup 子闭包的 @Sendable 捕获约束。
+    private struct AddPrecomputed: Sendable {
+        let item: ReceiptRecognizer.Recognized
+        let categoryId: String
+        let sourceAccountId: String
+        let destinationAccountId: String?
+    }
+
+    /// 构造请求并落库单条交易（nonisolated 供并发子任务调用）。每条带独立
+    /// clientSessionId（后端幂等去重），并发安全。分类/账户兜底参数由主 actor
+    /// 预先算好传进来，避免子任务再回主 actor 取数据。
+    private nonisolated static func addOne(_ item: ReceiptRecognizer.Recognized,
+                                           categoryId: String,
+                                           sourceAccountId: String,
+                                           destinationAccountId: String?) async -> AddOutcome {
+        let time = item.time ?? Int64(Date().timeIntervalSince1970)
+        let date = Date(timeIntervalSince1970: TimeInterval(time))
+        let tz = TimeZone.current
+        let isTransfer = item.transactionType == .transfer
+        let req = TransactionCreateRequest(
+            type: item.type,
+            categoryId: categoryId,
+            time: time,
+            utcOffset: tz.secondsFromGMT(for: date) / 60,
+            sourceAccountId: sourceAccountId,
+            destinationAccountId: isTransfer ? destinationAccountId : nil,
+            sourceAmount: item.sourceAmount ?? item.destinationAmount ?? 0,
+            destinationAmount: isTransfer ? (item.destinationAmount ?? item.sourceAmount) : nil,
+            comment: item.comment,
+            tagIds: item.tagIds ?? [],
+            pictureIds: [],
+            geoLocation: nil,
+            clientSessionId: UUID().uuidString
+        )
+        do {
+            let _: EmptyResult = try await APIClient.shared.request(
+                "/api/v1/transactions/add.json", method: .POST, body: req
+            )
+            return AddOutcome(item: item, ok: true, message: nil)
+        } catch {
+            return AddOutcome(item: item, ok: false,
+                              message: (error as? APIError)?.errorDescription ?? error.localizedDescription)
+        }
+    }
+
     /// 批量添加勾选的结果。成功条数返回给调用方；
     /// 成功的条目从列表移除，失败条目保留（可点 ✎ 修正）并汇总错误信息。
+    /// 落库**并发**（TaskGroup）：多笔交易从「串行 N 个往返」变「并发一轮往返」，
+    /// 弱网隧道下点确认后不再逐条排队等待。
     func addSelected() async -> Int {
         let targets = results.filter { selectedIds.contains($0.id) }
         guard !targets.isEmpty else { return 0 }
@@ -189,44 +246,39 @@ final class AIReceiptViewModel: ObservableObject {
         isAdding = true
         error = nil
 
+        // 主 actor 里先算好每条兜底后的分类/账户（这些依赖 accounts/categories），
+        // 再并发落库；避免子任务回主 actor 取数据导致的并发退化
+        let precomputed: [AddPrecomputed] = targets.map { item in
+            let source = displayAccountId(item.sourceAccountId) ?? ""
+            return AddPrecomputed(
+                item: item,
+                categoryId: displayCategoryId(item) ?? "0",
+                sourceAccountId: source,
+                destinationAccountId: item.transactionType == .transfer
+                    ? displayDestinationAccountId(source: source, destination: item.destinationAccountId)
+                    : nil
+            )
+        }
+
         var success = 0
         var failedItems: [ReceiptRecognizer.Recognized] = []
         var firstError: String?
 
-        for item in targets {
-            do {
-                let time = item.time ?? Int64(Date().timeIntervalSince1970)
-                let date = Date(timeIntervalSince1970: TimeInterval(time))
-                let tz = TimeZone.current
-                let isTransfer = item.transactionType == .transfer
-                // 分类/账户兜底：AI 没认出或已失效时回退默认分类/第一个账户，避免后端报
-                // 「transaction category not found」导致整条落库失败
-                let sourceAccountId = displayAccountId(item.sourceAccountId) ?? ""
-                let req = TransactionCreateRequest(
-                    type: item.type,
-                    categoryId: displayCategoryId(item) ?? "0",
-                    time: time,
-                    utcOffset: tz.secondsFromGMT(for: date) / 60,
-                    sourceAccountId: sourceAccountId,
-                    destinationAccountId: isTransfer
-                        ? displayDestinationAccountId(source: sourceAccountId, destination: item.destinationAccountId) ?? ""
-                        : nil,
-                    sourceAmount: item.sourceAmount ?? item.destinationAmount ?? 0,
-                    destinationAmount: isTransfer ? (item.destinationAmount ?? item.sourceAmount) : nil,
-                    comment: item.comment,
-                    tagIds: item.tagIds ?? [],
-                    pictureIds: [],
-                    geoLocation: nil,
-                    clientSessionId: UUID().uuidString
-                )
-                let _: EmptyResult = try await APIClient.shared.request(
-                    "/api/v1/transactions/add.json", method: .POST, body: req
-                )
-                success += 1
-            } catch {
-                failedItems.append(item)
-                if firstError == nil {
-                    firstError = (error as? APIError)?.errorDescription ?? error.localizedDescription
+        await withTaskGroup(of: AddOutcome.self) { group in
+            for p in precomputed {
+                group.addTask {
+                    await AIReceiptViewModel.addOne(p.item,
+                                                    categoryId: p.categoryId,
+                                                    sourceAccountId: p.sourceAccountId,
+                                                    destinationAccountId: p.destinationAccountId)
+                }
+            }
+            for await outcome in group {
+                if outcome.ok {
+                    success += 1
+                } else {
+                    failedItems.append(outcome.item)
+                    if firstError == nil { firstError = outcome.message }
                 }
             }
         }
@@ -511,7 +563,11 @@ struct AIReceiptView: View {
                 }
             }
             .task {
-                await vm.loadRefData()
+                // 引用数据（账户/分类）只用于落库兜底，与「识别」无依赖；缓存未过期时
+                // 即刻返回，即便过期也只是后台补拉。这里与识别**并行**，避免冷缓存时
+                // 「回到 App 先等 accounts+categories 两个接口、才开始识别」的串行阻塞。
+                // （原来 await loadRefData() 再识别，缓存过期时白等一轮网络往返）
+                async let _ref: Void = vm.loadRefData()
                 // 入口已带图进来（先选完图再进本页）：直接开始识别，不再拉起相册。
                 // 空图进入（无入口图）时保留「选择票据图片」按钮手动选。
                 if !initialImages.isEmpty {
@@ -520,6 +576,7 @@ struct AIReceiptView: View {
                     // 语音记账入口：解析结果已就绪，直接进确认/落库流程
                     vm.prefill(initialResults)
                 }
+                await _ref
             }
         }
     }
