@@ -9,16 +9,36 @@ final class AppSettings: ObservableObject {
 
     private let serverKey = "nestkeep.serverURL"
 
+    /// 历史遗留的占位/本地测试地址的 host。
+    /// 命中即丢弃本地保存值、回落到构建期注入的默认入口——避免用户很久以前手填过
+    /// 一次测试地址后被 UserDefaults 长期"锁死"，明明换了正式包还是连旧地址上。
+    ///
+    /// 只列绝不该出现在生产配置里的几项；**局域网地址（192.168./10./172.16-31）
+    /// 故意不列**——用户完全可能真在用内网直连，不能一刀切清掉。
+    private static let placeholderHosts: Set<String> = [
+        "example-server.invalid",
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+    ]
+
     init() {
         let saved = UserDefaults.standard.string(forKey: serverKey)
-        if let saved, let url = Self.normalizeServerURL(saved) {
+
+        func isPlaceholder(_ url: URL) -> Bool {
+            guard let host = url.host?.lowercased(), !host.isEmpty else { return true }
+            return Self.placeholderHosts.contains(host)
+        }
+
+        if let saved, let url = Self.normalizeServerURL(saved), !isPlaceholder(url) {
             // 顺手修复历史脏数据（如 "https://https://..."）
             self.serverURL = url
             if url.absoluteString != saved {
                 UserDefaults.standard.set(url.absoluteString, forKey: serverKey)
             }
         } else if let saved,
-                  let rescued = Self.normalizeServerURL(Self.stripNonASCII(saved)) {
+                  let rescued = Self.normalizeServerURL(Self.stripNonASCII(saved)),
+                  !isPlaceholder(rescued) {
             // 抢救：粘贴带入的全角符号/中文标点等非 ASCII 脏字符剥掉后地址可用，
             // 直接自动修复并写回（2026-10-20 实例：地址尾部粘了全角 ），
             // 所有请求 DNS 解析失败，而检查更新页因 GitHub 源兜底显示「已是最新」，
@@ -26,7 +46,10 @@ final class AppSettings: ObservableObject {
             self.serverURL = rescued
             UserDefaults.standard.set(rescued.absoluteString, forKey: serverKey)
         } else {
-            // 默认外网入口（ddnsto 隧道）
+            // 本地存的是占位符/测试地址，或根本没存过 → 清掉脏值，用默认外网入口
+            if saved != nil {
+                UserDefaults.standard.removeObject(forKey: serverKey)
+            }
             self.serverURL = URL(string: "https://example-server.invalid")!
         }
     }
