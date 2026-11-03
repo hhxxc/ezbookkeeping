@@ -27,7 +27,7 @@ final class AppSettings: ObservableObject {
             UserDefaults.standard.set(rescued.absoluteString, forKey: serverKey)
         } else {
             // 默认外网入口（ddnsto 隧道）
-            self.serverURL = URL(string: "https://ezbookx.x.ddnsto.com:443")!
+            self.serverURL = URL(string: "https://example-server.invalid")!
         }
     }
 
