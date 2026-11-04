@@ -293,6 +293,18 @@ final class AIReceiptViewModel: ObservableObject {
             error = "已添加 \(success) 笔，\(failedItems.count) 笔保存失败：\(firstError ?? "")。可点结果右侧 ✎ 修正后保存"
         }
 
+        // 落库成功：立即广播交易变更，让首页在 sheet 收起前就开始刷新。
+        // 原链路只靠 dismiss 后的 onReceiptDismiss 发通知，有两个问题：
+        // ① 数据要等 dismiss 动画完才加载，弱网下「回首页后数字迟迟不变」；
+        // ② sheet onDismiss 偶发不触发 → 压根不刷新，只能手动下拉。
+        // 在这里（@MainActor，主线程）直接发通知覆盖所有入口（分享扩展/截屏/手动识图/语音），
+        // 数据提前开始加载，dismiss 回来即是新数据。dismiss 的二次通知会再多一次账单请求，
+        // 但 accounts/categories 走缓存、结果一致，低频操作下无害（load() 刻意不做防重入，
+        // 以免误挡搜索/切月）。
+        if success > 0 {
+            NotificationCenter.default.post(name: .transactionsChanged, object: nil)
+        }
+
         return success
     }
 

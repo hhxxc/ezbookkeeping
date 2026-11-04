@@ -374,6 +374,10 @@ final class TransactionsViewModel: ObservableObject {
     var monthLabel: String { "\(month)月" }
 
     func load(includeAmounts: Bool = true) async {
+        // 注：刻意不做 isLoading 防重入——load 也被搜索/筛选/切月/选日复用，
+        // 简单 guard !isLoading 会把「加载中搜索/切月」误跳过。落库广播 + dismiss
+        // 通知可能双发，但第二次的 accounts/categories 走缓存不重拉，仅多一次
+        // 账单请求且结果一致，低频操作下无害。
         // 按月浏览秒开：该月有磁盘缓存先渲染（冷启动/切月都生效），随后网络刷新覆盖
         if !isFiltering, transactions.isEmpty {
             hydrateMonthCache(year: year, month: month)
