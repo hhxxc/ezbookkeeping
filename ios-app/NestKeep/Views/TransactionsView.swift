@@ -828,6 +828,8 @@ struct TransactionsView: View {
     @State private var showUpdateBanner = false
     @State private var updateBannerVersion = ""
     @State private var showUpdateSheet = false
+    /// 悬浮刷新按钮的旋转动画驱动（与 vm.isLoading 联动）
+    @State private var refreshSpinning = false
     /// 已提醒过的版本（持久化）：同一版本永不二次提醒
     private static let updateNotifiedVersionKey = "nestkeep.updateNotifiedVersion"
 
@@ -1051,6 +1053,48 @@ struct TransactionsView: View {
                         updateBanner
                             .padding(.top, 54)
                             .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
+                // 悬浮刷新按钮：截图识图落库后首页偶有不及时刷新（弱网/自动刷新链路
+                // 未触发），用户反馈「要等很久下拉刷新才提示」。提供常驻右下角手动
+                // 入口，点一下立即 vm.load()；加载中图标旋转、禁用防连点。
+                // 仅在首页总览态显示（push 进列表/日历二级页时不遮挡导航栏内容）。
+                .overlay(alignment: .bottomTrailing) {
+                    if !showListPage && !showCalendar {
+                        Button {
+                            guard !vm.isLoading else { return }
+                            Task { await vm.load() }
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                                .rotationEffect(.degrees(refreshSpinning ? 360 : 0))
+                                .frame(width: 46, height: 46)
+                                .background(
+                                    Circle()
+                                        .fill(Theme.brand)
+                                        .shadow(color: Theme.brand.opacity(0.35), radius: 8, x: 0, y: 4)
+                                )
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(vm.isLoading)
+                        .opacity(vm.isLoading ? 0.7 : 1)
+                        // 旋转动画：加载期间持续转圈；onAppear/onChange 驱动
+                        .onAppear { refreshSpinning = vm.isLoading }
+                        .onChange(of: vm.isLoading) { loading in
+                            if loading {
+                                withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                                    refreshSpinning = true
+                                }
+                            } else {
+                                withAnimation(.easeOut(duration: 0.2)) { refreshSpinning = false }
+                            }
+                        }
+                        // 底栏内容高度 + 底部安全区 + 呼吸空间，避免被底栏/Home 指示条遮挡
+                        .padding(.trailing, 17)
+                        .padding(.bottom, tabBarInset + ScreenMetrics.bottomSafeInset + 14)
+                        .transition(.opacity)
                     }
                 }
             }
