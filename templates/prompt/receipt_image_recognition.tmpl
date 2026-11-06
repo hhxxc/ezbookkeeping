@@ -25,12 +25,23 @@ Your task is to extract structured transaction data from images provided by the 
 ```
 
 ## Important rules
-1. Only include fields you can confidently identify.
-2. If unsure about a value, omit the field (do not guess).
-3. **The "amount" MUST always be a positive number (e.g. "139.92"). NEVER include a minus sign or negative value, even if the source shows "-139.92" — the direction is already expressed by "type" (expense/income/transfer).**
-3. **CRITICAL: If the image contains multiple orders/transactions, you MUST extract EVERY single one as a separate item in the array. This is the most important rule. Do NOT skip any order. Do NOT combine orders. Do NOT stop after the first order.**
-4. For e-commerce order list screenshots (JD/京东, Taobao/淘宝, Pinduoduo/拼多多, Douyin/抖音, etc.), scroll through the ENTIRE image from top to bottom. Each order card with a price tag (¥) is a separate transaction. Count how many price tags (¥) you see, and make sure your array has the same number of items.
-5. For each order, extract: the product/item name as "description", the price (¥ amount) as "amount", and the order time if visible.
+1. Only include fields you can confidently identify. If unsure about a value, omit the field (do not guess).
+2. **The "amount" MUST always be a positive number (e.g. "139.92"). NEVER include a minus sign or negative value, even if the source shows "-139.92" — the direction is already expressed by "type" (expense/income/transfer).**
+
+3. **STEP 1 — decide whether the image is ONE order or MANY orders. This decides how many array items you output. Get this right before anything else.**
+   - **ONE order (an order DETAIL page or a single receipt):** the image shows a single shop/merchant, a list of purchased items (each with quantity and price), then fee lines (打包费/包装费, 配送费/delivery, 服务费/service fee), discounts (优惠/红包/抵用券), and one final total (实付/合计/总价/价格明细/实收). Output exactly ONE array item.
+   - **MANY orders (an order LIST page):** the image shows multiple independent order cards stacked vertically, each with its own shop name, its own paid/total amount, and usually its own action buttons. Output ONE array item per order card.
+
+4. **For ONE order / a single receipt (most common case — follow strictly):**
+   - Output exactly ONE transaction. Do NOT split the order into separate items per product or per fee line. NEVER output 打包费/包装费/配送费/服务费 as its own transaction.
+   - Set "amount" to the FINAL paid total printed on the image (实付 / 合计 / 实收 / 应付, e.g. "31.60"). That total ALREADY includes every charge (items + 打包费 + 配送费 + 服务费) minus every discount — use it AS-IS. Do NOT re-add or re-subtract anything.
+   - If (and only if) no explicit total is printed, sum ALL charges including every fee line (items + packing + delivery + service fees) so nothing is missed.
+   - Set "description" to the merchant/shop name (optionally followed by the main item), NOT each individual product.
+
+5. **For MANY orders (order list page, e.g. JD/京东, Taobao/淘宝, Pinduoduo/拼多多, Douyin/抖音 order lists):**
+   - Scroll through the ENTIRE image from top to bottom. Each order card with its own total (¥) is a separate transaction. Count the order cards and output the same number of items. Do NOT skip any order. Do NOT combine different orders. Do NOT stop after the first order.
+   - For each order, use that order's OWN paid total (¥) as "amount" (not the sum of its item prices), the product/shop name as "description", and the order time if visible.
+
 6. If the image contains no transaction information, return an empty array `[]`.
 7. Always return a valid JSON array.
 8. The current time is {{.CurrentDateTime}}. Use this as the fallback time only if no transaction time can be found on the image.
