@@ -199,6 +199,176 @@ func extractJsonPayload(content string) string {
 	return trimmed[start : end+1]
 }
 
+// mergeRecognizedSingleOrderResults repairs a model response which splits one order detail
+// page into product/fee transactions. An explicit single_order marker is authoritative;
+// otherwise require fee lines and a shared time/account to avoid merging independent orders.
+func mergeRecognizedSingleOrderResults(results []*models.RecognizedReceiptImageResult) ([]*models.RecognizedReceiptImageResult, bool) {
+	if len(results) < 2 {
+		return results, false
+	}
+
+	explicitSingleOrder := false
+	sameIdentity := true
+	referenceTime := ""
+	referenceAccount := ""
+	merchant := ""
+	orderTotal := ""
+	var amountSum int64
+	feeLineCount := 0
+	deliveryFeeLineCount := 0
+	primaryIndex := -1
+
+	for i, result := range results {
+		if result == nil || result.Type != "expense" {
+			return results, false
+		}
+
+		switch strings.ToLower(strings.TrimSpace(result.PageType)) {
+		case "order_list":
+			return results, false
+		case "single_order":
+			explicitSingleOrder = true
+		}
+
+		resultMerchant := strings.TrimSpace(result.Merchant)
+
+		if resultMerchant != "" {
+			if merchant == "" {
+				merchant = resultMerchant
+			} else if !strings.EqualFold(merchant, resultMerchant) {
+				return results, false
+			}
+		}
+
+		if result.OrderTotal != "" {
+			total, err := utils.ParseAmount(result.OrderTotal)
+
+			if err != nil {
+				return results, false
+			}
+
+			if total < 0 {
+				total = -total
+			}
+
+			normalizedTotal := utils.FormatAmount(total)
+
+			if orderTotal != "" && orderTotal != normalizedTotal {
+				return results, false
+			}
+
+			orderTotal = normalizedTotal
+		}
+
+		amount, err := utils.ParseAmount(result.Amount)
+
+		if err != nil {
+			return results, false
+		}
+
+		if amount < 0 {
+			amount = -amount
+		}
+
+		amountSum += amount
+
+		if i == 0 {
+			referenceTime = strings.TrimSpace(result.Time)
+			referenceAccount = strings.TrimSpace(result.AccountName)
+		} else if referenceTime != strings.TrimSpace(result.Time) || !strings.EqualFold(referenceAccount, strings.TrimSpace(result.AccountName)) {
+			sameIdentity = false
+		}
+
+		feeKind := recognizedOrderFeeKind(result.Description)
+
+		if feeKind != "" {
+			feeLineCount++
+
+			if feeKind == "delivery" {
+				deliveryFeeLineCount++
+			}
+		} else if primaryIndex < 0 {
+			primaryIndex = i
+		}
+	}
+
+	// The heuristic path is deliberately strict. In particular, multiple delivery
+	// fee lines usually indicate separate orders rather than one itemized receipt.
+	if !explicitSingleOrder && (!sameIdentity || primaryIndex < 0 || feeLineCount == 0 || deliveryFeeLineCount > 1) {
+		return results, false
+	}
+
+	if primaryIndex < 0 {
+		return results, false
+	}
+
+	merged := *results[primaryIndex]
+	merged.Amount = orderTotal
+
+	if merged.Amount == "" {
+		merged.Amount = utils.FormatAmount(amountSum)
+	}
+
+	if merchant != "" {
+		merged.Description = merchant
+	}
+
+	merged.PageType = "single_order"
+	merged.OrderTotal = orderTotal
+	merged.TagNames = mergeRecognizedResultTagNames(results)
+
+	return []*models.RecognizedReceiptImageResult{&merged}, true
+}
+
+// recognizedOrderFeeKind identifies standalone fee rows on itemized order details.
+func recognizedOrderFeeKind(description string) string {
+	normalized := strings.ToLower(strings.Join(strings.Fields(description), ""))
+
+	for _, keyword := range []string{"配送费", "外送费", "送餐费", "跑腿费", "deliveryfee", "deliverycharge", "shippingfee", "shippingcharge"} {
+		if strings.Contains(normalized, keyword) {
+			return "delivery"
+		}
+	}
+
+	for _, keyword := range []string{"打包费", "包装费", "餐盒费", "餐具费", "packingfee", "packagingfee"} {
+		if strings.Contains(normalized, keyword) {
+			return "packing"
+		}
+	}
+
+	for _, keyword := range []string{"服务费", "servicefee"} {
+		if strings.Contains(normalized, keyword) {
+			return "service"
+		}
+	}
+
+	return ""
+}
+
+func mergeRecognizedResultTagNames(results []*models.RecognizedReceiptImageResult) []string {
+	tagNames := make([]string, 0, 10)
+	seen := make(map[string]bool)
+
+	for _, result := range results {
+		for _, tagName := range result.TagNames {
+			tagName = strings.TrimSpace(tagName)
+
+			if tagName == "" || seen[tagName] {
+				continue
+			}
+
+			seen[tagName] = true
+			tagNames = append(tagNames, tagName)
+
+			if len(tagNames) == 10 {
+				return tagNames
+			}
+		}
+	}
+
+	return tagNames
+}
+
 // parseRecognizedTransactionsContent parses the llm response content into recognized transaction responses
 func (a *LargeLanguageModelsApi) parseRecognizedTransactionsContent(c *core.WebContext, uid int64, clientTimezone *time.Location, content string, context *transactionParseContext) ([]*models.RecognizedReceiptImageResponse, *errs.Error) {
 	trimmedContent := extractJsonPayload(content)
@@ -214,6 +384,13 @@ func (a *LargeLanguageModelsApi) parseRecognizedTransactionsContent(c *core.WebC
 
 		if len(results) == 0 {
 			return nil, errs.ErrNoTransactionInformationInImage
+		}
+
+		normalizedResults, merged := mergeRecognizedSingleOrderResults(results)
+
+		if merged {
+			log.Infof(c, "[large_language_models.parseRecognizedTransactionsContent] merged %d recognized detail rows into one order transaction for user \"uid:%d\"", len(results), uid)
+			results = normalizedResults
 		}
 
 		responses := make([]*models.RecognizedReceiptImageResponse, 0, len(results))

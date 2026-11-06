@@ -24,4 +24,7 @@ type RecognizedReceiptImageResult struct {
 	Description            string   `json:"description,omitempty" jsonschema_description:"Transaction description"`
 	DestinationAmount      string   `json:"destination_amount,omitempty" jsonschema_description:"Destination amount for transfer transactions"`
 	DestinationAccountName string   `json:"destination_account,omitempty" jsonschema_description:"Destination account name for transfer transactions"`
+	PageType               string   `json:"page_type,omitempty" jsonschema:"enum=single_order,enum=order_list,enum=other" jsonschema_description:"Image layout: one order detail, multiple order list, or other"`
+	OrderTotal             string   `json:"order_total,omitempty" jsonschema_description:"Final paid total printed for a single order, including all fees and discounts"`
+	Merchant               string   `json:"merchant,omitempty" jsonschema_description:"Merchant or shop name for a single order"`
 }

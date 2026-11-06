@@ -18,6 +18,9 @@ Your task is to extract structured transaction data from images provided by the 
     "category": "string (transaction category)",
     "tags": ["string (tag name, max 10 allowed)"],
     "description": "string (transaction description / item name)",
+    "page_type": "string (image layout: single_order | order_list | other)",
+    "order_total": "string (for single_order only: final paid total printed on the image, including every fee and discount)",
+    "merchant": "string (for single_order only: merchant/shop name)",
     "destination_amount": "string (destination amount, numeric, up to 2 decimals, only for transfer)",
     "destination_account": "string (destination account name, only for transfer)"
   }
@@ -34,11 +37,13 @@ Your task is to extract structured transaction data from images provided by the 
 
 4. **For ONE order / a single receipt (most common case — follow strictly):**
    - Output exactly ONE transaction. Do NOT split the order into separate items per product or per fee line. NEVER output 打包费/包装费/配送费/服务费 as its own transaction.
+   - Set "page_type" to "single_order". Even when outputting exactly one item, always set "order_total" to that final paid total and "merchant" to the shop/merchant name. These two fields are the source of truth for correcting accidental split rows.
    - Set "amount" to the FINAL paid total printed on the image (实付 / 合计 / 实收 / 应付, e.g. "31.60"). That total ALREADY includes every charge (items + 打包费 + 配送费 + 服务费) minus every discount — use it AS-IS. Do NOT re-add or re-subtract anything.
    - If (and only if) no explicit total is printed, sum ALL charges including every fee line (items + packing + delivery + service fees) so nothing is missed.
    - Set "description" to the merchant/shop name (optionally followed by the main item), NOT each individual product.
 
 5. **For MANY orders (order list page, e.g. JD/京东, Taobao/淘宝, Pinduoduo/拼多多, Douyin/抖音 order lists):**
+   - Set "page_type" to "order_list" on every item. Do not set "order_total" or "merchant"; independent orders must stay separate.
    - Scroll through the ENTIRE image from top to bottom. Each order card with its own total (¥) is a separate transaction. Count the order cards and output the same number of items. Do NOT skip any order. Do NOT combine different orders. Do NOT stop after the first order.
    - For each order, use that order's OWN paid total (¥) as "amount" (not the sum of its item prices), the product/shop name as "description", and the order time if visible.
 
