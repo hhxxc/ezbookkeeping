@@ -825,9 +825,9 @@ struct TransactionsView: View {
     @StateObject private var calendarVM = TransactionCalendarViewModel()
     /// 首页背景图变化时刷新汇总卡底图
     @State private var backgroundToken = UUID()
-    /// 不打扰式更新提示：启动自动检查发现新版后在首页顶部短暂出现（5 秒自动消失，
-    /// 同一版本只提醒一次——持久化记录已提醒版本，避免每次启动/重复检查反复打扰），
-    /// 点击进更新弹层
+    /// 不打扰式更新提示：启动自动检查发现新版后出现在首页汇总卡上方，
+    /// 同一版本只提醒一次（持久化记录已提醒版本，避免每次启动/重复检查反复打扰），
+    /// 点击进更新弹层；常驻至用户点按，下载状态在副标题实时播报。
     @ObservedObject private var updateStore = UpdateStore.shared
     @State private var showUpdateBanner = false
     @State private var updateBannerVersion = ""
@@ -866,8 +866,9 @@ struct TransactionsView: View {
         }
     }
 
-    /// 不打扰式更新提示卡片（首页顶部悬浮，常驻至用户点按）：
-    /// 渐变图标块 + 标题/NEW 角标 + 下载状态副标题 + 卡片阴影，点按进更新详情
+    /// 不打扰式更新提示卡片（固定在顶栏下方、汇总卡上方，常驻至用户点按）：
+    /// 渐变图标块 + 标题/NEW 角标 + 下载状态副标题 + 卡片阴影，点按进更新详情。
+    /// 不用悬浮 overlay——之前悬浮实现会盖住月度汇总卡（用户反馈位置不好）。
     private var updateBanner: some View {
         Button {
             withAnimation(.easeIn(duration: 0.2)) { showUpdateBanner = false }
@@ -975,6 +976,15 @@ struct TransactionsView: View {
             // 固定结构下安全区由系统直接处理，状态栏区域恒有顶栏不透明底盖着
             VStack(spacing: 0) {
                 topBar
+                // 更新提示：固定在顶栏与滚动区之间（不是悬浮 overlay），始终可见
+                // 下载/安装状态，但不会遮挡月度汇总卡；点按进更新弹层后收起。
+                if showUpdateBanner {
+                    updateBanner
+                        .padding(.horizontal, 17)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 ScrollView {
                     VStack(spacing: 0) {
                         // 首页只留总览卡片区：汇总卡 + 日期范围卡 + AI 识图入口。
@@ -1050,15 +1060,6 @@ struct TransactionsView: View {
                 }
                 // 首页隐藏系统导航栏（自绘顶栏替代）；推入的二级页会自动显示导航栏
                 .navigationBarHidden(true)
-                // 不打扰式更新提示：悬浮在首页顶部（顶栏下方），3 秒自动消失；
-                // 挂在 ScrollView 上，推入二级页时不显示
-                .overlay(alignment: .top) {
-                    if showUpdateBanner {
-                        updateBanner
-                            .padding(.top, 54)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                }
                 // 悬浮刷新按钮：截图识图落库后首页偶有不及时刷新（弱网/自动刷新链路
                 // 未触发），用户反馈「要等很久下拉刷新才提示」。提供常驻右下角手动
                 // 入口，点一下立即 vm.load()；加载中图标旋转、禁用防连点。
