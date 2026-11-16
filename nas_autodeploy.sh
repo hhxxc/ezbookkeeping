@@ -2,14 +2,18 @@
 #
 # 巢记（ezBookkeeping）自动部署脚本（NAS 上运行）
 #
-# 原理：每 10 分钟（crontab）查询 Docker Hub 上 latest-snapshot tag 的
-# manifest digest，与本地记录的基线对比；有新镜像就自动执行 deploy.sh
-# 拉取重建。GitHub Actions 每次成功构建都会重推该 tag → digest 变化。
+# 原理：每 10 分钟（crontab）从镜像站拉取 latest-snapshot 的 manifest，
+# 读取镜像内置的 commit 标签（org.opencontainers.image.revision），
+# 与本地记录的基线对比；不同就执行 deploy.sh 拉取重建。
+#
+# 为什么不用 Docker Hub 公开 API：NAS 在墙内，hub.docker.com 长期超时
+# （历史日志里连续出现「查询 Docker Hub 失败」），导致自动部署静默失效。
+# 镜像站（docker.1ms.run 等）可直连，且未更新时 pull 只走 manifest，几秒返回。
 #
 # 特性：
-#   - 零凭据：不涉及任何 SSH/GitHub 密码，只读 Docker Hub 公开 API
+#   - 零凭据：只读公开镜像，不涉及任何密码
 #   - 首次运行只记录基线，不触发部署
-#   - 网络查询失败静默跳过，下轮重试；deploy 失败不更新基线，下轮自动重试
+#   - 拉取失败静默跳过，下轮重试；deploy 失败不更新基线，下轮自动重试
 #   - 与手动部署（nas_deploy.py）互不冲突：同一个 deploy.sh，幂等
 #
 # 手动检查：bash /volume2/docker/ezbk/ezbk_autodeploy.sh && tail autodeploy.log
@@ -22,15 +26,27 @@ LOCAL_OVERRIDE="$(cd "$(dirname "$0")" && pwd)/nas.local.sh"
 
 # 镜像仓库：自己 fork 的请改成你的 Docker Hub 仓库名
 IMAGE_REPO="${IMAGE_REPO:-hhxxc/ezbookkeeping}"
-TAG_URL="${TAG_URL:-https://hub.docker.com/v2/repositories/${IMAGE_REPO}/tags/latest-snapshot}"
+# 拉取走的镜像站（官方 registry 在墙内直连超时）
+MIRROR="${MIRROR:-docker.1ms.run}"
 STATE_DIR="${STATE_DIR:-/volume2/docker/ezbk}"
 DEPLOY="$STATE_DIR/deploy.sh"
-DIGEST_FILE="$STATE_DIR/.autodeploy_last_digest"
+LEVEL_FILE="$STATE_DIR/.autodeploy_last_revision"
+LEGACY_DIGEST_FILE="$STATE_DIR/.autodeploy_last_digest"
 LOG="$STATE_DIR/autodeploy.log"
 LOCK="$STATE_DIR/.autodeploy.lock"
+DOCKER_BIN="/usr/local/bin/docker"
 
 ts() { date +"%Y-%m-%d %H:%M:%S"; }
 log() { echo "[$(ts)] $1" >> "$LOG"; }
+
+# cron 里以 root 运行，手动执行时是普通用户（hhxxc 有 sudo 免密）
+dk() {
+    if [ "$(id -u)" = "0" ]; then
+        "$DOCKER_BIN" "$@"
+    else
+        sudo -n "$DOCKER_BIN" "$@"
+    fi
+}
 
 if ! mkdir "$LOCK" 2>/dev/null; then
     # 锁目录可能因断电/进程被杀（trap 未执行）残留：超过 30 分钟视为陈旧，
@@ -54,32 +70,45 @@ if [ ! -x "$DEPLOY" ]; then
     exit 1
 fi
 
-# 1. 查远端 digest（网络失败静默跳过，下轮再试）
-REMOTE=$(curl -sf --max-time 20 "$TAG_URL" | grep -o '"digest":"sha256:[a-f0-9]*"' | head -1 | cut -d'"' -f4)
-if [ -z "$REMOTE" ]; then
-    log "WARN: 查询 Docker Hub 失败，跳过本次"
+# 1. 从镜像站拉取（未更新时代价极小），再读镜像内置 commit
+PROBE_IMAGE="${MIRROR}/${IMAGE_REPO}:latest-snapshot"
+
+if ! dk pull -q "$PROBE_IMAGE" > /dev/null 2>&1; then
+    log "WARN: 从镜像站 $MIRROR 拉取失败，跳过本次"
+    exit 0
+fi
+
+REMOTE=$(dk inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$PROBE_IMAGE" 2>/dev/null)
+
+if [ -z "$REMOTE" ] || [ "$REMOTE" = "<no value>" ]; then
+    log "WARN: 读取镜像 commit 标签失败，跳过本次"
     exit 0
 fi
 
 LAST=""
-[ -f "$DIGEST_FILE" ] && LAST=$(cat "$DIGEST_FILE")
+[ -f "$LEVEL_FILE" ] && LAST=$(cat "$LEVEL_FILE")
 
 # 无更新：静默退出（不打日志避免刷屏）
 if [ "$REMOTE" = "$LAST" ]; then
     exit 0
 fi
 
-# 首次运行：只记基线，不部署
+# 首次运行（或从旧的 digest 基线迁移）：只记基线，不部署
 if [ -z "$LAST" ]; then
-    echo "$REMOTE" > "$DIGEST_FILE"
-    log "初始化 digest 基线：$REMOTE"
+    echo "$REMOTE" > "$LEVEL_FILE"
+    if [ -f "$LEGACY_DIGEST_FILE" ]; then
+        log "迁移基线：digest 检测改为 commit 检测，当前镜像 commit：$REMOTE"
+        rm -f "$LEGACY_DIGEST_FILE"
+    else
+        log "初始化 commit 基线：$REMOTE"
+    fi
     exit 0
 fi
 
 # 2. 有新镜像：部署
-log "发现新镜像 digest：$REMOTE（旧：$LAST），开始部署"
+log "发现新镜像 commit：$REMOTE（旧：$LAST），开始部署"
 if bash "$DEPLOY" >> "$LOG" 2>&1; then
-    echo "$REMOTE" > "$DIGEST_FILE"
+    echo "$REMOTE" > "$LEVEL_FILE"
     log "部署完成，已更新基线"
 else
     log "ERROR: deploy.sh 失败（详见上方日志），基线未更新，下轮重试"
