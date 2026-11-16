@@ -6,13 +6,14 @@
                     <v-navigation-drawer :permanent="alwaysShowNav" v-model="showNav">
                         <div class="mx-6 my-4">
                             <btn-vertical-group :disabled="loading" :buttons="[
+                                { name: tt('Income and Expense Overview'), value: OVERVIEW_VIEW },
                                 { name: tt('Categorical Analysis'), value: StatisticsAnalysisType.CategoricalAnalysis },
                                 { name: tt('Trend Analysis'), value: StatisticsAnalysisType.TrendAnalysis },
                                 { name: tt('Asset Trends'), value: StatisticsAnalysisType.AssetTrends }
-                            ]" v-model="queryAnalysisType" />
+                            ]" v-model="queryAnalysisTypeTab" />
                         </div>
                         <v-divider />
-                        <div class="mx-6 mt-4">
+                        <div class="mx-6 mt-4" v-show="!overviewMode">
                             <span class="text-subtitle-2">{{ tt('Chart Type') }}</span>
                             <v-select
                                 item-title="displayName"
@@ -35,7 +36,7 @@
                                 v-show="isQuerySpecialChartType && queryChartDataType === ChartDataType.Overview.type"
                             />
                         </div>
-                        <div class="mx-6 mt-4">
+                        <div class="mx-6 mt-4" v-show="!overviewMode">
                             <span class="text-subtitle-2">{{ tt('Sort Order') }}</span>
                             <v-select
                                 item-title="displayName"
@@ -48,7 +49,7 @@
                             />
                         </div>
                         <v-tabs show-arrows class="my-4" direction="vertical"
-                                :disabled="loading" v-model="queryChartDataType">
+                                :disabled="loading" v-model="queryChartDataType" v-show="!overviewMode">
                             <v-tab class="tab-text-truncate" :key="dataType.type" :value="dataType.type"
                                    v-for="dataType in ChartDataType.values(undefined, true)"
                                    v-show="dataType.isAvailableAnalysisType(queryAnalysisType)">
@@ -101,7 +102,7 @@
                                                        @click="shiftDateRange(1)"/>
                                             </v-btn-group>
 
-                                            <v-menu location="bottom" max-height="500" v-if="queryAnalysisType === StatisticsAnalysisType.TrendAnalysis">
+                                            <v-menu location="bottom" max-height="500" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.TrendAnalysis">
                                                 <template #activator="{ props }">
                                                     <v-btn class="ms-3" color="default" variant="outlined"
                                                            :prepend-icon="mdiCalendarRangeOutline" :disabled="loading"
@@ -117,7 +118,7 @@
                                                 </v-list>
                                             </v-menu>
 
-                                            <v-menu location="bottom" max-height="500" v-if="queryAnalysisType === StatisticsAnalysisType.AssetTrends">
+                                            <v-menu location="bottom" max-height="500" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.AssetTrends">
                                                 <template #activator="{ props }">
                                                     <v-btn class="ms-3" color="default" variant="outlined"
                                                            :prepend-icon="mdiCalendarRangeOutline" :disabled="loading"
@@ -140,6 +141,11 @@
                                                 </template>
                                                 <v-icon :icon="mdiRefresh" size="24" />
                                                 <v-tooltip activator="parent">{{ tt('Refresh') }}</v-tooltip>
+                                            </v-btn>
+                                            <v-btn density="comfortable" color="default" variant="text" size="24"
+                                                   class="ms-1" :icon="true" to="/app/settings?tab=statisticsSetting">
+                                                <v-icon :icon="mdiFilterCogOutline" size="24" />
+                                                <v-tooltip activator="parent">{{ tt('Statistics Settings') }}</v-tooltip>
                                             </v-btn>
                                             <v-spacer/>
                                             <div class="transaction-keyword-filter ms-2">
@@ -188,8 +194,28 @@
                                         </div>
                                     </template>
 
+                                    <statistics-overview-panel
+                                        v-if="overviewMode"
+                                        :loading="loading"
+                                        :initing="initing"
+                                        :query="query"
+                                        :overview-income-amount="overviewIncomeAmount"
+                                        :overview-expense-amount="overviewExpenseAmount"
+                                        :daily-items="dailyAnalysisData"
+                                        :category-items="overviewCategoryItems"
+                                        :categorical-total-amount="overviewCategoryTotalAmount"
+                                        :category-dimension="overviewCategoryDimension"
+                                        :default-currency="defaultCurrency"
+                                        :expense-color="overviewExpenseColor"
+                                        :income-color="overviewIncomeColor"
+                                        @update:category-dimension="setOverviewCategoryDimension"
+                                        @click:day="onClickOverviewDailyChartItem"
+                                        @click:category="onClickOverviewCategoryItem"
+                                        @view:details="onClickOverviewViewDetails"
+                                    />
+
                                     <v-card-text class="statistics-overview-title pt-0" :class="{ 'disabled': loading }"
-                                                 v-if="queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && isQuerySpecialChartType && queryChartDataType === ChartDataType.Overview.type && (initing || categoricalOverviewAnalysisData && categoricalOverviewAnalysisData.items && categoricalOverviewAnalysisData.items.length)">
+                                                 v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && isQuerySpecialChartType && queryChartDataType === ChartDataType.Overview.type && (initing || categoricalOverviewAnalysisData && categoricalOverviewAnalysisData.items && categoricalOverviewAnalysisData.items.length)">
                                         <span class="statistics-subtitle">{{ tt('Total Income') }}</span>
                                         <span class="statistics-overview-amount ms-3 text-income"
                                               v-if="!initing && categoricalOverviewAnalysisData && categoricalOverviewAnalysisData.items && categoricalOverviewAnalysisData.items.length">
@@ -222,7 +248,7 @@
                                     </v-card-text>
 
                                     <v-card-text class="statistics-overview-title pt-0"
-                                                 v-else-if="!loading && (
+                                                 v-else-if="!overviewMode && !loading && (
                                                      (queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && isQuerySpecialChartType && queryChartDataType === ChartDataType.Overview.type && (!categoricalOverviewAnalysisData || !categoricalOverviewAnalysisData.items || !categoricalOverviewAnalysisData.items.length))
                                                   || (queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && (!categoricalAnalysisData || !categoricalAnalysisData.items || !categoricalAnalysisData.items.length))
                                                   || (queryAnalysisType === StatisticsAnalysisType.TrendAnalysis && (!trendsAnalysisData || !trendsAnalysisData.items || !trendsAnalysisData.items.length))
@@ -231,7 +257,7 @@
                                         <span class="statistics-subtitle statistics-overview-empty-tip">{{ tt('No transaction data') }}</span>
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && queryChartDataType === ChartDataType.Overview.type">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && queryChartDataType === ChartDataType.Overview.type">
                                         <account-and-category-sankey-chart
                                             :items="[]"
                                             :sorting-type="querySortingType"
@@ -247,7 +273,7 @@
                                         />
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Pie.type">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Pie.type">
                                         <pie-chart
                                             :items="[
                                                 {id: '1', name: '---', value: 60, color: '7c7c7f'},
@@ -278,7 +304,7 @@
                                         />
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Bar.type">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Bar.type">
                                         <v-list rounded lines="two" v-if="initing">
                                             <template :key="itemIdx" v-for="itemIdx in [ 1, 2, 3 ]">
                                                 <v-list-item class="ps-0">
@@ -333,7 +359,7 @@
                                         </v-list>
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Radar.type">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.CategoricalAnalysis && !isQuerySpecialChartType && query.categoricalChartType === CategoricalChartType.Radar.type">
                                         <radar-chart
                                             :items="[
                                                 {name: '---', value: 10},
@@ -362,7 +388,7 @@
                                         />
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.TrendAnalysis">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.TrendAnalysis">
                                         <trends-chart
                                             chart-mode="monthly"
                                             :type="queryChartType"
@@ -413,7 +439,7 @@
                                         />
                                     </v-card-text>
 
-                                    <v-card-text :class="{ 'readonly': loading }" v-if="queryAnalysisType === StatisticsAnalysisType.AssetTrends">
+                                    <v-card-text :class="{ 'readonly': loading }" v-if="!overviewMode && queryAnalysisType === StatisticsAnalysisType.AssetTrends">
                                         <trends-chart
                                             chart-mode="daily"
                                             :type="queryChartType"
@@ -509,6 +535,7 @@
 <script setup lang="ts">
 import SnackBar from '@/components/desktop/SnackBar.vue';
 import TrendsChart from '@/components/desktop/TrendsChart.vue';
+import StatisticsOverviewPanel from '@/views/desktop/statistics/components/StatisticsOverviewPanel.vue';
 import AccountFilterSettingsCard from '@/views/desktop/common/cards/AccountFilterSettingsCard.vue';
 import CategoryFilterSettingsCard from '@/views/desktop/common/cards/CategoryFilterSettingsCard.vue';
 import TransactionTagFilterSettingsCard from '@/views/desktop/common/cards/TransactionTagFilterSettingsCard.vue';
@@ -524,10 +551,14 @@ import { useStatisticsTransactionPageBase } from '@/views/base/statistics/Statis
 import { useAccountsStore } from '@/stores/account.ts';
 import { useTransactionCategoriesStore } from '@/stores/transactionCategory.ts';
 import { type TransactionStatisticsPartialFilter, useStatisticsStore } from '@/stores/statistics.ts';
+import { useUserStore } from '@/stores/user.ts';
 
 import type { TypeAndDisplayName } from '@/core/base.ts';
 import { type TextualYearMonth, type TimeRangeAndDateType, DateRangeScene, DateRange } from '@/core/datetime.ts';
+import { PresetAmountColor } from '@/core/color.ts';
 import { ThemeType } from '@/core/theme.ts';
+
+import type { TransactionCategoricalAnalysisDataItem, TransactionDailyAnalysisDataItem } from '@/models/transaction.ts';
 import {
     ChartDataAggregationType,
     StatisticsAnalysisType,
@@ -543,6 +574,7 @@ import {
     isDefined,
     isString,
     isNumber,
+    isObjectEmpty,
     arrayItemToObjectField
 } from '@/lib/common.ts';
 import {
@@ -553,6 +585,8 @@ import {
     getDateTypeByDateRange,
     getDateRangeByDateType
 } from '@/lib/datetime.ts';
+import { getFinalAccountIdsByFilteredAccountIds } from '@/lib/account.ts';
+import { getFinalCategoryIdsByFilteredCategoryIds } from '@/lib/category.ts';
 
 import {
     mdiCheck,
@@ -665,6 +699,55 @@ const showFilterTagDialog = ref<boolean>(false);
 
 const isDarkMode = computed<boolean>(() => theme.global.name.value === ThemeType.Dark);
 
+const userStore = useUserStore();
+
+// 「收支总览」视图：与移动端统计页保持一致（总览卡片 + 日收支图表 + 分类排行 + 日报表）
+const OVERVIEW_VIEW = 'overview';
+
+const overviewMode = ref<boolean>(true);
+
+const dailyAnalysisData = computed<TransactionDailyAnalysisDataItem[]>(() => statisticsStore.dailyAnalysisData);
+
+const overviewIncomeAmount = computed<number>(() => {
+    return categoricalOverviewAnalysisData.value?.totalIncome || 0;
+});
+
+const overviewExpenseAmount = computed<number>(() => {
+    return categoricalOverviewAnalysisData.value?.totalExpense || 0;
+});
+
+const overviewCategoryItems = computed<TransactionCategoricalAnalysisDataItem[]>(() => {
+    return categoricalAnalysisData.value?.items || [];
+});
+
+const overviewCategoryTotalAmount = computed<number>(() => {
+    return categoricalAnalysisData.value?.totalAmount || 0;
+});
+
+const overviewCategoryDimension = computed<'expense' | 'income'>(() => {
+    return query.value.chartDataType === ChartDataType.IncomeByPrimaryCategory.type ? 'income' : 'expense';
+});
+
+const overviewExpenseColor = computed<string>(() => {
+    const preset = PresetAmountColor.valueOf(userStore.currentUserExpenseAmountColor);
+
+    if (!preset) {
+        return PresetAmountColor.DefaultExpenseColor.lightThemeColor;
+    }
+
+    return isDarkMode.value ? preset.darkThemeColor : preset.lightThemeColor;
+});
+
+const overviewIncomeColor = computed<string>(() => {
+    const preset = PresetAmountColor.valueOf(userStore.currentUserIncomeAmountColor);
+
+    if (!preset) {
+        return PresetAmountColor.DefaultIncomeColor.lightThemeColor;
+    }
+
+    return isDarkMode.value ? preset.darkThemeColor : preset.lightThemeColor;
+});
+
 const statisticsDataHasData = computed<boolean>(() => {
     if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
         return !!categoricalAnalysisData.value && !!categoricalAnalysisData.value.items && categoricalAnalysisData.value.items.length > 0;
@@ -693,6 +776,19 @@ const queryAnalysisType = computed<StatisticsAnalysisType>({
     get: () => analysisType.value,
     set: (value: number) => {
         setAnalysisType(value);
+    }
+});
+
+const queryAnalysisTypeTab = computed<number | string>({
+    get: () => {
+        return overviewMode.value ? OVERVIEW_VIEW : analysisType.value;
+    },
+    set: (value: number | string) => {
+        if (value === OVERVIEW_VIEW) {
+            enterOverviewMode();
+        } else {
+            exitOverviewMode(value as StatisticsAnalysisType);
+        }
     }
 });
 
@@ -757,6 +853,9 @@ function getTransactionItemLinkUrl(itemId: string, dateRange?: TimeRangeAndDateT
 
 function init(initProps: TransactionStatisticsProps): void {
     let needReload = !isDefined(initProps.initAnalysisType);
+
+    // 从链接明确指定分析类型时尊重原视图，否则默认进入「收支总览」
+    overviewMode.value = !isDefined(initProps.initAnalysisType);
 
     const filter: TransactionStatisticsPartialFilter = {
         chartDataType: initProps.initChartDataType ? parseInt(initProps.initChartDataType) : undefined,
@@ -843,6 +942,10 @@ function init(initProps: TransactionStatisticsProps): void {
         statisticsStore.initTransactionStatisticsFilter(analysisType.value, filter);
     }
 
+    if (overviewMode.value && ensureOverviewCategoryDimension()) {
+        needReload = true;
+    }
+
     if (!needReload && !statisticsStore.transactionStatisticsStateInvalid) {
         loading.value = false;
         initing.value = false;
@@ -853,7 +956,9 @@ function init(initProps: TransactionStatisticsProps): void {
         accountsStore.loadAllAccounts({force: false}),
         transactionCategoriesStore.loadAllCategories({force: false})
     ]).then(() => {
-        if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
+        if (overviewMode.value) {
+            return loadOverviewStatisticsData({ force: false });
+        } else if (analysisType.value === StatisticsAnalysisType.CategoricalAnalysis) {
             return statisticsStore.loadCategoricalAnalysis({
                 force: false
             }) as Promise<unknown>;
@@ -886,7 +991,9 @@ function reload(force: boolean): Promise<unknown> | null {
 
     loading.value = true;
 
-    if (query.value.chartDataType === ChartDataType.Overview.type ||
+    if (overviewMode.value) {
+        dispatchPromise = loadOverviewStatisticsData({ force: force });
+    } else if (query.value.chartDataType === ChartDataType.Overview.type ||
         query.value.chartDataType === ChartDataType.OutflowsByAccount.type ||
         query.value.chartDataType === ChartDataType.ExpenseByAccount.type ||
         query.value.chartDataType === ChartDataType.ExpenseByPrimaryCategory.type ||
@@ -945,6 +1052,158 @@ function reload(force: boolean): Promise<unknown> | null {
     }
 
     return dispatchPromise;
+}
+
+function ensureOverviewCategoryDimension(): boolean {
+    if (query.value.chartDataType === ChartDataType.ExpenseByPrimaryCategory.type ||
+        query.value.chartDataType === ChartDataType.IncomeByPrimaryCategory.type) {
+        return false;
+    }
+
+    return statisticsStore.updateTransactionStatisticsFilter({
+        chartDataType: ChartDataType.ExpenseByPrimaryCategory.type
+    });
+}
+
+function loadOverviewStatisticsData({ force }: { force: boolean }): Promise<unknown> {
+    const promises: Promise<unknown>[] = [];
+
+    if (query.value.categoricalChartDateType === DateRange.All.type) {
+        statisticsStore.resetDailyAnalysisData();
+    } else {
+        promises.push(statisticsStore.loadDailyAnalysis({
+            force: force,
+            startTime: query.value.categoricalChartStartTime,
+            endTime: query.value.categoricalChartEndTime
+        }));
+    }
+
+    promises.push(statisticsStore.loadCategoricalAnalysis({
+        force: force
+    }));
+
+    // 刷新时若数据未变化，store 会以 isUpToDate 拒绝，这里视作成功，避免误报错误
+    return Promise.all(promises).catch(error => {
+        if (error && error.isUpToDate) {
+            return;
+        }
+
+        throw error;
+    });
+}
+
+function enterOverviewMode(): void {
+    if (overviewMode.value) {
+        return;
+    }
+
+    // 不重写 URL：保留当前筛选与日期范围，避免重新初始化过滤器时被清空
+    overviewMode.value = true;
+    ensureOverviewCategoryDimension();
+    loading.value = true;
+    reload(false);
+}
+
+function exitOverviewMode(type: StatisticsAnalysisType): void {
+    if (!overviewMode.value) {
+        setAnalysisType(type);
+        return;
+    }
+
+    overviewMode.value = false;
+
+    if (analysisType.value !== type) {
+        setAnalysisType(type);
+        return;
+    }
+
+    loading.value = true;
+    statisticsStore.updateTransactionStatisticsInvalidState(true);
+    router.push(getFilterLinkUrl());
+}
+
+function setOverviewCategoryDimension(dimension: 'expense' | 'income'): void {
+    const chartDataType = dimension === 'income' ? ChartDataType.IncomeByPrimaryCategory.type : ChartDataType.ExpenseByPrimaryCategory.type;
+
+    if (query.value.chartDataType === chartDataType) {
+        return;
+    }
+
+    statisticsStore.updateTransactionStatisticsFilter({
+        chartDataType: chartDataType
+    });
+
+    reload(false);
+}
+
+function onClickOverviewDailyChartItem(value: { minTime: number, maxTime: number, mode: 'expense' | 'income' | 'all' }): void {
+    const querys: string[] = [];
+
+    if (value.mode === 'income') {
+        querys.push('type=2');
+    } else if (value.mode === 'expense') {
+        querys.push('type=3');
+    }
+
+    if (!isObjectEmpty(query.value.filterAccountIds)) {
+        querys.push('accountIds=' + getFinalAccountIdsByFilteredAccountIds(accountsStore.allAccountsMap, query.value.filterAccountIds));
+    }
+
+    if (!isObjectEmpty(query.value.filterCategoryIds)) {
+        querys.push('categoryIds=' + getFinalCategoryIdsByFilteredCategoryIds(transactionCategoriesStore.allTransactionCategoriesMap, query.value.filterCategoryIds));
+    }
+
+    if (query.value.tagFilter) {
+        querys.push('tagFilter=' + query.value.tagFilter);
+    }
+
+    if (query.value.keyword) {
+        querys.push('keyword=' + encodeURIComponent(query.value.keyword));
+    }
+
+    const dateType = getDateTypeByDateRange(value.minTime, value.maxTime, firstDayOfWeek.value, fiscalYearStart.value, DateRangeScene.Normal);
+
+    querys.push('dateType=' + dateType);
+
+    if (dateType === DateRange.Custom.type) {
+        querys.push('minTime=' + value.minTime);
+        querys.push('maxTime=' + value.maxTime);
+    }
+
+    router.push('/transaction/list?' + querys.join('&'));
+}
+
+function onClickOverviewCategoryItem(itemId: string): void {
+    router.push(getTransactionItemLinkUrl(itemId));
+}
+
+function onClickOverviewViewDetails(): void {
+    const querys: string[] = [];
+
+    if (!isObjectEmpty(query.value.filterAccountIds)) {
+        querys.push('accountIds=' + getFinalAccountIdsByFilteredAccountIds(accountsStore.allAccountsMap, query.value.filterAccountIds));
+    }
+
+    if (!isObjectEmpty(query.value.filterCategoryIds)) {
+        querys.push('categoryIds=' + getFinalCategoryIdsByFilteredCategoryIds(transactionCategoriesStore.allTransactionCategoriesMap, query.value.filterCategoryIds));
+    }
+
+    if (query.value.tagFilter) {
+        querys.push('tagFilter=' + query.value.tagFilter);
+    }
+
+    if (query.value.keyword) {
+        querys.push('keyword=' + encodeURIComponent(query.value.keyword));
+    }
+
+    querys.push('dateType=' + query.value.categoricalChartDateType);
+
+    if (query.value.categoricalChartDateType === DateRange.Custom.type) {
+        querys.push('minTime=' + query.value.categoricalChartStartTime);
+        querys.push('maxTime=' + query.value.categoricalChartEndTime);
+    }
+
+    router.push('/transaction/list?' + querys.join('&'));
 }
 
 function setAnalysisType(type: StatisticsAnalysisType): void {

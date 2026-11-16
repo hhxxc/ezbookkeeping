@@ -244,7 +244,7 @@ app.component('MapSheet', asyncComp(() => import('@/components/mobile/MapSheet.v
 app.component('TransactionTagSelectionSheet', asyncComp(() => import('@/components/mobile/TransactionTagSelectionSheet.vue')));
 app.component('ScheduleFrequencySheet', asyncComp(() => import('@/components/mobile/ScheduleFrequencySheet.vue')));
 app.component('AccountBalanceTrendsBarChart', asyncComp(() => import('@/components/mobile/AccountBalanceTrendsBarChart.vue')));
-app.component('DailyIncomeExpenseBarChart', asyncComp(() => import('@/components/mobile/DailyIncomeExpenseBarChart.vue')));
+app.component('DailyIncomeExpenseBarChart', asyncComp(() => import('@/components/common/DailyIncomeExpenseChart.vue')));
 app.component('AIImageRecognitionSheet', asyncComp(() => import('@/components/mobile/AIImageRecognitionSheet.vue')));
 
 app.directive('TextareaAutoSize', TextareaAutoSize);

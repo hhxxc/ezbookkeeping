@@ -4,7 +4,7 @@
             {{ tt('No transaction data') }}
         </div>
 
-        <svg class="daily-income-expense-chart" viewBox="0 0 340 216" v-else>
+        <svg class="daily-income-expense-chart" viewBox="0 0 340 216" preserveAspectRatio="xMidYMid meet" v-else>
             <g class="daily-income-expense-chart-grid" v-if="yAxisStep > 0">
                 <line :x1="chartLeft" :y1="getYAxisValue(yAxisStep * tickIdx)" :x2="340 - chartRight" :y2="getYAxisValue(yAxisStep * tickIdx)"
                       :class="{ 'daily-income-expense-chart-grid-line': true, 'daily-income-expense-chart-grid-baseline': tickIdx === 0 }"
@@ -82,7 +82,7 @@ interface DailyIncomeExpenseChartDataItem {
     readonly incomeAmount: number;
 }
 
-interface MobileDailyIncomeExpenseBarChartProps {
+interface DailyIncomeExpenseChartProps {
     items: DailyIncomeExpenseChartDataItem[];
     mode?: 'expense' | 'income' | 'all';
     chartType?: 'bar' | 'line';
@@ -91,7 +91,7 @@ interface MobileDailyIncomeExpenseBarChartProps {
     incomeColor?: string;
 }
 
-const props = withDefaults(defineProps<MobileDailyIncomeExpenseBarChartProps>(), {
+const props = withDefaults(defineProps<DailyIncomeExpenseChartProps>(), {
     mode: 'expense',
     chartType: 'bar',
     loading: false,
@@ -292,17 +292,18 @@ function clickItem(item: DailyIncomeExpenseChartDataItem): void {
 .daily-income-expense-chart {
     display: block;
     width: 100%;
+    max-height: 340px;
 }
 
 .daily-income-expense-chart-empty {
     padding: 42px 16px;
     text-align: center;
-    color: var(--f7-text-color);
+    color: var(--f7-text-color, currentColor);
     opacity: 0.65;
 }
 
 .daily-income-expense-chart-grid-line {
-    stroke: var(--ebk-divider-color);
+    stroke: var(--ebk-divider-color, rgba(128, 128, 128, 0.3));
     stroke-width: 1;
     stroke-dasharray: 4 4;
 }
@@ -315,7 +316,7 @@ function clickItem(item: DailyIncomeExpenseChartDataItem): void {
 .daily-income-expense-chart-y-label,
 .daily-income-expense-chart-x-label {
     font-size: 11px;
-    fill: var(--f7-text-color);
+    fill: var(--f7-text-color, currentColor);
     opacity: 0.45;
     text-anchor: middle;
 }
@@ -338,5 +339,6 @@ function clickItem(item: DailyIncomeExpenseChartDataItem): void {
 
 .daily-income-expense-chart-click-area {
     fill: transparent;
+    cursor: pointer;
 }
 </style>
