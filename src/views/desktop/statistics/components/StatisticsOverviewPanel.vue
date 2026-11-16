@@ -244,7 +244,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    (e: 'update:categoryDimension', value: 'expense' | 'income'): void;
+    (e: 'update:category-dimension', value: 'expense' | 'income'): void;
     (e: 'click:day', value: { minTime: number, maxTime: number, mode: 'expense' | 'income' | 'all' }): void;
     (e: 'click:category', value: string): void;
     (e: 'view:details'): void;
@@ -531,7 +531,7 @@ function setCategoryDimension(dimension: 'expense' | 'income'): void {
         return;
     }
 
-    emit('update:categoryDimension', dimension);
+    emit('update:category-dimension', dimension);
 }
 
 function onClickDailyChartItem(value: { minTime: number, maxTime: number }): void {
