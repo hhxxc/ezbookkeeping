@@ -36,8 +36,49 @@ LOG="$STATE_DIR/autodeploy.log"
 LOCK="$STATE_DIR/.autodeploy.lock"
 DOCKER_BIN="/usr/local/bin/docker"
 
+# 告警：走 NAS 本机 Apprise API（渠道配置在容器 data 里，脚本零凭据）。
+# 仅在「连续失败达阈值」与「恢复」时发送，通知本身失败静默（不影响主流程）。
+APPRISE_URL="${AUTODEPLOY_APPRISE_URL:-http://localhost:8082/notify/8b}"
+FAIL_FILE="$STATE_DIR/.autodeploy_failcount"
+
 ts() { date +"%Y-%m-%d %H:%M:%S"; }
 log() { echo "[$(ts)] $1" >> "$LOG"; }
+
+# $1=标题 $2=正文 $3=类型(warning|info)；payload 用临时文件避开引号/JSON 转义坑
+notify() {
+    [ -n "$APPRISE_URL" ] || return 0
+    local tmp
+    tmp=$(mktemp)
+    printf '{"title":"%s","body":"%s","type":"%s","format":"text"}' "$1" "$2" "${3:-warning}" > "$tmp"
+    curl -s -m 30 -X POST "$APPRISE_URL" -H "Content-Type: application/json" -d @"$tmp" >/dev/null 2>&1
+    rm -f "$tmp"
+}
+
+# 连续失败计数：第 3 次与之后每满 30 次发一次告警（每 10 分钟重试）
+mark_fail() { # $1=固定措辞的失败原因（不含引号/反斜杠，保证 JSON 安全）
+    local count=0
+    [ -f "$FAIL_FILE" ] && count=$(cat "$FAIL_FILE" 2>/dev/null)
+    case "$count" in ''|*[!0-9]*) count=0 ;; esac
+    count=$((count + 1))
+    echo "$count" > "$FAIL_FILE"
+    if [ "$count" -eq 3 ] || [ $((count % 30)) -eq 0 ]; then
+        notify "巢记自动部署失败" "Web 服务端自动部署已连续失败 $count 次（每 10 分钟自动重试）。原因：$1" 
+        log "WARN: 已发送告警（连续失败 $count 次）"
+    fi
+}
+
+mark_ok() {
+    if [ -f "$FAIL_FILE" ]; then
+        local count
+        count=$(cat "$FAIL_FILE" 2>/dev/null)
+        rm -f "$FAIL_FILE"
+        case "$count" in ''|*[!0-9]*) count=0 ;; esac
+        if [ "$count" -ge 3 ]; then
+            notify "巢记自动部署恢复" "此前连续失败 $count 次，现已恢复正常。" info
+            log "已发送恢复通知（此前失败 $count 次）"
+        fi
+    fi
+}
 
 # cron 里以 root 运行，手动执行时是普通用户（hhxxc 有 sudo 免密）
 dk() {
@@ -75,6 +116,7 @@ PROBE_IMAGE="${MIRROR}/${IMAGE_REPO}:latest-snapshot"
 
 if ! dk pull -q "$PROBE_IMAGE" > /dev/null 2>&1; then
     log "WARN: 从镜像站 $MIRROR 拉取失败，跳过本次"
+    mark_fail "从镜像站拉取镜像失败"
     exit 0
 fi
 
@@ -82,6 +124,7 @@ REMOTE=$(dk inspect --format '{{index .Config.Labels "org.opencontainers.image.r
 
 if [ -z "$REMOTE" ] || [ "$REMOTE" = "<no value>" ]; then
     log "WARN: 读取镜像 commit 标签失败，跳过本次"
+    mark_fail "读取镜像 commit 标签失败"
     exit 0
 fi
 
@@ -90,6 +133,7 @@ LAST=""
 
 # 无更新：静默退出（不打日志避免刷屏）
 if [ "$REMOTE" = "$LAST" ]; then
+    mark_ok
     exit 0
 fi
 
@@ -102,6 +146,7 @@ if [ -z "$LAST" ]; then
     else
         log "初始化 commit 基线：$REMOTE"
     fi
+    mark_ok
     exit 0
 fi
 
@@ -110,8 +155,10 @@ log "发现新镜像 commit：$REMOTE（旧：$LAST），开始部署"
 if bash "$DEPLOY" >> "$LOG" 2>&1; then
     echo "$REMOTE" > "$LEVEL_FILE"
     log "部署完成，已更新基线"
+    mark_ok
 else
     log "ERROR: deploy.sh 失败（详见上方日志），基线未更新，下轮重试"
+    mark_fail "deploy.sh 执行失败"
 fi
 
 # 日志只留最近 500 行
