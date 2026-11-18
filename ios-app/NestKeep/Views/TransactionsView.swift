@@ -1723,6 +1723,30 @@ struct BillListPageView: View {
     @State private var showFilter = false
     @FocusState private var searchFieldFocused: Bool
 
+    /// 切换排序：与筛选面板里的 Picker 共用同一份 filter 状态
+    private func applySort(by field: String, order: String) {
+        guard vm.filter.sortBy != field || vm.filter.sortOrder != order else { return }
+
+        var newFilter = vm.filter
+        newFilter.sortBy = field
+        newFilter.sortOrder = order
+        vm.applyFilter(newFilter)
+    }
+
+    /// 排序菜单项：当前生效项带对勾
+    @ViewBuilder
+    private func sortMenuItem(title: String, field: String, order: String) -> some View {
+        Button {
+            applySort(by: field, order: order)
+        } label: {
+            if vm.filter.sortBy == field && vm.filter.sortOrder == order {
+                Label(title, systemImage: "checkmark")
+            } else {
+                Text(title)
+            }
+        }
+    }
+
     // 按日分组改用 vm.groupedByDay（缓存，见 TransactionsViewModel.rebuildGrouping）
 
     var body: some View {
@@ -1759,6 +1783,20 @@ struct BillListPageView: View {
                                 .foregroundColor(vm.filter.isActive ? Theme.brand : .secondary)
                         }
                         .buttonStyle(.plain)
+                        // 排序快捷入口：金额/时间排序一步切换，不用点进筛选面板
+                        Menu {
+                            sortMenuItem(title: "默认排序", field: "", order: "desc")
+                            sortMenuItem(title: "时间倒序", field: "time", order: "desc")
+                            sortMenuItem(title: "金额从高到低", field: "amount", order: "desc")
+                            sortMenuItem(title: "金额从低到高", field: "amount", order: "asc")
+                        } label: {
+                            Image(systemName: vm.filter.sortBy.isEmpty
+                                    ? "arrow.up.arrow.down.circle"
+                                    : "arrow.up.arrow.down.circle.fill")
+                                .foregroundColor(vm.filter.sortBy.isEmpty ? .secondary : Theme.brand)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("排序")
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
