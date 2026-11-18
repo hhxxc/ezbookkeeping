@@ -26,7 +26,6 @@ LOCAL_OVERRIDE="$(cd "$(dirname "$0")" && pwd)/nas.local.sh"
 [ -f "$LOCAL_OVERRIDE" ] && . "$LOCAL_OVERRIDE"
 
 RELEASE_IMAGE="${RELEASE_IMAGE:-hhxxc/nestkeep-release}"
-TAG_URL="${NK_TAG_URL:-https://hub.docker.com/v2/repositories/${RELEASE_IMAGE}/tags/latest}"
 DATA_DIR="${NK_DATA_DIR:-/volume2/docker/ezbk/nestkeep}"
 STATE_DIR="${NK_STATE_DIR:-/volume2/docker/ezbk}"
 DIGEST_FILE="$STATE_DIR/.nk_autosync_last_digest"
@@ -97,34 +96,10 @@ if ! mkdir "$LOCK" 2>/dev/null; then
 fi
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 
-# 1. 查远端 digest（网络失败静默跳过，下轮再试）
-REMOTE=$(curl -sf --max-time 20 "$TAG_URL" | grep -o '"digest":"sha256:[a-f0-9]*"' | head -1 | cut -d'"' -f4)
-if [ -z "$REMOTE" ]; then
-    log "WARN: 查询 Docker Hub 失败，跳过本次"
-    mark_fail "查询 Docker Hub digest 失败"
-    exit 0
-fi
-
-LAST=""
-[ -f "$DIGEST_FILE" ] && LAST=$(cat "$DIGEST_FILE")
-
-# 无更新：静默退出（有历史失败则顺手清零/发恢复通知——无待同步任务即视为健康）
-if [ "$REMOTE" = "$LAST" ]; then
-    mark_ok
-    exit 0
-fi
-
-# 首次运行：只记基线，不解包
-if [ -z "$LAST" ]; then
-    echo "$REMOTE" > "$DIGEST_FILE"
-    log "初始化 digest 基线：$REMOTE"
-    exit 0
-fi
-
-# 2. 有新镜像：拉取并解包。
-# 国内家宽直连 registry-1.docker.io 常超时（hub.docker.com 的 API 反而可达），
-# 与 deploy.sh 相同策略：直连失败依次回退镜像站，成功后改回标准 tag。
-PULL_MIRRORS="${NK_PULL_MIRRORS:-docker.m.daocloud.io dockerpull.org docker.1panel.live}"
+# 1. 先把镜像取到本地（未更新时只走 manifest，秒级返回），再用本地镜像 ID 判断版本。
+#    原实现查 hub.docker.com 的 API，NAS 在墙内长期超时（同 autodeploy 的教训：
+#    静默失败很久都没人发现），改为完全依赖能连通的镜像站。
+PULL_MIRRORS="${NK_PULL_MIRRORS:-docker.1ms.run docker.m.daocloud.io dockerpull.org docker.1panel.live}"
 
 do_pull() {
     if "$DOCKER_BIN" pull -q "$RELEASE_IMAGE:latest" >> "$LOG" 2>&1; then
@@ -142,12 +117,38 @@ do_pull() {
     return 1
 }
 
-log "发现新发版镜像 digest：$REMOTE（旧：$LAST），开始同步"
 if ! do_pull; then
-    log "ERROR: 所有源拉取失败，基线未更新，下轮重试"
+    log "WARN: 所有源拉取失败，跳过本次"
     mark_fail "镜像拉取失败（直连与全部镜像站均不可达）"
-    exit 1
+    exit 0
 fi
+
+REMOTE=$("$DOCKER_BIN" inspect --format '{{.Id}}' "$RELEASE_IMAGE:latest" 2>/dev/null)
+if [ -z "$REMOTE" ]; then
+    log "WARN: 读取本地镜像 ID 失败，跳过本次"
+    mark_fail "读取本地镜像 ID 失败"
+    exit 0
+fi
+
+LAST=""
+[ -f "$DIGEST_FILE" ] && LAST=$(cat "$DIGEST_FILE")
+
+# 无更新：静默退出（有历史失败则顺手清零/发恢复通知——无待同步任务即视为健康）
+if [ "$REMOTE" = "$LAST" ]; then
+    mark_ok
+    exit 0
+fi
+
+# 首次运行：只记基线，不解包
+if [ -z "$LAST" ]; then
+    echo "$REMOTE" > "$DIGEST_FILE"
+    log "初始化镜像 ID 基线：$REMOTE"
+    mark_ok
+    exit 0
+fi
+
+# 2. 有新镜像：解包（镜像已在上一步拉好）
+log "发现新发版镜像：$REMOTE（旧：$LAST），开始同步"
 
 # scratch 镜像无 CMD，create 需显式 entrypoint（仅创建容器不执行，任何值都可）
 CID=$("$DOCKER_BIN" create --entrypoint /bin/true "$RELEASE_IMAGE:latest" 2>> "$LOG")
