@@ -231,8 +231,6 @@ struct AccountsView: View {
     @State private var sortItems: [Account] = []
     /// 净资产卡纯色背景选择条（内联展开，不依赖 sheet）
     @State private var showInlinePreset = false
-    /// 年度分析页 push 开关
-    @State private var showAnalysis = false
 
     /// 排序模式下的扁平账户列表（父 + 可见子账户）
     private func flatSortableAccounts() -> [Account] {
@@ -368,10 +366,6 @@ struct AccountsView: View {
             }
             .navigationBarHidden(true)
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
-            // 年度分析页（原生 push，返回即回账户页）
-            .background(
-                NavigationLink(destination: YearlyAnalysisView(year: currentYear), isActive: $showAnalysis) { EmptyView() }
-            )
         }
         .navigationViewStyle(.stack)
         .sheet(isPresented: $showAdd) {
@@ -669,8 +663,11 @@ struct AccountsView: View {
                 }
             }
 
-            // 年度分析入口：逐月趋势 / 建议与提醒 / 预算分配
-            Button { showAnalysis = true } label: {
+            // 年度分析入口：逐月趋势 / 建议与提醒 / 预算分配。
+            // 用标准内联 NavigationLink——此前是 Button 置位 + .background() 藏
+            // NavigationLink(isActive:) 编程式激活，该 hack 在 iOS 15~17 上
+            // 时灵时不灵，入口点了没反应；内联链接由系统直接接管，稳定 push
+            NavigationLink(destination: YearlyAnalysisView(year: currentYear)) {
                 HStack(spacing: 6) {
                     Image(systemName: "chart.bar.doc.horizontal")
                         .font(.system(size: 13, weight: .medium))
@@ -682,6 +679,7 @@ struct AccountsView: View {
                 }
                 .foregroundColor(Theme.brand)
                 .padding(.top, 12)
+                .padding(.bottom, 2)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
