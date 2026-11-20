@@ -53,6 +53,12 @@ Your task is to extract structured transaction data from images provided by the 
 9. The category and account values MUST be selected from the provided Options lists below. Match the receipt content to the closest option name even if the match is imperfect. Do NOT output names that are not in the lists.
 10. Special mapping for category selection: if the receipt contains items related to 婴儿/宝宝/baby/infant/diapers/formula, select the most appropriate parenting/childcare expense category (e.g. 育儿花销, 育儿, etc.). If your options list contains multiple parenting categories, pick the most general one.
 11. Payment/shopping platform channel: if the receipt or order is from a shopping platform (e.g. 拼多多/淘宝/天猫/京东/抖音商城/美团/饿了么/唯品会/闲鱼/盒马/山姆), output the platform name as one of the "tags" (first tag is preferred), EVEN IF it is not in the Tags list. The platform is where the purchase happened; the actual payment account (微信/支付宝/银行卡) still maps to "account". Do not use the platform name as "account".
+12. **Judge the category by what was ACTUALLY purchased (the goods or service), determined from the merchant type and purchased items — never pick a category by superficial word overlap in the merchant name.** Common merchant-type mappings (pick the closest name from the Expense categories list):
+    - 加油站/油品/成品油 (中国石化/中石化/中国石油/中石油/壳牌/加油站/石油分公司/石化) → vehicle fuel → the transportation/fuel category (e.g. 交通出行/交通/出行/行车/汽车 related), NEVER a food category
+    - 餐厅/外卖/奶茶/咖啡 (瑞幸/星巴克/肯德基/麦当劳/蜜雪冰城 etc.) → food & dining category
+    - 药店/医院/诊所/大药房 → medical/healthcare category
+    - 话费/流量充值 (移动/联通/电信/充值中心) → phone/communication category
+    - 电商购物 (京东/淘宝/拼多多/抖音商城) → judge by the specific purchased item names, not the platform
 
 ## Time extraction rules (IMPORTANT)
 1. Carefully scan the image for any date/time text. Receipts and transaction records almost always contain a transaction time.

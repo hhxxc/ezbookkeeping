@@ -554,9 +554,7 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 		recognizedReceiptImageResponse.Type = models.TRANSACTION_TYPE_INCOME
 
 		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := incomeCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
+			if category := matchCategoryByName(c, uid, recognizedResult.CategoryName, incomeCategoryMap); category != nil {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
 			}
 		}
@@ -564,9 +562,7 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 		recognizedReceiptImageResponse.Type = models.TRANSACTION_TYPE_EXPENSE
 
 		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := expenseCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
+			if category := matchCategoryByName(c, uid, recognizedResult.CategoryName, expenseCategoryMap); category != nil {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
 			}
 		}
@@ -574,9 +570,7 @@ func (a *LargeLanguageModelsApi) parseRecognizedReceiptImageResponse(c *core.Web
 		recognizedReceiptImageResponse.Type = models.TRANSACTION_TYPE_TRANSFER
 
 		if len(recognizedResult.CategoryName) > 0 {
-			category, exists := transferCategoryMap[recognizedResult.CategoryName]
-
-			if exists {
+			if category := matchCategoryByName(c, uid, recognizedResult.CategoryName, transferCategoryMap); category != nil {
 				recognizedReceiptImageResponse.CategoryId = category.CategoryId
 			}
 		}
@@ -737,6 +731,44 @@ var paymentChannelKeywordGroups = [][]string{
 //  1. exact name match
 //  2. payment channel synonym groups: both names hit the same channel group
 //  3. longest common substring (>= 2 runes), unique best candidate wins
+// matchCategoryByName matches the recognized category name against the user's
+// category map: exact match first, then longest-common-substring fuzzy match
+// (strictly unique winner, >=2 runes). LLM outputs often differ slightly from
+// the user's configured names (e.g. "交通出行" vs "出行"); an exact-only match
+// leaves the category id empty and clients then fall back to the first category,
+// which caused obvious misclassification (gas station receipt -> food category).
+func matchCategoryByName(c *core.WebContext, uid int64, name string, categoryMap map[string]*models.TransactionCategory) *models.TransactionCategory {
+	if category, exists := categoryMap[name]; exists {
+		return category
+	}
+
+	lowerName := strings.ToLower(name)
+
+	var best *models.TransactionCategory
+	bestScore := 0
+	secondScore := 0
+
+	for _, category := range categoryMap {
+		score := longestCommonSubstringLength(lowerName, strings.ToLower(category.Name))
+
+		if score > bestScore {
+			secondScore = bestScore
+			bestScore = score
+			best = category
+		} else if score > secondScore {
+			secondScore = score
+		}
+	}
+
+	if best != nil && bestScore >= 2 && bestScore > secondScore {
+		log.Infof(c, "[large_language_models.matchCategoryByName] category name \"%s\" fuzzy matched to category \"%s\" for user \"uid:%d\"", name, best.Name, uid)
+		return best
+	}
+
+	log.Infof(c, "[large_language_models.matchCategoryByName] category name \"%s\" cannot be matched to any user category, leaving it empty for user \"uid:%d\"", name, uid)
+	return nil
+}
+
 func matchAccountByName(c *core.WebContext, uid int64, name string, accountMap map[string]*models.Account) *models.Account {
 	if account, exists := accountMap[name]; exists {
 		return account
